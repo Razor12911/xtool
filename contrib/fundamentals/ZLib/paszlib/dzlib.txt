@@ -1,0 +1,102 @@
+The Delphi 3 CD-ROM contains in \INFO\EXTRAS\ZLIB a zlib unit that implements
+the TCompressionStream and TDecompressionStream classes. With some changes to
+this unit you can implement the same functionality using Paszlib. I can not
+publish the modified file (Copyright 1997 by Borland International), but this
+document tells you how to make the changes by hand.
+
+
+1. zlib.pas conflicts to a Paszlib unit name, change the name to dzlib.pas.
+< unit dzlib;
+---
+> unit zlib;
+
+2. Add zlib to the uses clause:
+< uses zlib, Sysutils, Classes;
+---
+> uses Sysutils, Classes;
+
+3. Change the type declarations for TAlloc, TFree and TZStreamRec to
+<   TAlloc = alloc_func;
+<   TFree = free_func;
+<   TZStreamRec = z_stream;
+
+4. Remove the zlib_Version const.
+> const
+>   zlib_Version = '1.0.4';
+
+5. In the implementation part, add the following uses clause
+< uses
+<   zutil, zDeflate, zInflate;
+
+6. remove all Z_xxx const, {$L xxx} and all external procedures up to
+   (and including) the inflateReset() function and the _memset and _memcpy
+   procedure definitions.
+
+7. for compatibility with D1 you should change the type of the "Size"
+   parameter of the zlibAllocMem() function from Integer to Cardinal
+   and all comments of the // form into the {} form.
+
+8. Now, make the following changes, so that the dzlib can compile, you
+   can then use the modified unit dzlib in the test.pas source.
+185c293
+<     CCheck(deflateInit_(@strm, Z_BEST_COMPRESSION, zlib_version, sizeof(strm)));
+---
+>     CCheck(deflateInit_(strm, Z_BEST_COMPRESSION, zlib_version, sizeof(strm)));
+192c300
+<         strm.next_out := pBytef(Integer(OutBuf) + (Integer(strm.next_out) - Integer(P)));
+---
+>         strm.next_out := PChar(Integer(OutBuf) + (Integer(strm.next_out) - Integer(P)));
+228c336
+<     DCheck(inflateInit_(@strm, zlib_version, sizeof(strm)));
+---
+>     DCheck(inflateInit_(strm, zlib_version, sizeof(strm)));
+235c343
+<         strm.next_out := pBytef(Integer(OutBuf) + (Integer(strm.next_out) - Integer(P)));
+---
+>         strm.next_out := PChar(Integer(OutBuf) + (Integer(strm.next_out) - Integer(P)));
+250c358
+276c384
+<   FZRec.next_out := @FBuffer;
+---
+>   FZRec.next_out := FBuffer;
+278c386
+<   CCheck(deflateInit_(@FZRec, Levels[CompressionLevel], zlib_version, sizeof(FZRec)));
+---
+>   CCheck(deflateInit_(FZRec, Levels[CompressionLevel], zlib_version, sizeof(FZRec)));
+291c399
+<       FZRec.next_out := @FBuffer;
+---
+>       FZRec.next_out := FBuffer;
+318c426
+<       FZRec.next_out := @FBuffer;
+---
+>       FZRec.next_out := FBuffer;
+344c452
+<   FZRec.next_in := @FBuffer;
+---
+>   FZRec.next_in := FBuffer;
+351c459
+<   DCheck(inflateInit_(@FZRec, zlib_version, sizeof(FZRec)));
+---
+>   DCheck(inflateInit_(FZRec, zlib_version, sizeof(FZRec)));
+375c483
+<       FZRec.next_in := @FBuffer;
+---
+>       FZRec.next_in := FBuffer;
+397c505
+<     FZRec.next_in := @FBuffer;
+---
+>     FZRec.next_in := FBuffer;
+
+9. This is a bug fix:
+   in CompressBuf() change
+<     while CCheck(deflate(strm, Z_FINISH)) <> Z_STREAM_END do
+to
+>     while deflate(strm, Z_FINISH) <> Z_STREAM_END do
+
+   in DeCompressBuf() change
+<      while CCheck(inflate(strm, Z_FINISH)) <> Z_STREAM_END do
+to
+>      while inflate(strm, Z_FINISH) <> Z_STREAM_END do
+
+Jacques Nomssi Nzali <nomssi@physik.tu-chemnitz.de> [25.3.2000]

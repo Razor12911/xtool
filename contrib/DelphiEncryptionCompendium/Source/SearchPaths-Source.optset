@@ -1,0 +1,24 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_DcuOutput>.\..\Compiled\DCU_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_DcuOutput>
+        <DCC_ExeOutput>.\..\Compiled\BIN_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_ExeOutput>
+        <DCC_HppOutput>.\..\Compiled\DCP_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_HppOutput>
+        <DCC_ObjOutput>.\..\Compiled\DCU_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_ObjOutput>
+        <DCC_BpiOutput>.\..\Compiled\DCP_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_BpiOutput>
+        <DCC_UnitSearchPath>.\..\Compiled\DCU_IDE$(ProductVersion)_$(Platform)_$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_BplOutput>.\..\Compiled\BIN_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_BplOutput>
+        <DCC_DcpOutput>.\..\Compiled\DCP_IDE$(ProductVersion)_$(Platform)_$(Config)</DCC_DcpOutput>
+        <VerInfo_Locale>1031</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <SanitizedProjectName>DEC60</SanitizedProjectName>
+    </PropertyGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>OptionSet</Borland.ProjectType>
+        <BorlandProject>
+            <Delphi.Personality/>
+        </BorlandProject>
+        <ProjectFileVersion>12</ProjectFileVersion>
+    </ProjectExtensions>
+</Project>

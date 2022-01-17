@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="DEC60Lazarus"/>
+    <Author Value="geheimniswelten"/>
+    <AutoUpdate Value="Manually"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <UnitOutputDirectory Value="$(PkgDir)\..\Compiled\DCU_Lazarus_$(TargetCPU)_$(TargetOS)_$(BuildMode)\"/>
+      </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <SyntaxMode Value="DelphiUnicode"/>
+        </SyntaxOptions>
+      </Parsing>
+    </CompilerOptions>
+    <Description Value="Delphi Encryption Compendium (DEC)"/>
+    <License Value="AFL 2.0"/>
+    <Version Major="6"/>
+    <Files Count="21">
+      <Item1>
+        <Filename Value="DECBaseClass.pas"/>
+        <UnitName Value="DECBaseClass"/>
+      </Item1>
+      <Item2>
+        <Filename Value="DECCipherBase.pas"/>
+        <UnitName Value="DECCipherBase"/>
+      </Item2>
+      <Item3>
+        <Filename Value="DECCipherFormats.pas"/>
+        <UnitName Value="DECCipherFormats"/>
+      </Item3>
+      <Item4>
+        <Filename Value="DECCipherInterface.pas"/>
+        <UnitName Value="DECCipherInterface"/>
+      </Item4>
+      <Item5>
+        <Filename Value="DECCipherModes.pas"/>
+        <UnitName Value="DECCipherModes"/>
+      </Item5>
+      <Item6>
+        <Filename Value="DECCiphers.pas"/>
+        <UnitName Value="DECCiphers"/>
+      </Item6>
+      <Item7>
+        <Filename Value="DECCRC.pas"/>
+        <UnitName Value="DECCRC"/>
+      </Item7>
+      <Item8>
+        <Filename Value="DECData.pas"/>
+        <UnitName Value="DECData"/>
+      </Item8>
+      <Item9>
+        <Filename Value="DECDataCipher.pas"/>
+        <UnitName Value="DECDataCipher"/>
+      </Item9>
+      <Item10>
+        <Filename Value="DECDataHash.pas"/>
+        <UnitName Value="DECDataHash"/>
+      </Item10>
+      <Item11>
+        <Filename Value="DECFormat.pas"/>
+        <UnitName Value="DECFormat"/>
+      </Item11>
+      <Item12>
+        <Filename Value="DECFormatBase.pas"/>
+        <UnitName Value="DECFormatBase"/>
+      </Item12>
+      <Item13>
+        <Filename Value="DECHash.pas"/>
+        <UnitName Value="DECHash"/>
+      </Item13>
+      <Item14>
+        <Filename Value="DECHashBase.pas"/>
+        <UnitName Value="DECHashBase"/>
+      </Item14>
+      <Item15>
+        <Filename Value="DECHashInterface.pas"/>
+        <UnitName Value="DECHashInterface"/>
+      </Item15>
+      <Item16>
+        <Filename Value="DECRandom.pas"/>
+        <UnitName Value="DECRandom"/>
+      </Item16>
+      <Item17>
+        <Filename Value="DECTypes.pas"/>
+        <UnitName Value="DECTypes"/>
+      </Item17>
+      <Item18>
+        <Filename Value="DECUtil.pas"/>
+        <UnitName Value="DECUtil"/>
+      </Item18>
+      <Item19>
+        <Filename Value="DECUtilRawByteStringHelper.pas"/>
+        <UnitName Value="DECUtilRawByteStringHelper"/>
+      </Item19>
+      <Item20>
+        <Filename Value="DECHash.asm86.inc"/>
+        <Type Value="Include"/>
+      </Item20>
+      <Item21>
+        <Filename Value="DECOptions.inc"/>
+        <Type Value="Include"/>
+      </Item21>
+    </Files>
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="FCL"/>
+      </Item1>
+    </RequiredPkgs>
+    <PublishOptions>
+      <Version Value="2"/>
+      <OpenInFileMan Value="True"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

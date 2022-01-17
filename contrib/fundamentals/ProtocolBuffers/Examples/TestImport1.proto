@@ -1,0 +1,6 @@
+package TestImport1;
+
+enum EnumGlobal {
+    gVal1 = 1;
+    gVal2 = 2;
+}

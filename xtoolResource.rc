@@ -1,0 +1,2 @@
+XDELTA86_DLL RCDATA "resources\\Win32\\xdelta3_dll.dll"
+XDELTA64_DLL RCDATA "resources\\Win64\\xdelta3_dll.dll"

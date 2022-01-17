@@ -1,0 +1,33 @@
+object Form1: TForm1
+  Left = 499
+  Height = 502
+  Top = 128
+  Width = 715
+  Caption = 'Form1'
+  ClientHeight = 502
+  ClientWidth = 715
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '1.8.0.6'
+  object Memo1: TMemo
+    Left = 0
+    Height = 502
+    Top = 0
+    Width = 715
+    Align = alClient
+    Lines.Strings = (
+      'Memo1'
+    )
+    ScrollBars = ssAutoBoth
+    TabOrder = 0
+  end
+  object Button1: TButton
+    Left = 608
+    Height = 25
+    Top = 16
+    Width = 75
+    Caption = 'test'
+    OnClick = Button1Click
+    TabOrder = 1
+  end
+end

@@ -1,0 +1,47 @@
+DEC - Delphi Encryption Compendium
+Version 6.2
+
+Copyright (c) 2018 - 2020 Norman Gallery (ng931884 [at] gmx [dot] de)
+Copyright (c) 2016 - 2021 Markus Humm (markus [dot] humm [at] googlemail [dot] com) (main contact)
+Copyright (c) 2008 - 2019 Frederik A. Winkelsdorf (winkelsdorf [at] gmail [dot] com)
+Copyright (c) 1999 - 2008 Hagen Reddmann (HaReddmann [at] T-Online [dot] de)
+
+This software is licensed to you under the Apache License 2.0.
+A copy of the license text can be found in the LICENSE.txt file in this project or
+alternatively at http://www.apache.org/licenses/LICENSE-2.0
+
+The DEC team wishes to thank the following other people for their contributions:
+
+Andreas Hausladen
+Remy Lebeau
+himitsu
+NamenLozer
+jaenicke
+Kas Ob.
+jaclas
+mknox74
+EdAdvokat
+Michael II
+
+Parts of the work loosely based on the works of Wolfgang Erhardt, who is
+unfortunately dead already.
+
+The SHA3 permutation kernel used is original copyright by Eric Grange and used 
+with his permission.
+
+
+                      *** Export/Import Controls ***
+
+This is cryptographic software. Even if it is created, maintained and
+distributed from liberal countries in Europe (where it is legal to do this),
+it falls under certain export/import and/or use restrictions in some other
+parts of the world.
+
+PLEASE REMEMBER THAT EXPORT/IMPORT AND/OR USE OF STRONG CRYPTOGRAPHY
+SOFTWARE OR EVEN JUST COMMUNICATING TECHNICAL DETAILS ABOUT CRYPTOGRAPHY
+SOFTWARE IS ILLEGAL IN SOME PARTS OF THE WORLD. SO, WHEN YOU IMPORT THIS
+PACKAGE TO YOUR COUNTRY, RE-DISTRIBUTE IT FROM THERE OR EVEN JUST EMAIL
+TECHNICAL SUGGESTIONS OR EVEN SOURCE PATCHES TO THE AUTHOR OR OTHER PEOPLE
+YOU ARE STRONGLY ADVISED TO PAY CLOSE ATTENTION TO ANY EXPORT/IMPORT AND/OR
+USE LAWS WHICH APPLY TO YOU. THE AUTHORS OF DEC ARE NOT LIABLE FOR ANY
+VIOLATIONS YOU MAKE HERE. SO BE CAREFUL, IT IS YOUR RESPONSIBILITY.

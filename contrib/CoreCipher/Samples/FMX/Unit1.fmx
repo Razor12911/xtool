@@ -1,0 +1,30 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 480
+  ClientWidth = 640
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object Memo1: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    Align = Client
+    Size.Width = 640.000000000000000000
+    Size.Height = 480.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    ReadOnly = True
+  end
+  object Button1: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 528.000000000000000000
+    Position.Y = 8.000000000000000000
+    TabOrder = 1
+    Text = 'test'
+    OnClick = Button1Click
+  end
+end

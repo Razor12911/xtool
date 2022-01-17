@@ -1,0 +1,156 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{46A7B5B1-D413-4DB1-A118-2403457B463A}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DEC60.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Unit Tests\DECDUnitTestSuite.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Unit Tests\DECDUnitXTestSuite.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Cipher_Console\Cipher_Console.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Cipher_FMX\Cipher_FMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Format_Console\Format_Console.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Hash_Console\Hash_Console.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Hash_FMX\Hash_FMX.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Random_Console\Random_Console.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\Progress_VCL\ProgressDemoVCL.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Demos\HashBenchmark_FMX\HashBenchmark.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DEC60">
+        <MSBuild Projects="DEC60.dproj"/>
+    </Target>
+    <Target Name="DEC60:Clean">
+        <MSBuild Projects="DEC60.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DEC60:Make">
+        <MSBuild Projects="DEC60.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DECDUnitTestSuite">
+        <MSBuild Projects="..\Unit Tests\DECDUnitTestSuite.dproj"/>
+    </Target>
+    <Target Name="DECDUnitTestSuite:Clean">
+        <MSBuild Projects="..\Unit Tests\DECDUnitTestSuite.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DECDUnitTestSuite:Make">
+        <MSBuild Projects="..\Unit Tests\DECDUnitTestSuite.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DECDUnitXTestSuite">
+        <MSBuild Projects="..\Unit Tests\DECDUnitXTestSuite.dproj"/>
+    </Target>
+    <Target Name="DECDUnitXTestSuite:Clean">
+        <MSBuild Projects="..\Unit Tests\DECDUnitXTestSuite.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DECDUnitXTestSuite:Make">
+        <MSBuild Projects="..\Unit Tests\DECDUnitXTestSuite.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Cipher_Console">
+        <MSBuild Projects="..\Demos\Cipher_Console\Cipher_Console.dproj"/>
+    </Target>
+    <Target Name="Cipher_Console:Clean">
+        <MSBuild Projects="..\Demos\Cipher_Console\Cipher_Console.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Cipher_Console:Make">
+        <MSBuild Projects="..\Demos\Cipher_Console\Cipher_Console.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Cipher_FMX">
+        <MSBuild Projects="..\Demos\Cipher_FMX\Cipher_FMX.dproj"/>
+    </Target>
+    <Target Name="Cipher_FMX:Clean">
+        <MSBuild Projects="..\Demos\Cipher_FMX\Cipher_FMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Cipher_FMX:Make">
+        <MSBuild Projects="..\Demos\Cipher_FMX\Cipher_FMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Format_Console">
+        <MSBuild Projects="..\Demos\Format_Console\Format_Console.dproj"/>
+    </Target>
+    <Target Name="Format_Console:Clean">
+        <MSBuild Projects="..\Demos\Format_Console\Format_Console.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Format_Console:Make">
+        <MSBuild Projects="..\Demos\Format_Console\Format_Console.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Hash_Console">
+        <MSBuild Projects="..\Demos\Hash_Console\Hash_Console.dproj"/>
+    </Target>
+    <Target Name="Hash_Console:Clean">
+        <MSBuild Projects="..\Demos\Hash_Console\Hash_Console.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Hash_Console:Make">
+        <MSBuild Projects="..\Demos\Hash_Console\Hash_Console.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Hash_FMX">
+        <MSBuild Projects="..\Demos\Hash_FMX\Hash_FMX.dproj"/>
+    </Target>
+    <Target Name="Hash_FMX:Clean">
+        <MSBuild Projects="..\Demos\Hash_FMX\Hash_FMX.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Hash_FMX:Make">
+        <MSBuild Projects="..\Demos\Hash_FMX\Hash_FMX.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Random_Console">
+        <MSBuild Projects="..\Demos\Random_Console\Random_Console.dproj"/>
+    </Target>
+    <Target Name="Random_Console:Clean">
+        <MSBuild Projects="..\Demos\Random_Console\Random_Console.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Random_Console:Make">
+        <MSBuild Projects="..\Demos\Random_Console\Random_Console.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ProgressDemoVCL">
+        <MSBuild Projects="..\Demos\Progress_VCL\ProgressDemoVCL.dproj"/>
+    </Target>
+    <Target Name="ProgressDemoVCL:Clean">
+        <MSBuild Projects="..\Demos\Progress_VCL\ProgressDemoVCL.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProgressDemoVCL:Make">
+        <MSBuild Projects="..\Demos\Progress_VCL\ProgressDemoVCL.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="HashBenchmark">
+        <MSBuild Projects="..\Demos\HashBenchmark_FMX\HashBenchmark.dproj"/>
+    </Target>
+    <Target Name="HashBenchmark:Clean">
+        <MSBuild Projects="..\Demos\HashBenchmark_FMX\HashBenchmark.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="HashBenchmark:Make">
+        <MSBuild Projects="..\Demos\HashBenchmark_FMX\HashBenchmark.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DEC60;DECDUnitTestSuite;DECDUnitXTestSuite;Cipher_Console;Cipher_FMX;Format_Console;Hash_Console;Hash_FMX;Random_Console;ProgressDemoVCL;HashBenchmark"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DEC60:Clean;DECDUnitTestSuite:Clean;DECDUnitXTestSuite:Clean;Cipher_Console:Clean;Cipher_FMX:Clean;Format_Console:Clean;Hash_Console:Clean;Hash_FMX:Clean;Random_Console:Clean;ProgressDemoVCL:Clean;HashBenchmark:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DEC60:Make;DECDUnitTestSuite:Make;DECDUnitXTestSuite:Make;Cipher_Console:Make;Cipher_FMX:Make;Format_Console:Make;Hash_Console:Make;Hash_FMX:Make;Random_Console:Make;ProgressDemoVCL:Make;HashBenchmark:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

@@ -1,0 +1,9 @@
+{$INCLUDE ..\flcInclude.inc}
+
+{$IFDEF DEBUG}
+  {$DEFINE HTML_DEBUG}
+  {$IFDEF TEST}
+    {$DEFINE HTML_TEST}
+  {$ENDIF}
+{$ENDIF}
+

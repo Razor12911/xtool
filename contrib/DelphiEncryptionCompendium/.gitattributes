@@ -1,0 +1,9 @@
+# These files are text and should be normalized (convert crlf =&gt; lf)
+*.pas     text
+*.dpr     text
+*.dproj   text
+*.dfm     text
+*.fmx     text
+*.local   text
+*.inc     text
+*.txt     text

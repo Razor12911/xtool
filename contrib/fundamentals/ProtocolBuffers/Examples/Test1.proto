@@ -1,0 +1,86 @@
+//
+// Test proto file for ProtoCodeGen
+//
+
+// TODO
+//   * CodeGen: optional fields in records: indicate which fields have been populated
+//   * CodeGen: unknown fields in records
+//   * services
+//   * options
+//   * extensions
+//   * CodeGen: generate objects
+//   * Dots (.) in package identifier, e.g. package abc.def;
+//   * Comments from proto file in generated file
+//   * Bytes type e.g. optional bytes   DefField10 = 10 [default = "123"];
+
+package test1;
+
+import "TestImport1.proto";
+
+// enumeration
+enum EnumG0 {
+    g1 = 1;
+    g2 = 2;
+}
+
+// simple message
+message TestMsg0 {
+    required int32 Field1 = 1;
+    required int64 Field2 = 2;
+}
+
+message TestMsg1 {
+
+    // fields with defaults
+    optional int32   DefField1  = 1  [default = 2];
+    optional int64   DefField2  = 2  [default = -1];
+    optional string  DefField3  = 3  [default = "yes"];
+    optional double  DefField4  = 4  [default = 1.1];
+    optional bool    DefField5  = 5  [default = true];
+    optional EnumG0  DefField6  = 6  [default = g2];
+    optional sint64  DefField7  = 7  [default = 100];
+    optional fixed32 DefField8  = 8  [default = 1];
+    optional float   DefField9  = 9  [default = 1.23e1];
+
+    // field of message type
+    optional TestMsg0 FieldMsg1  = 20;
+
+    // nested enumeration
+    enum Enum1 {
+        Val1 = 1;
+        Val2 = 2;
+    }
+
+    // fields of nested enumeration type
+    optional Enum1          FieldE1 = 21;
+    optional TestMsg1.Enum1 FieldE2 = 22 [default = Val2, packed = true];
+
+    // nested message
+    message TestNested1 {
+        optional int32 Field1 = 1;
+    }
+
+    // fields of nested message type
+    optional TestNested1          FieldNested1 = 30;
+    optional TestMsg1.TestNested1 FieldNested2 = 31;
+
+    // repeated fields
+    repeated int32    FieldArr1  = 40;
+    repeated int32    FieldArr2  = 41 [packed = true];
+    repeated string   FieldArr3  = 42;
+    repeated Enum1    FieldArrE1 = 43;
+    repeated TestMsg0 FieldMArr2 = 44;
+
+    // fields of imported types
+    optional TestImport1.EnumGlobal FieldImp1 = 50;
+    optional EnumGlobal             FieldImp2 = 51;
+
+    // extensions 1000 to 1999;
+}
+
+// test proto identifier name conversion
+message test_iden1 {
+    optional int32 field_name_test_1 = 1;
+    optional int32 field_Name_test_2 = 2;
+}
+

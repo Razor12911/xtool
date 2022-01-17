@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{c4097c5b-2bfc-499a-beb4-4b709b576722}</ProjectGuid>
+    <RootNamespace>preflatedll</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;PREFLATEDLL_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>Full</Optimization>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;PREFLATEDLL_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>Full</Optimization>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableUAC>false</EnableUAC>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="preflate.h" />
+    <ClInclude Include="preflate_block_decoder.h" />
+    <ClInclude Include="preflate_block_reencoder.h" />
+    <ClInclude Include="preflate_block_trees.h" />
+    <ClInclude Include="preflate_checker.h" />
+    <ClInclude Include="preflate_complevel_estimator.h" />
+    <ClInclude Include="preflate_constants.h" />
+    <ClInclude Include="preflate_decoder.h" />
+    <ClInclude Include="preflate_hash_chain.h" />
+    <ClInclude Include="preflate_info.h" />
+    <ClInclude Include="preflate_input.h" />
+    <ClInclude Include="preflate_parameter_estimator.h" />
+    <ClInclude Include="preflate_parser_config.h" />
+    <ClInclude Include="preflate_predictor_state.h" />
+    <ClInclude Include="preflate_reencoder.h" />
+    <ClInclude Include="preflate_seq_chain.h" />
+    <ClInclude Include="preflate_statistical_codec.h" />
+    <ClInclude Include="preflate_statistical_model.h" />
+    <ClInclude Include="preflate_token.h" />
+    <ClInclude Include="preflate_token_predictor.h" />
+    <ClInclude Include="preflate_tree_predictor.h" />
+    <ClInclude Include="support\arithmetic_coder.h" />
+    <ClInclude Include="support\array_helper.h" />
+    <ClInclude Include="support\bitstream.h" />
+    <ClInclude Include="support\bit_helper.h" />
+    <ClInclude Include="support\const_division.h" />
+    <ClInclude Include="support\filestream.h" />
+    <ClInclude Include="support\huffman_decoder.h" />
+    <ClInclude Include="support\huffman_encoder.h" />
+    <ClInclude Include="support\huffman_helper.h" />
+    <ClInclude Include="support\memstream.h" />
+    <ClInclude Include="support\outputcachestream.h" />
+    <ClInclude Include="support\stream.h" />
+    <ClInclude Include="support\support_tests.h" />
+    <ClInclude Include="support\task_pool.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="preflate_block_decoder.cpp" />
+    <ClCompile Include="preflate_block_reencoder.cpp" />
+    <ClCompile Include="preflate_block_trees.cpp" />
+    <ClCompile Include="preflate_checker.cpp" />
+    <ClCompile Include="preflate_complevel_estimator.cpp" />
+    <ClCompile Include="preflate_constants.cpp" />
+    <ClCompile Include="preflate_decoder.cpp" />
+    <ClCompile Include="preflate_hash_chain.cpp" />
+    <ClCompile Include="preflate_info.cpp" />
+    <ClCompile Include="preflate_parameter_estimator.cpp" />
+    <ClCompile Include="preflate_parser_config.cpp" />
+    <ClCompile Include="preflate_predictor_state.cpp" />
+    <ClCompile Include="preflate_reencoder.cpp" />
+    <ClCompile Include="preflate_seq_chain.cpp" />
+    <ClCompile Include="preflate_statistical_codec.cpp" />
+    <ClCompile Include="preflate_statistical_debug.cpp" />
+    <ClCompile Include="preflate_statistical_model.cpp" />
+    <ClCompile Include="preflate_token.cpp" />
+    <ClCompile Include="preflate_token_predictor.cpp" />
+    <ClCompile Include="preflate_tree_predictor.cpp" />
+    <ClCompile Include="support\arithmetic_coder.cpp" />
+    <ClCompile Include="support\array_helper.cpp" />
+    <ClCompile Include="support\bitstream.cpp" />
+    <ClCompile Include="support\bit_helper.cpp" />
+    <ClCompile Include="support\const_division.cpp" />
+    <ClCompile Include="support\filestream.cpp" />
+    <ClCompile Include="support\huffman_decoder.cpp" />
+    <ClCompile Include="support\huffman_encoder.cpp" />
+    <ClCompile Include="support\huffman_helper.cpp" />
+    <ClCompile Include="support\memstream.cpp" />
+    <ClCompile Include="support\outputcachestream.cpp" />
+    <ClCompile Include="support\support_tests.cpp" />
+    <ClCompile Include="support\task_pool.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
