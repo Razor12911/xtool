@@ -38,6 +38,7 @@ var
   ZStream2: array of array [0 .. 7] of z_stream;
   ZWinBits: Integer = Z_WINBITS;
   RefInst1, RefInst2: TArray<Pointer>;
+  RLevel: Integer = R_LEVEL;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
   Storage: TArray<TMemoryStream>;
   Scan2Pos: TArray<Integer>;
@@ -91,8 +92,7 @@ begin
       CodecEnabled[REFLATE_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'l') <> '' then
         for I := Low(SOList) to High(SOList) do
-          SOList[I][REFLATE_CODEC].Update
-            ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
+          RLevel := StrToInt(Funcs^.GetParam(Command, X, 'l'));
     end
     else if (CompareText(S, ZlibCodecs[PREFLATE_CODEC]) = 0) and PreflateDLL.DLLLoaded
     then
@@ -143,8 +143,6 @@ begin
             for I := 11 to 99 do
               if I mod 10 <> 0 then
                 Insert(I, Options, Length(Options));
-          REFLATE_CODEC:
-            Options := [R_LEVEL];
         end;
         if SOList[X, Y].Count = 0 then
           SOList[X, Y].Update(Options);
@@ -530,7 +528,7 @@ begin
         if StreamInfo^.Status = TStreamStatus.Predicted then
           L := GetBits(StreamInfo^.Option, 5, 7)
         else
-          L := R_LEVEL;
+          L := RLevel;
         if L > 9 then
           L := L div 10;
         L := EnsureRange(L, 1, 9);
