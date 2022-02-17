@@ -48,6 +48,8 @@ procedure Decode(Input, Output: TStream; Options: TDecodeOptions);
 
 function PrecompAllocator(Instance: Integer; Size: Integer): Pointer cdecl;
 function PrecompGetDepthInfo(Index: Integer): TDepthInfo cdecl;
+function PrecompReadFuture(Index: Integer; Position: NativeInt; Buffer: Pointer;
+  Count: Integer): Integer cdecl;
 
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
   Size: Integer);
@@ -241,7 +243,8 @@ type
     MemOutput1, MemOutput2, MemOutput3: TArray<TMemoryStreamEx>;
     CurPos1, CurPos2: TArray<Int64>;
     InfoStore1: TArray<TListEx<TEncodeSI>>;
-    InfoStore2: TArray<TListEx<TFutureSI>>;
+    InfoStore2: TArray<TArray<TListEx<TFutureSI>>>;
+    ISIndex: TArray<Boolean>;
     StrIdx: TArray<Integer>;
   end;
 
@@ -343,12 +346,37 @@ begin
   Result := DepthInfo[Index];
 end;
 
+function PrecompReadFuture(Index: Integer; Position: NativeInt; Buffer: Pointer;
+  Count: Integer): Integer;
+var
+  X: NativeInt;
+begin
+  Result := 0;
+  with ComVars1[CurDepth[Index]] do
+  begin
+    if CurDepth[Index] > 0 then
+    begin
+      X := TDataStore2(ComVars1[CurDepth[Index]].DataStore).ActualSize(Index);
+      if Position < X then
+      begin
+        X := Min(X - Position, Count);
+        Move(TDataStore2(ComVars1[CurDepth[Index]].DataStore).Slot(Index)
+          .Memory^, Buffer^, X);
+        Result := X;
+      end;
+    end
+    else
+      Result := TDataStore1(ComVars1[CurDepth[Index]].DataStore).
+        Read(Index, Position, Buffer^, Count);
+  end;
+end;
+
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
   Size: Integer);
 begin
   with ComVars1[CurDepth[Instance]] do
   begin
-    if Assigned(Buffer) then
+    if Assigned(Buffer) and (Size >= 0) then
       MemOutput1[Instance].WriteBuffer(Buffer^, Size)
     else
       MemOutput1[Instance].Position := CurPos1[Instance];
@@ -451,7 +479,7 @@ begin
         I := Instance;
       ThreadSync[I].Enter;
       try
-        InfoStore2[I].Add(SI2);
+        InfoStore2[I, ISIndex[I].ToInteger].Add(SI2);
       finally
         ThreadSync[I].Leave;
       end;
@@ -518,90 +546,98 @@ begin
   with ComVars1[Depth] do
     for I := Low(Codecs) to High(Codecs) do
     begin
-      try
-        CurPos1[Index] := MemOutput1[Index].Position;
-        CurCodec[Index] := I;
-        CurDepth[Index] := Depth;
-        if Depth = 0 then
-        begin
-          LPtr := DataStore.Slot(Index).Memory;
-          LSize := DataStore.Size(Index);
-          LSizeEx := DataStore.ActualSize(Index);
-        end
-        else
-        begin
-          LPtr := PByte(DataStore.Slot(Index).Memory) + Integer.Size;
-          LSize := PInteger(DataStore.Slot(Index).Memory)^;
-          LSizeEx := LSize;
-        end;
-        Codecs[I].Scan1(Index, Depth, LPtr, LSize, LSizeEx, @PrecompOutput1,
-          @PrecompAddStream, @PrecompFunctions);
-      except
+      CurPos1[Index] := MemOutput1[Index].Position;
+      CurCodec[Index] := I;
+      CurDepth[Index] := Depth;
+      if Depth = 0 then
+      begin
+        LPtr := DataStore.Slot(Index).Memory;
+        LSize := DataStore.Size(Index);
+        LSizeEx := DataStore.ActualSize(Index);
+      end
+      else
+      begin
+        LPtr := PByte(DataStore.Slot(Index).Memory) + Integer.Size;
+        LSize := PInteger(DataStore.Slot(Index).Memory)^;
+        LSizeEx := LSize;
       end;
+      Codecs[I].Scan1(Index, Depth, LPtr, LSize, LSizeEx, @PrecompOutput1,
+        @PrecompAddStream, @PrecompFunctions);
     end;
 end;
 
 procedure Scan2(Index, Depth: Integer);
 var
-  I: Integer;
+  I, J: Integer;
   X: NativeInt;
   SI1: _StrInfo2;
   SI2: TFutureSI;
   SI3: TEncodeSI;
 begin
   with ComVars1[Depth] do
-  begin
-    InfoStore2[Index].Index := 0;
-    I := InfoStore2[Index].Get(SI2);
-    while I >= 0 do
-    begin
-      if InRange(SI2.Position, DataStore.Position(Index),
-        Pred(DataStore.Position(Index) + DataStore.Size(Index))) then
+    try
+      InfoStore2[Index, (not ISIndex[Index]).ToInteger].Count := 0;
+      InfoStore2[Index, ISIndex[Index].ToInteger].Sort;
+      InfoStore2[Index, ISIndex[Index].ToInteger].Index := 0;
+      I := InfoStore2[Index, ISIndex[Index].ToInteger].Get(SI2);
+      while I >= 0 do
       begin
-        CurPos1[Index] := MemOutput1[Index].Position;
-        CurCodec[Index] := SI2.Codec;
-        CurDepth[Index] := Depth;
-        SI1.OldSize := SI2.OldSize;
-        SI1.NewSize := SI2.NewSize;
-        SI1.Resource := SI2.Resource;
-        SI1.Option := SI2.Option;
-        SI1.Status := SI2.Status;
-        X := DataStore.ActualSize(Index) -
-          NativeInt(SI2.Position - DataStore.Position(Index));
-        if (SI1.OldSize <= X) and Codecs[SI2.Codec].Scan2(Index, Depth,
-          PByte(DataStore.Slot(Index).Memory) + NativeInt(SI2.Position -
-          DataStore.Position(Index)), X, @SI1, @PrecompOutput1,
-          @PrecompFunctions) then
+        if InRange(SI2.Position, DataStore.Position(Index),
+          Pred(DataStore.Position(Index) + DataStore.Size(Index))) then
         begin
-          if MemOutput1[Index].Position - CurPos1[Index] = SI1.NewSize then
+          CurPos1[Index] := MemOutput1[Index].Position;
+          CurCodec[Index] := SI2.Codec;
+          CurDepth[Index] := Depth;
+          SI1.OldSize := SI2.OldSize;
+          SI1.NewSize := SI2.NewSize;
+          SI1.Resource := SI2.Resource;
+          SI1.Option := SI2.Option;
+          SI1.Status := SI2.Status;
+          J := 0;
+          X := DataStore.ActualSize(Index) -
+            NativeInt(SI2.Position - DataStore.Position(Index));
+          if (SI1.OldSize <= X) and Codecs[SI2.Codec].Scan2(Index, Depth,
+            PByte(DataStore.Slot(Index).Memory) +
+            NativeInt(SI2.Position - DataStore.Position(Index)), X, @SI1, @J,
+            @PrecompOutput1, @PrecompFunctions) then
           begin
-            AtomicIncrement(EncInfo.Count);
-            FillChar(SI3, SizeOf(TEncodeSI), 0);
-            SI3.ActualPosition :=
-              NativeInt(SI2.Position - DataStore.Position(Index));
-            SI3.StorePosition := CurPos1[Index];
-            SI3.OldSize := SI1.OldSize;
-            SI3.NewSize := SI1.NewSize;
-            SI3.Resource := SI1.Resource;
-            SI3.Thread := Index;
-            SI3.Codec := SI2.Codec;
-            SI3.Option := SI1.Option;
-            SI3.Status := SI1.Status;
-            SI3.Checksum := Utils.Hash32(0, PByte(DataStore.Slot(Index).Memory)
-              + SI3.ActualPosition, SI3.OldSize);
-            SI3.DepthInfo := SI2.DepthInfo;
-            InfoStore1[Index].Add(SI3);
-          end;
+            if InRange(SI2.Position + J, DataStore.Position(Index),
+              DataStore.Position(Index) + DataStore.Size(Index)) and
+              InRange(SI2.Position + J + SI1.OldSize, DataStore.Position(Index),
+              DataStore.Position(Index) + DataStore.ActualSize(Index)) and
+              (MemOutput1[Index].Position - CurPos1[Index] = SI1.NewSize) then
+            begin
+              AtomicIncrement(EncInfo.Count);
+              FillChar(SI3, SizeOf(TEncodeSI), 0);
+              SI3.ActualPosition :=
+                NativeInt(SI2.Position - DataStore.Position(Index)) + J;
+              SI3.StorePosition := CurPos1[Index];
+              SI3.OldSize := SI1.OldSize;
+              SI3.NewSize := SI1.NewSize;
+              SI3.Resource := SI1.Resource;
+              SI3.Thread := Index;
+              SI3.Codec := SI2.Codec;
+              SI3.Option := SI1.Option;
+              SI3.Status := SI1.Status;
+              SI3.Checksum :=
+                Utils.Hash32(0, PByte(DataStore.Slot(Index).Memory) +
+                SI3.ActualPosition, SI3.OldSize);
+              SI3.DepthInfo := SI2.DepthInfo;
+              InfoStore1[Index].Add(SI3);
+            end
+            else
+              MemOutput1[Index].Position := CurPos1[Index];
+          end
+          else
+            MemOutput1[Index].Position := CurPos1[Index];
         end
         else
-          MemOutput1[Index].Position := CurPos1[Index];
-        InfoStore2[Index].Delete(I);
-      end
-      else
-        break;
-      I := InfoStore2[Index].Get(SI2);
+          InfoStore2[Index, (not ISIndex[Index]).ToInteger].Add(SI2);
+        I := InfoStore2[Index, ISIndex[Index].ToInteger].Get(SI2);
+      end;
+    finally
+      ISIndex[Index] := not ISIndex[Index];
     end;
-  end;
 end;
 
 function Process(ThreadIndex, StreamIndex, Index, Depth: Integer): Boolean;
@@ -783,7 +819,7 @@ end;
 procedure EncInit(Input, Output: TStream; Options: PEncodeOptions);
 var
   UI32: UInt32;
-  I, J: Integer;
+  I, J, K: Integer;
   Bytes: TBytes;
   NI: NativeInt;
   DBKey: Int64;
@@ -842,7 +878,8 @@ begin
       else
         I := Options^.Threads;
       SetLength(InfoStore1, I);
-      SetLength(InfoStore2, I);
+      SetLength(InfoStore2, I, 2);
+      SetLength(ISIndex, I);
       SetLength(StrIdx, I);
       for I := Low(Tasks) to High(Tasks) do
       begin
@@ -857,14 +894,18 @@ begin
       for I := Low(InfoStore1) to High(InfoStore1) do
       begin
         InfoStore1[I] := TListEx<TEncodeSI>.Create(EncodeSICmp);
-        InfoStore2[I] := TListEx<TFutureSI>.Create(FutureSICmp);
+        for K := Low(InfoStore2[I]) to High(InfoStore2[I]) do
+          InfoStore2[I, K] := TListEx<TFutureSI>.Create(FutureSICmp);
+        ISIndex[I] := False;
       end;
       if J = 0 then
       begin
         DataStore := TDataStore1.Create(Input, True, Length(InfoStore1),
-          Options^.ChunkSize);
+          Options^.ChunkSize,
+          LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
+          '_' + Random($7FFFFFFF).ToHexString + '-storage.tmp')));
         IntArray[0] := Options^.ChunkSize;
-        IntArray[1] := Options^.Threads;
+        IntArray[1] := I;
       end
       else
         DataStore := TDataStore2.Create(Length(InfoStore1));
@@ -951,7 +992,7 @@ end;
 procedure EncFree;
 var
   UI32: UInt32;
-  I, J: Integer;
+  I, J, K: Integer;
 begin
   if Length(Tasks) > 1 then
     WaitForAll(Tasks);
@@ -971,7 +1012,8 @@ begin
       for I := Low(InfoStore1) to High(InfoStore1) do
       begin
         InfoStore1[I].Free;
-        InfoStore2[I].Free;
+        for K := Low(InfoStore2[I]) to High(InfoStore2[I]) do
+          InfoStore2[I, K].Free;
       end;
       DataStore.Free;
     end;
@@ -1019,7 +1061,6 @@ var
   DBTyp: TDatabase;
   DupTyp: TDuplicate;
 begin
-  // make the encoder read/write/scan/process at the same time
   if (Depth = 0) then
   begin
     if (DupFile = '') and StoreDD then
@@ -1895,7 +1936,7 @@ begin
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(EncodeStats);
-  // ConTask.Start;
+  ConTask.Start;
   try
     EncInit(Input, Output, @Options);
     EncData(Input, Output, 0, 0);
@@ -1971,9 +2012,8 @@ PrecompFunctions.ExecStdin := @PrecompExecStdin;
 PrecompFunctions.ExecStdout := @PrecompExecStdout;
 PrecompFunctions.ExecStdio := @PrecompExecStdio;
 PrecompFunctions.ExecStdioSync := @PrecompExecStdioSync;
-PrecompFunctions.ExecStdioInit := @PrecompExecStdioInit;
-PrecompFunctions.ExecStdioFree := @PrecompExecStdioFree;
-PrecompFunctions.ExecStdioProcess := @PrecompExecStdioProcess;
+PrecompFunctions.GetDepthCodec := @PrecompGetDepthCodec;
+PrecompFunctions.ReadFuture := @PrecompReadFuture;
 
 finalization
 

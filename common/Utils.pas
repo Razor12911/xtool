@@ -243,7 +243,11 @@ type
   private const
     FBufferSize = 65536;
   private
+    FSync: TSynLocker;
     FInput: TStream;
+    FTemp: TFileStream;
+    FTempFile: String;
+    FTempPos: Int64;
     FBuffer: array [0 .. FBufferSize - 1] of Byte;
     FDynamic: Boolean;
     FIndex: Integer;
@@ -255,9 +259,11 @@ type
     FDone, FFirstRead, FLastRead: Boolean;
   public
     constructor Create(AInput: TStream; ADynamic: Boolean;
-      ASlots, ASize: NativeInt);
+      ASlots, ASize: NativeInt; ATempFile: String = '');
     destructor Destroy; override;
     procedure ChangeInput(AInput: TStream);
+    function Read(Index: Integer; Position: NativeInt; var Buffer;
+      Count: Integer): Integer;
     function Slot(Index: Integer): TMemoryStream; override;
     function Position(Index: Integer): Int64; override;
     function Size(Index: Integer): NativeInt; override;
@@ -416,6 +422,7 @@ function GetFileList(const APath: TArray<string>; SubDir: Boolean = True)
   : TArray<string>;
 procedure FileReadBuffer(Handle: THandle; var Buffer; Count: NativeInt);
 procedure FileWriteBuffer(Handle: THandle; const Buffer; Count: NativeInt);
+procedure CloseHandleEx(var Handle: THandle);
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;
 function ExecStdin(Executable, CommandLine, WorkDir: string; InBuff: Pointer;
@@ -1337,12 +1344,15 @@ begin
 end;
 
 constructor TDataStore1.Create(AInput: TStream; ADynamic: Boolean;
-  ASlots, ASize: NativeInt);
+  ASlots, ASize: NativeInt; ATempFile: String);
 var
   I: Integer;
 begin
   inherited Create;
+  FSync.Init;
   FInput := AInput;
+  FTempFile := ATempFile;
+  FTempPos := 0;
   FDynamic := ADynamic;
   FIndex := 0;
   FSlots := ASlots;
@@ -1380,10 +1390,16 @@ destructor TDataStore1.Destroy;
 var
   I: Integer;
 begin
+  if Assigned(FTemp) then
+  begin
+    FTemp.Free;
+    DeleteFile(FTempFile);
+  end;
   for I := Low(FMemData) to High(FMemData) do
     FMemData[I].Free;
   FMemStm.Free;
   FreeMemory(FMemPtr);
+  FSync.Done;
   inherited Destroy;
 end;
 
@@ -1406,6 +1422,62 @@ begin
   FDone := False;
   FFirstRead := True;
   FLastRead := False;
+end;
+
+function TDataStore1.Read(Index: Integer; Position: NativeInt; var Buffer;
+  Count: Integer): Integer;
+const
+  BuffSize = 65536;
+var
+  Buff: array [0 .. BuffSize - 1] of Byte;
+  I: Integer;
+  LPos: NativeInt;
+  LMemSize: NativeInt;
+begin
+  Result := 0;
+  LPos := Position;
+  LMemSize := 0;
+  for I := Index to High(FMemData) do
+    Inc(LMemSize, IfThen(I = High(FMemData), ActualSize(I), Size(I)));
+  if LPos < LMemSize then
+  begin
+    I := Min(LMemSize - LPos, Count);
+    Move((PByte(FMemData[Index].Memory) + LPos)^, Buffer, I);
+    Result := I;
+  end
+  else
+  begin
+    FSync.Lock;
+    try
+      if not Assigned(FTemp) then
+        FTemp := TFileStream.Create(FTempFile, fmCreate);
+      Dec(LPos, LMemSize);
+      if LPos > FTemp.Size then
+      begin
+        FTemp.Position := FTemp.Size;
+        while LPos > FTemp.Size do
+        begin
+          I := FInput.Read(Buff[0], BuffSize);
+          if I = 0 then
+            exit;
+          FTemp.WriteBuffer(Buff[0], I);
+        end;
+      end;
+      if (LPos = FTemp.Position) and (LPos = FTemp.Size) then
+      begin
+        I := FInput.Read(Buffer, Count);
+        FTemp.WriteBuffer(Buffer, I);
+        Result := I;
+      end
+      else
+      begin
+        FTemp.Position := LPos;
+        Result := FTemp.Read(Buffer, Count)
+      end;
+    finally
+      FSync.UnLock;
+    end;
+  end;
 end;
 
 function TDataStore1.Slot(Index: Integer): TMemoryStream;
@@ -1460,8 +1532,21 @@ begin
     end;
     while FMemStm.Position < FMemStm.Size do
     begin
-      X := FInput.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
-        FBufferSize));
+      if Assigned(FTemp) and (FTempPos < FTemp.Size) then
+      begin
+        FTemp.Position := FTempPos;
+        X := FTemp.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
+          FBufferSize));
+        Inc(FTempPos, X);
+        if FTempPos = FTemp.Size then
+        begin
+          FTempPos := 0;
+          FTemp.Size := 0;
+        end;
+      end
+      else
+        X := FInput.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
+          FBufferSize));
       if X > 0 then
         FMemStm.WriteBuffer(FBuffer[0], X)
       else
@@ -1479,8 +1564,21 @@ begin
     FMemStm.Position := 0;
     while FMemStm.Position < FMemStm.Size do
     begin
-      X := FInput.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
-        FBufferSize));
+      if Assigned(FTemp) and (FTempPos < FTemp.Size) then
+      begin
+        FTemp.Position := FTempPos;
+        X := FTemp.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
+          FBufferSize));
+        Inc(FTempPos, X);
+        if FTempPos = FTemp.Size then
+        begin
+          FTempPos := 0;
+          FTemp.Size := 0;
+        end;
+      end
+      else
+        X := FInput.Read(FBuffer[0], Min(FMemStm.Size - FMemStm.Position,
+          FBufferSize));
       if X > 0 then
         FMemStm.WriteBuffer(FBuffer[0], X)
       else
@@ -1511,7 +1609,19 @@ begin
     W := FMemStm.Position + FSize;
     while FMemStm.Position < W do
     begin
-      X := FInput.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
+      if Assigned(FTemp) and (FTempPos < FTemp.Size) then
+      begin
+        FTemp.Position := FTempPos;
+        X := FTemp.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
+        Inc(FTempPos, X);
+        if FTempPos = FTemp.Size then
+        begin
+          FTempPos := 0;
+          FTemp.Size := 0;
+        end;
+      end
+      else
+        X := FInput.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
       if X > 0 then
         FMemStm.WriteBuffer(FBuffer[0], X)
       else
@@ -1529,7 +1639,19 @@ begin
     W := FMemStm.Position + FSize;
     while FMemStm.Position < W do
     begin
-      X := FInput.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
+      if Assigned(FTemp) and (FTempPos < FTemp.Size) then
+      begin
+        FTemp.Position := FTempPos;
+        X := FTemp.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
+        Inc(FTempPos, X);
+        if FTempPos = FTemp.Size then
+        begin
+          FTempPos := 0;
+          FTemp.Size := 0;
+        end;
+      end
+      else
+        X := FInput.Read(FBuffer[0], Min(W - FMemStm.Position, FBufferSize));
       if X > 0 then
         FMemStm.WriteBuffer(FBuffer[0], X)
       else
@@ -2794,6 +2916,18 @@ begin
   end
 end;
 
+procedure CloseHandleEx(var Handle: THandle);
+var
+  lpdwFlags: DWORD;
+begin
+  if Handle = 0 then
+    exit;
+  if GetHandleInformation(Handle, lpdwFlags) then
+    if lpdwFlags <> HANDLE_FLAG_PROTECT_FROM_CLOSE then
+      CloseHandle(Handle);
+  Handle := 0;
+end;
+
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;
 var
   StartupInfo: TStartupInfo;
@@ -2804,6 +2938,11 @@ begin
   Result := False;
   FillChar(StartupInfo, sizeof(StartupInfo), #0);
   StartupInfo.cb := sizeof(StartupInfo);
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
+  StartupInfo.hStdInput := 0;
+  StartupInfo.hStdOutput := 0;
+  StartupInfo.hStdError := 0;
   if WorkDir <> '' then
     LWorkDir := Pointer(WorkDir)
   else
@@ -2835,7 +2974,8 @@ begin
   SetHandleInformation(hstdinw, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, sizeof(StartupInfo));
   StartupInfo.cb := sizeof(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := hstdinr;
   StartupInfo.hStdOutput := 0;
   StartupInfo.hStdError := 0;
@@ -2881,7 +3021,8 @@ begin
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, sizeof(StartupInfo));
   StartupInfo.cb := sizeof(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := 0;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;
@@ -2932,7 +3073,8 @@ begin
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, sizeof(StartupInfo));
   StartupInfo.cb := sizeof(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := hstdinr;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;
@@ -3001,7 +3143,8 @@ begin
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, sizeof(StartupInfo));
   StartupInfo.cb := sizeof(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := hstdinr;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;

@@ -37,9 +37,11 @@ var
   ZStream1: array of array [1 .. 9, 1 .. 9, 1 .. 7] of z_stream;
   ZStream2: array of array [0 .. 7] of z_stream;
   ZWinBits: Integer = Z_WINBITS;
-  RefInst1, RefInst2: array of Pointer;
+  RefInst1, RefInst2: TArray<Pointer>;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
   Storage: TArray<TMemoryStream>;
+  Scan2Pos: TArray<Integer>;
+  Scan2SI: TArray<PStrInfo2>;
 
 function ZlibInit(Command: PChar; Count: Integer; Funcs: PPrecompFuncs)
   : Boolean;
@@ -55,6 +57,8 @@ begin
     for Y := Low(SOList[X]) to High(SOList[X]) do
       SOList[X, Y] := TSOList.Create([], TSOMethod.MTF);
   SetLength(Storage, Count);
+  SetLength(Scan2Pos, Count);
+  SetLength(Scan2SI, Count);
   for X := Low(Storage) to High(Storage) do
     Storage[X] := TMemoryStream.Create;
   for X := Low(CodecAvailable) to High(CodecAvailable) do
@@ -238,23 +242,29 @@ var
   Pos: NativeInt;
   Res: Integer;
   I: Integer;
+  X: Integer;
   ZStream: z_streamp;
   IsZlib: Boolean;
   Level: Integer;
   WinBits: Byte;
   ScanBytes: Integer;
   SI: _StrInfo1;
-  DI: TDepthInfo;
+  DI1, DI2: TDepthInfo;
   DS: TPrecompCmd;
   LastIn, LastOut: cardinal;
 begin
-  if BoolArray(CodecEnabled, False) then
-    exit;
-  DI := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI.Codec, 0, False);
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
   if DS <> '' then
-    if IndexTextW(@DS[0], ZlibCodecs) < 0 then
+  begin
+    X := IndexTextW(@DS[0], ZlibCodecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
       exit;
+    if not CodecAvailable[X] then
+      exit;
+  end
+  else if BoolArray(CodecEnabled, False) then
+    exit;
   Pos := 0;
   Buffer := Funcs^.Allocator(Instance, Z_WORKMEM);
   IsZlib := False;
@@ -281,10 +291,10 @@ begin
         ZStream := @ZStream2[Instance, WinBits];
         Level := (Input + Pos - 1)^ shr $6;
         IsZlib := True;
-        ScanBytes := Z_MINSIZE;
       end;
-    end;
-    IsZlib := False;
+    end
+    else
+      IsZlib := False;
     if IsZlib or ((Input + Pos)^ and 7 in [$4, $5]) then
     begin
       if not IsZlib then
@@ -294,7 +304,9 @@ begin
         Level := -1;
       end;
       if WinBits = 7 then
-        ScanBytes := Z_SCANBYTES;
+        ScanBytes := Z_SCANBYTES
+      else
+        ScanBytes := Z_MINSIZE;
       IsZlib := False;
       LastIn := 0;
       LastOut := 0;
@@ -309,7 +321,7 @@ begin
         Output(Instance, nil, 0);
         I := Z_WORKMEM - ZStream^.avail_out;
         Output(Instance, Buffer, I);
-        ZStream^.avail_in := (SizeEx - Pos) - Z_SCANBYTES;
+        ZStream^.avail_in := (SizeEx - Pos) - ScanBytes;
         while Res <> Z_STREAM_END do
         begin
           ZStream^.next_out := Buffer;
@@ -326,7 +338,8 @@ begin
           I := Z_WORKMEM - ZStream^.avail_out;
           Output(Instance, Buffer, I);
         end;
-        if (Res = Z_STREAM_END) { and (ZStream^.total_out > ZStream^.total_in) }
+        if (Res = Z_STREAM_END) and (LastIn > ScanBytes)
+        { and (ZStream^.total_out > ZStream^.total_in) }
         then
         begin
           SI.Position := Pos;
@@ -357,7 +370,21 @@ begin
             SetBits(SI.Option, I, 0, 5);
             if CodecEnabled[I] then
             begin
-              Add(Instance, @SI, nil, nil);
+              DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+              DI2.OldSize := SI.NewSize;
+              DI2.NewSize := SI.NewSize;
+              if Assigned(Add) then
+                Add(Instance, @SI, DI1.Codec, @DI2)
+              else
+              begin
+                Scan2Pos[Instance] := SI.Position;
+                Scan2SI[Instance]^.OldSize := SI.OldSize;
+                Scan2SI[Instance]^.NewSize := SI.NewSize;
+                Scan2SI[Instance]^.Resource := SI.Resource;
+                Scan2SI[Instance]^.Status := SI.Status;
+                Scan2SI[Instance]^.Option := SI.Option;
+                exit;
+              end;
               break;
             end;
           end;
@@ -373,28 +400,23 @@ begin
 end;
 
 function ZLibScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
   Res: Integer;
+  I: Integer;
   ZStream: z_streamp;
+  LastIn, LastOut: cardinal;
 begin
   Result := False;
-  if StreamInfo^.NewSize <= 0 then
-    exit;
-  Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
-  ZStream := @ZStream2[Instance, GetBits(StreamInfo^.Option, 12, 3)];
-  ZStream^.next_in := Input;
-  ZStream^.avail_in := StreamInfo^.OldSize;
-  ZStream^.next_out := Buffer;
-  ZStream^.avail_out := StreamInfo^.NewSize;
-  inflateReset(ZStream^);
-  Res := inflate(ZStream^, Z_FULL_FLUSH);
-  if (Res = Z_STREAM_END) and (ZStream^.total_out = StreamInfo^.NewSize) then
-  begin
-    Output(Instance, Buffer, ZStream^.total_out);
-    Result := True;
-  end;
+  Scan2Pos[Instance] := 0;
+  Scan2SI[Instance] := StreamInfo;
+  Scan2SI[Instance]^.OldSize := 0;
+  ZlibScan1(Instance, Depth, Input, Size, Size, Output, nil, Funcs);
+  Result := Scan2SI[Instance]^.OldSize > 0;
+  if Result then
+    Offset^ := Scan2Pos[Instance];
 end;
 
 function ZlibProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;

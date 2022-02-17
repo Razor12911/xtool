@@ -15,6 +15,7 @@ resourcestring
   SPrecompSep1 = '+';
   SPrecompSep2 = ':';
   SPrecompSep3 = ',';
+  SPrecompSep4 = '/';
 
 const
   SuccessStatus = 3;
@@ -28,14 +29,14 @@ const
 
 type
   PPrecompCmd = ^TPrecompCmd;
-  TPrecompCmd = array [0 .. 255] of Char;
+  TPrecompCmd = array [0 .. 63] of Char;
 
   TStreamStatus = (None, Invalid, Predicted);
 
   PDepthInfo = ^TDepthInfo;
 
   TDepthInfo = packed record
-    Codec: array [0 .. 59] of Char;
+    Codec: TPrecompCmd;
     OldSize: Integer;
     NewSize: Integer;
   end;
@@ -172,12 +173,10 @@ type
     ExecStdioSync: function(Instance: Integer;
       Executable, CommandLine, WorkDir: PChar; InBuff: Pointer; InSize: Integer;
       Output: _ExecOutput): Boolean cdecl;
-    ExecStdioInit: function(Instance: Integer;
-      Executable, CommandLine, WorkDir: PChar): Pointer cdecl;
-    ExecStdioFree: procedure(Ctx: Pointer)cdecl;
-    ExecStdioProcess: function(Ctx: Pointer; InBuff: Pointer; InSize: Integer;
-      Output: _ExecOutput; Continous: Boolean): Boolean cdecl;
-    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 34] of Pointer;
+    GetDepthCodec: function(Cmd: PChar): TPrecompCmd cdecl;
+    ReadFuture: function(Index: Integer; Position: NativeInt; Buffer: Pointer;
+      Count: Integer): Integer cdecl;
+    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 33] of Pointer;
   end;
 
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
@@ -194,8 +193,8 @@ type
     Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
     Funcs: PPrecompFuncs);
   _PrecompScan2 = function(Instance, Depth: Integer; Input: Pointer;
-    Size: NativeInt; StreamInfo: PStrInfo2; Output: _PrecompOutput;
-    Funcs: PPrecompFuncs): Boolean;
+    Size: NativeInt; StreamInfo: PStrInfo2; Offset: PInteger;
+    Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
   _PrecompProcess = function(Instance, Depth: Integer;
     OldInput, NewInput: Pointer; StreamInfo: PStrInfo2; Output: _PrecompOutput;
     Funcs: PPrecompFuncs): Boolean;
@@ -272,19 +271,6 @@ type
     Size: Integer;
   end;
 
-  PExecCtx = ^TExecCtx;
-
-  TExecCtx = record
-    FInstance: Integer;
-    FExecutable, FCommandLine, FWorkDir: string;
-    hstdinr, hstdinw: THandle;
-    hstdoutr, hstdoutw: THandle;
-    StartupInfo: TStartupInfo;
-    ProcessInfo: TProcessInformation;
-    FTask: TTask;
-    FDone: Boolean;
-  end;
-
 function DuplicateSortCompare(const Left, Right): Integer;
 
 procedure AddMethod(Method: String);
@@ -297,6 +283,7 @@ function PrecompGetCodec(Cmd: PChar; Index: Integer; WithParams: Boolean)
   : TPrecompCmd cdecl;
 function PrecompGetParam(Cmd: PChar; Index: Integer; Param: PChar)
   : TPrecompCmd cdecl;
+function PrecompGetDepthCodec(Cmd: PChar): TPrecompCmd cdecl;
 function PrecompCompress(Codec: PChar; InBuff: Pointer; InSize: Integer;
   OutBuff: Pointer; OutSize: Integer; DictBuff: Pointer; DictSize: Integer)
   : Integer cdecl;
@@ -348,12 +335,6 @@ function PrecompExecStdio(Instance: Integer;
 function PrecompExecStdioSync(Instance: Integer;
   Executable, CommandLine, WorkDir: PChar; InBuff: Pointer; InSize: Integer;
   Output: _ExecOutput): Boolean cdecl;
-function PrecompExecStdioInit(Instance: Integer;
-  Executable, CommandLine, WorkDir: PChar): PExecCtx cdecl;
-procedure PrecompExecStdioFree(Ctx: PExecCtx)cdecl;
-function PrecompExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer;
-  InSize: Integer; Output: _ExecOutput; Continous: Boolean = False)
-  : Boolean cdecl;
 
 var
   PrecompFunctions: _PrecompFuncs;
@@ -366,9 +347,7 @@ var
 implementation
 
 uses
-  DECCipherBase, DECCipherModes, DECCipherFormats, DECCiphers,
   BDiffEncoder, BDiffDecoder,
-  Crypt2,
   ZLibDLL, LZ4DLL, LZODLL, ZSTDDLL, OodleDLL, XDeltaDLL,
   SynCommons, SynCrypto;
 
@@ -414,23 +393,26 @@ end;
 
 function RegisterResources(Cmd: String): Integer;
 var
-  List1, List2: System.Types.TStringDynArray;
+  List0, List1, List2: System.Types.TStringDynArray;
   I, J: Integer;
 begin
   Result := -1;
   if Cmd <> '' then
   begin
-    List1 := DecodeStr(Cmd, SPrecompSep1);
+    List0 := DecodeStr(Cmd, SPrecompSep4);
+    List1 := DecodeStr(List0[0], SPrecompSep1);
     for I := Low(List1) to High(List1) do
     begin
       List2 := DecodeStr(List1[I], SPrecompSep2);
       for J := Succ(Low(List2)) to High(List2) do
+      begin
         if FileExists(ExtractFilePath(Utils.GetModuleName) + List2[J]) then
         begin
           Result := PrecompAddResource
             (PChar(ExtractFilePath(Utils.GetModuleName) + List2[J]));
           break;
         end;
+      end;
     end;
   end;
 end;
@@ -523,7 +505,7 @@ end;
 function PrecompGetCodec(Cmd: PChar; Index: Integer; WithParams: Boolean)
   : TPrecompCmd;
 var
-  List1, List2: System.Types.TStringDynArray;
+  List0, List1, List2: System.Types.TStringDynArray;
   I: Integer;
   S: String;
 begin
@@ -531,7 +513,8 @@ begin
   S := '';
   if Cmd <> nil then
   begin
-    List1 := DecodeStr(Cmd, SPrecompSep1);
+    List0 := DecodeStr(Cmd, SPrecompSep4);
+    List1 := DecodeStr(List0[0], SPrecompSep1);
     if InRange(Index, Low(List1), High(List1)) then
       if WithParams then
       begin
@@ -551,14 +534,15 @@ end;
 
 function PrecompGetParam(Cmd: PChar; Index: Integer; Param: PChar): TPrecompCmd;
 var
-  List1, List2: System.Types.TStringDynArray;
+  List0, List1, List2: System.Types.TStringDynArray;
   I: Integer;
   S: String;
 begin
   Result := '';
   if Cmd <> '' then
   begin
-    List1 := DecodeStr(Cmd, SPrecompSep1);
+    List0 := DecodeStr(Cmd, SPrecompSep4);
+    List1 := DecodeStr(List0[0], SPrecompSep1);
     if InRange(Index, Low(List1), High(List1)) then
     begin
       List2 := DecodeStr(List1[Index], SPrecompSep2);
@@ -585,6 +569,25 @@ begin
           end;
       end;
     end;
+  end;
+  StringToWideChar(S, @Result, Length(Result));
+end;
+
+function PrecompGetDepthCodec(Cmd: PChar): TPrecompCmd cdecl;
+var
+  List: System.Types.TStringDynArray;
+  I: Integer;
+  S: String;
+begin
+  Result := '';
+  S := '';
+  if Cmd <> nil then
+  begin
+    List := DecodeStr(Cmd, SPrecompSep4);
+    for I := Succ(Low(List)) to High(List) do
+      S := S + List[I] + SPrecompSep4;
+    if Length(S) > 0 then
+      S := S.Remove(Pred(Length(S)));
   end;
   StringToWideChar(S, @Result, Length(Result));
 end;
@@ -721,14 +724,9 @@ function PrecompEncrypt(Codec: PChar; InBuff: Pointer; InSize: Integer;
 var
   AES: TAESECB;
   RC4: TRC4;
-  IVector: TBytes;
-  BlowFish: TCipher_BlowFish;
-  crypt: HCkCrypt2;
-  ivHex: PWideChar;
-  keyHex: PWideChar;
 begin
   Result := False;
-  case IndexText(Codec, ['xor', 'aes', 'rc4', 'blowfish']) of
+  case IndexText(Codec, ['xor', 'aes', 'rc4']) of
     0:
       begin
         XorBuffer(InBuff, InSize, KeyBuff, KeySize);
@@ -750,27 +748,6 @@ begin
         RC4.Encrypt(InBuff^, InBuff^, InSize);
         Result := True;
       end;
-    3:
-      begin
-        { crypt := CkCrypt2_Create();
-          CkCrypt2_putCryptAlgorithm(crypt, 'blowfish2');
-          CkCrypt2_putCipherMode(crypt, 'cfb');
-          CkCrypt2_putKeyLength(crypt, 128);
-          CkCrypt2_putPaddingScheme(crypt, 0);
-          CkCrypt2_putEncodingMode(crypt, 'hex');
-          ivHex := '0000000000000000';
-          CkCrypt2_SetEncodedIV(crypt, ivHex, 'hex');
-          keyHex := '4372797074656442794D697469746569';
-          CkCrypt2_SetEncodedKey(crypt, keyHex, 'hex');
-          CkCrypt2_CkEncryptFile(crypt, 'xbf', 'xbf_encrypted2'); }
-        BlowFish := TCipher_BlowFish.Create;
-        BlowFish.Mode := cmECBx;
-        // SetLength(IVector, KeySize);
-        // FillChar(IVector[0], KeySize, 0);
-        BlowFish.Init(KeyBuff^, KeySize, IVector, 0);
-        BlowFish.Encode(InBuff^, InBuff^, 16);
-        Result := True;
-      end;
   end;
 end;
 
@@ -779,11 +756,9 @@ function PrecompDecrypt(Codec: PChar; InBuff: Pointer; InSize: Integer;
 var
   AES: TAESECB;
   RC4: TRC4;
-  IVector: TBytes;
-  BlowFish: TCipher_BlowFish;
 begin
   Result := False;
-  case IndexText(Codec, ['xor', 'aes', 'rc4', 'blowfish']) of
+  case IndexText(Codec, ['xor', 'aes', 'rc4']) of
     0:
       begin
         XorBuffer(InBuff, InSize, KeyBuff, KeySize);
@@ -803,20 +778,6 @@ begin
       begin
         RC4.Init(KeyBuff^, KeySize);
         RC4.Encrypt(InBuff^, InBuff^, InSize);
-        Result := True;
-      end;
-    3:
-      begin
-        BlowFish := TCipher_BlowFish.Create;
-        try
-          // SetLength(IVector, KeySize);
-          // FillChar(IVector[0], KeySize, 0);
-          BlowFish.Init(KeyBuff^, KeySize, IVector, 0);
-          BlowFish.Decode(InBuff^, InBuff^, InSize);
-        finally
-          SetLength(IVector, 0);
-          BlowFish.Free;
-        end;
         Result := True;
       end;
   end;
@@ -938,12 +899,8 @@ begin
     Size^ := -1;
     exit;
   end;
-  if not Assigned(Data) then
-  begin
-    Size^ := Resources[Index].Size;
-    exit;
-  end;
-  Move(Resources[Index].Data^, Data^, Resources[Index].Size);
+  if Assigned(Data) then
+    Move(Resources[Index].Data^, Data^, Resources[Index].Size);
   Size^ := Resources[Index].Size;
   Result := True;
 end;
@@ -1142,18 +1099,16 @@ begin
   end;
 end;
 
-procedure ExecReadTask(Instance, Handle, Stream, Done: IntPtr);
+procedure ExecReadTask(Instance, Handle, Stream: IntPtr);
 const
   BufferSize = 65536;
 var
   Buffer: array [0 .. BufferSize - 1] of Byte;
   BytesRead: DWORD;
 begin
-  PBoolean(Pointer(Done))^ := False;
   while ReadFile(Handle, Buffer[0], Length(Buffer), BytesRead, nil) and
     (BytesRead > 0) do
     PExecOutput(Pointer(Stream))^(Instance, @Buffer[0], BytesRead);
-  PBoolean(Pointer(Done))^ := BytesRead = 0;
 end;
 
 function PrecompExecStdioSync(Instance: Integer;
@@ -1213,117 +1168,6 @@ begin
     CloseHandle(hstdoutw);
     RaiseLastOSError;
   end;
-end;
-
-function PrecompExecStdioInit(Instance: Integer;
-  Executable, CommandLine, WorkDir: PChar): PExecCtx;
-begin
-  New(Result);
-  with Result^ do
-  begin
-    FInstance := Instance;
-    FExecutable := Executable;
-    FCommandLine := CommandLine;
-    if WorkDir <> '' then
-      FWorkDir := WorkDir
-    else
-      FWorkDir := GetCurrentDir;
-    FTask := TTask.Create;
-    FTask.Perform(ExecReadTask);
-    FDone := False;
-  end;
-end;
-
-procedure PrecompExecStdioFree(Ctx: PExecCtx);
-begin
-  with Ctx^ do
-    FTask.Free;
-  Dispose(Ctx);
-end;
-
-function PrecompExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer;
-  InSize: Integer; Output: _ExecOutput; Continous: Boolean): Boolean;
-const
-  PipeSecurityAttributes: TSecurityAttributes =
-    (nLength: SizeOf(PipeSecurityAttributes); bInheritHandle: True);
-begin
-  with Ctx^ do
-  begin
-    if Continous and (WaitForSingleObject(ProcessInfo.hProcess, 0)
-      = WAIT_TIMEOUT) then
-    begin
-      if FDone then
-      begin
-        FTask.Update(FInstance, hstdoutr, NativeInt(@Output),
-          NativeInt(@FDone));
-        FTask.Start;
-      end;
-      if Continous then
-        FileWriteBuffer(hstdinw, InSize, InSize);
-      FileWriteBuffer(hstdinw, InBuff^, InSize);
-      if Continous then
-        FTask.Wait;
-      Result := True;
-    end
-    else
-    begin
-      CreatePipe(hstdinr, hstdinw, @PipeSecurityAttributes, 0);
-      CreatePipe(hstdoutr, hstdoutw, @PipeSecurityAttributes, 0);
-      SetHandleInformation(hstdinw, HANDLE_FLAG_INHERIT, 0);
-      SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
-      ZeroMemory(@StartupInfo, SizeOf(StartupInfo));
-      StartupInfo.cb := SizeOf(StartupInfo);
-      StartupInfo.dwFlags := STARTF_USESTDHANDLES;
-      StartupInfo.hStdInput := hstdinr;
-      StartupInfo.hStdOutput := hstdoutw;
-      StartupInfo.hStdError := 0;
-      ZeroMemory(@ProcessInfo, SizeOf(ProcessInfo));
-      if CreateProcess(nil, PChar('"' + FExecutable + '" ' + FCommandLine), nil,
-        nil, True, NORMAL_PRIORITY_CLASS, nil, PChar(FWorkDir), StartupInfo,
-        ProcessInfo) then
-      begin
-        if not Continous then
-          CloseHandle(ProcessInfo.hProcess);
-        CloseHandle(ProcessInfo.hThread);
-        CloseHandle(hstdinr);
-        CloseHandle(hstdoutw);
-        FTask.Update(FInstance, hstdoutr, NativeInt(@Output),
-          NativeInt(@FDone));
-        FTask.Start;
-        FileWriteBuffer(hstdinw, InBuff^, InSize);
-        if not Continous then
-          CloseHandle(hstdinw);
-        FTask.Wait;
-        if not Continous then
-          CloseHandle(hstdoutr);
-        Result := True;
-      end
-      else
-      begin
-        CloseHandle(hstdinr);
-        CloseHandle(hstdinw);
-        CloseHandle(hstdoutr);
-        CloseHandle(hstdoutw);
-        RaiseLastOSError;
-      end;
-    end;
-  end;
-end;
-
-const
-  ID_MEMORYLIB = 0;
-  ID_FILESTREAM = 1;
-  ID_MEMORYSTREAM = 2;
-  ID_RESOURCESTREAM = 3;
-
-function PrecompCreateObject(ObjectID: Integer): Integer;
-begin
-
-end;
-
-procedure PrecompDestoryObject(ObjectID: Integer);
-begin
-
 end;
 
 initialization

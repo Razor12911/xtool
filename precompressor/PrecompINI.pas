@@ -198,6 +198,8 @@ var
   StreamPosInt, StreamOffsetInt, OldSizeInt, NewSizeInt: NativeInt;
   SI: _StrInfo1;
 begin
+  if Depth > 0 then
+    exit;
   for I := Low(CodecCfg[Instance]) to High(CodecCfg[Instance]) do
     for J := Low(CodecCfg[Instance, I]) to High(CodecCfg[Instance, I]) do
       if CodecEnabled[I, J] then
@@ -308,7 +310,8 @@ begin
 end;
 
 function ConfigScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 begin
   Result := False;
 end;

@@ -68,16 +68,18 @@ begin
 end;
 
 function CryptoScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Res: Integer;
 begin
   Result := False;
-  Res := 0;
-  Funcs^.GetResource(StreamInfo^.Resource, nil, @Res);
-  if (Res > 0) or (StreamInfo^.OldSize > 0) or
-    (StreamInfo^.OldSize = StreamInfo^.NewSize) then
+  Res := -1;
+  if not Funcs^.GetResource(StreamInfo^.Resource, nil, @Res) then
+    exit;
+  if (Res > 0) and (StreamInfo^.OldSize > 0) then
   begin
+    StreamInfo^.NewSize := StreamInfo^.OldSize;
     Output(Instance, Input, StreamInfo^.OldSize);
     Result := True;
   end;
@@ -93,10 +95,16 @@ begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
   Res := 0;
-  Funcs^.GetResource(StreamInfo^.Resource, nil, @Res);
+  if not Funcs^.GetResource(StreamInfo^.Resource, nil, @Res) then
+    exit;
   Buffer := Funcs^.Allocator(Instance, Res);
   if Funcs^.GetResource(StreamInfo^.Resource, Buffer, @Res) then
   begin
+    with TFileStream.Create('xtest1', fmCreate) do
+    begin
+      WriteBuffer(NewInput^, StreamInfo^.NewSize);
+      Free;
+    end;
     case X of
       XOR_CODEC:
         Funcs^.Decrypt('xor', NewInput, StreamInfo^.NewSize, Buffer, Res);
@@ -107,6 +115,12 @@ begin
     else
       exit;
     end;
+    with TFileStream.Create('xtest2', fmCreate) do
+    begin
+      WriteBuffer(NewInput^, StreamInfo^.NewSize);
+      Free;
+    end;
+    ShowMessage('');
     Result := True;
   end;
 end;
@@ -121,7 +135,8 @@ begin
   Result := False;
   X := GetBits(StreamInfo.Option, 0, 5);
   Res := 0;
-  Funcs^.GetResource(StreamInfo.Resource, nil, @Res);
+  if not Funcs^.GetResource(StreamInfo.Resource, nil, @Res) then
+    exit;
   Buffer := Funcs^.Allocator(Instance, Res);
   if Funcs^.GetResource(StreamInfo.Resource, Buffer, @Res) then
   begin

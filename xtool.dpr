@@ -186,6 +186,15 @@ begin
 end;
 
 { changelog
+  ES_R24 (0.4.1)
+  - fixed issue of status not reporting when encoding
+  - added depth method support for search support
+  - fixed zlib encoding issues for different window bits
+  - fixed zlib memory leak issue
+  - updated all internal codecs to support information relayed by external codecs
+  - updated lz4f codec and removed temporarily removed support for universal scanning
+  - added option to change recompression level to be used by reflate
+  - updated external executable support
 
   ES_R23 (0.4.0)
   - project made open source
@@ -363,143 +372,6 @@ end;
 
   changelog }
 
-(* type
-  XMEMCODEC_TYPE = (XMEMCODEC_DEFAULT = 0, XMEMCODEC_LZX = 1);
-
-  XMEMCODEC_PARAMETERS_LZX = record
-  public
-  Flags: Integer;
-  WindowSize: Integer;
-  CompressionPartitionSize: Integer;
-  end;
-
-  PXMEMCODEC_PARAMETERS_LZX = ^XMEMCODEC_PARAMETERS_LZX;
-
-  XMEMCOMPRESSION_CONTEXT = IntPtr;
-  XMEMDECOMPRESSION_CONTEXT = IntPtr;
-
-  PIntPtr = ^IntPtr;
-
-  function XMemCreateCompressionContext(CodecType: XMEMCODEC_TYPE;
-  pCodecParams: PXMEMCODEC_PARAMETERS_LZX; Flags: Integer; pContext: PIntPtr)
-  : Integer stdcall; external 'xcompress.dll';
-  function XMemCompress(Context: IntPtr; pDestination: Pointer;
-  pDestSize: PInteger; pSource: Pointer; SrcSize: Integer): Integer stdcall;
-  external 'xcompress.dll';
-  function XMemDestroyCompressionContext(pContext: IntPtr): Integer stdcall;
-  external 'xcompress.dll';
-  function XMemCreateDecompressionContext(CodecType: XMEMCODEC_TYPE;
-  pCodecParams: PXMEMCODEC_PARAMETERS_LZX; Flags: Integer; pContext: PIntPtr)
-  : Integer stdcall; external 'xcompress.dll';
-  function XMemDecompress(Context: IntPtr; pDestination: Pointer;
-  pDestSize: PInteger; pSource: Pointer; SrcSize: Integer): Integer stdcall;
-  external 'xcompress.dll';
-  function XMemDestroyDecompressionContext(pContext: IntPtr): Integer stdcall;
-  external 'xcompress.dll';
-
-  type
-  xcompress_native_p = ^xcompress_native_t;
-
-  xcompress_native_t = packed record
-  Identifier: UInt32;
-  Version: UInt16;
-  Reserved: UInt16;
-  ContextFlags: UInt32;
-  Flags: UInt32;
-  WindowSize: UInt32;
-  CompressionPartitionSize: UInt32;
-  UncompressedSize: UInt64;
-  CompressedSize: UInt64;
-  UncompressedBlockSize: UInt32;
-  CompressedBlockSize: UInt32;
-  procedure CorrectEndian(out data: xcompress_native_t);
-  {  var
-  BigEndian: Boolean;
-  procedure CorrectEndian;  }
-  end;
-
-  procedure xcompress_native_t.CorrectEndian(out data: xcompress_native_t);
-  begin
-  if Identifier = $EE12F50F then
-  end; *)
-
-(*
-  //#define XCOMPRESS_FILE_IDENTIFIER_LZXTDECODE        0x0FF512ED
-  #pragma pack(2)
-  typedef struct {
-  u32     Identifier;
-  u16     Version;
-  u16     Reserved;
-  u32     CRC_Hash;
-  u32     Flags;
-  } xcompress_decode_t;
-  #pragma pack()
-
-  //#define XCOMPRESS_FILE_IDENTIFIER_LZXNATIVE         0x0FF512EE
-  #pragma pack(2)
-  typedef struct {
-  u32     Identifier;
-  u16     Version;
-  u16     Reserved;
-  u32     ContextFlags;
-  u32   Flags;
-  u32   WindowSize;
-  u32   CompressionPartitionSize;
-  u32     UncompressedSizeHigh;
-  u32     UncompressedSizeLow;
-  u32     CompressedSizeHigh;
-  u32     CompressedSizeLow;
-  u32     UncompressedBlockSize;
-  u32     CompressedBlockSizeMax;
-  } xcompress_native_t;
-  #pragma pack()
-*)
-
-(* function xmem_compress(inbuf: Pointer; insz: Integer; outbuf: Pointer;
-  outsz: Integer): Integer;
-  var
-  ctx: XMEMCOMPRESSION_CONTEXT;
-  param: XMEMCODEC_PARAMETERS_LZX;
-  ret: SIZE_T;
-  hr: HRESULT;
-  begin
-  Result := 0;
-  param.Flags := 0;
-  param.WindowSize := 32 * 1024;
-  param.CompressionPartitionSize := 32 * 1024;
-  { param.WindowSize := 128 * 1024;
-  param.CompressionPartitionSize := 256 * 1024; }
-  hr := XMemCreateCompressionContext(XMEMCODEC_DEFAULT, @param, 0, @ctx);
-  ret := outsz;
-  hr := XMemCompress(ctx, outbuf, @ret, inbuf, insz);
-  if hr = 0 then
-  Result := ret;
-  XMemDestroyCompressionContext(ctx);
-  end;
-
-  function xmem_decompress(inbuf: Pointer; insz: Integer; outbuf: Pointer;
-  outsz: Integer): Integer;
-  var
-  ctx: XMEMDECOMPRESSION_CONTEXT;
-  param: XMEMCODEC_PARAMETERS_LZX;
-  ret: SIZE_T;
-  hr: HRESULT;
-  begin
-  Result := 0;
-  param.Flags := 0;
-  param.WindowSize := 32 * 1024;
-  param.CompressionPartitionSize := 32 * 1024;
-  hr := XMemCreateDecompressionContext(XMEMCODEC_DEFAULT, @param, 0, @ctx);
-  ret := outsz;
-  hr := XMemDecompress(ctx, outbuf, @ret, inbuf, insz);
-  if hr = 0 then
-  Result := ret;
-  XMemDestroyDecompressionContext(ctx);
-  end; *)
-
-{ function decode2(src: Pointer; src_size: Integer; dst: Pointer;
-  dst_size: Integer): Integer cdecl; external 'libdunia.dll'; }
-
 const
   BufferSize = 1048576;
 
@@ -511,20 +383,8 @@ var
   PrecompEnc: PrecompMain.TEncodeOptions;
   PrecompDec: PrecompMain.TDecodeOptions;
   GenerateEnc: DbgMain.TEncodeOptions;
-  // MS1, MS2, MS3: TMemoryStream;
 
 begin
-  { MS1 := TMemoryStream.Create;
-    MS2 := TMemoryStream.Create;
-    MS3 := TMemoryStream.Create;
-    MS1.LoadFromFile('Untitled3');
-    MS2.Size := 32948;
-    decode2(MS1.Memory, MS1.Size, MS2.Memory, MS2.Size);
-    MS2.SaveToFile('Untitled3.out');
-    MS3.Size := MS2.Size;
-    MS3.Size := LZ4_compress_HC(MS2.Memory, MS3.Memory, MS2.Size, MS3.Size, 3);
-    MS3.SaveToFile('Untitled3.res');
-    exit; }
   FormatSettings := TFormatSettings.Invariant;
   ProgramInfo;
   try

@@ -10,12 +10,15 @@ uses
   System.Types, System.Math, System.IOUtils;
 
 const
-  XTOOL_DB = $42445458;
+  XTOOL_DB = $31445458;
 
 var
   Codec: TPrecompressor;
 
 implementation
+
+const
+  MinSize = 65536;
 
 type
   PEntryStruct = ^TEntryStruct;
@@ -27,11 +30,18 @@ type
 
   PSearchStruct = ^TSearchStruct;
 
+  PHashStruct = ^THashStruct;
+
+  THashStruct = record
+    Size: Integer;
+    Hash: Cardinal;
+  end;
+
   TSearchStruct = record
     Name: String;
-    SearchInt: Int64;
-    HashSize: Integer;
-    HashDigest: TMD5Digest;
+    SearchInt1, SearchInt2: Integer;
+    Hash: Cardinal;
+    HashList: TArray<THashStruct>;
     Codec: String;
     Resource: Integer;
     EntryList: TArray<TEntryStruct>;
@@ -44,12 +54,45 @@ var
   CodecSearch: TArray<TArray<TSearchStruct>>;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
 
+function CheckHashList(Instance: Integer; Position: NativeInt;
+  HashList: TArray<THashStruct>; Funcs: PPrecompFuncs): Boolean;
+const
+  BufferSize = 65536;
+var
+  Buffer: array [0 .. BufferSize - 1] of Byte;
+  LPos: NativeInt;
+  I: Integer;
+  X, Y: Integer;
+  CRC: Cardinal;
+begin
+  Result := False;
+  LPos := Position;
+  for I := Low(HashList) to High(HashList) do
+  begin
+    X := HashList[I].Size;
+    CRC := 0;
+    Y := Funcs^.ReadFuture(Instance, LPos, @Buffer[0], Min(X, BufferSize));
+    while Y > 0 do
+    begin
+      Inc(LPos, Y);
+      CRC := Utils.Hash32(CRC, @Buffer[0], Y);
+      Dec(X, Y);
+      Y := Funcs^.ReadFuture(Instance, LPos, @Buffer[0], Min(X, BufferSize));
+    end;
+    if (X > 0) or (CRC <> HashList[I].Hash) then
+      break;
+    if I = High(HashList) then
+      Result := True;
+  end;
+end;
+
 function SearchInit(Command: PChar; Count: Integer;
   Funcs: PPrecompFuncs): Boolean;
 var
   I: Integer;
-  X, Y, Z: Integer;
+  W, X, Y, Z: Integer;
   S: String;
+  List: System.Types.TStringDynArray;
 begin
   Result := True;
   for X := Low(CodecAvailable) to High(CodecAvailable) do
@@ -76,6 +119,12 @@ begin
   for X := Low(CodecEnabled) to High(CodecEnabled) do
     if CodecEnabled[X] then
     begin
+      for Y := Low(CodecSearch[X]) to High(CodecSearch[X]) do
+      begin
+        List := DecodeStr(CodecSearch[X, Y].Codec, SPrecompSep4);
+        for W := Low(List) to High(List) do
+          AddMethod(PrecompGetCodec(PChar(List[W]), 0, False));
+      end;
       SetLength(SearchInfo[X], $10000);
       SetLength(SearchCount[X], $10000);
       for Z := Low(SearchInfo[X]) to High(SearchInfo[X]) do
@@ -83,13 +132,12 @@ begin
         SearchCount[X, Z] := 0;
         for Y := Low(CodecSearch[X]) to High(CodecSearch[X]) do
         begin
-          LongRec(I).Words[0] := Int64Rec(CodecSearch[X, Y].SearchInt).Words[0];
+          LongRec(I).Words[0] := LongRec(CodecSearch[X, Y].SearchInt1).Words[0];
           if Z = I then
           begin
             Inc(SearchCount[X, Z]);
             Insert(Y, SearchInfo[X, Z], Length(SearchInfo[X, Z]));
           end;
-          AddMethod(PrecompGetCodec(PChar(CodecSearch[X, Y].Codec), 0, False));
         end;
       end;
     end;
@@ -121,42 +169,44 @@ procedure SearchScan1(Instance, Depth: Integer; Input: PByte;
 var
   I: Integer;
   J: Word;
-  X, Y, Z: Integer;
+  X, Y: Integer;
   Pos, LSize: NativeInt;
   SI: _StrInfo1;
+  DI: TDepthInfo;
   SS: PSearchStruct;
-  MD5: TMD5;
-  Digest: TMD5Digest;
-  MD5Checked: Boolean;
+  CRC: Cardinal;
+  Checked: Boolean;
 begin
+  if Depth > 0 then
+    exit;
   for I := Low(CodecSearch) to High(CodecSearch) do
     if CodecEnabled[I] then
     begin
       Pos := 0;
-      LSize := Size - Pred(Int64.Size);
+      LSize := Size - Pred(Integer.Size);
       while Pos < LSize do
       begin
         J := PWord(Input + Pos)^;
-        if (SearchCount[I, J] > 0) and
-          (CodecSearch[I, 0].HashSize <= (SizeEx - Pos)) then
+        if (SearchCount[I, J] > 0) and (MinSize <= (SizeEx - Pos)) then
         begin
-          MD5Checked := False;
+          Checked := False;
           for X := 0 to SearchCount[I, J] - 1 do
           begin
-            if (PInt64(Input + Pos)^ = CodecSearch[I, SearchInfo[I, J, X]]
-              .SearchInt) then
+            if (PInteger(Input + Pos)^ = CodecSearch[I, SearchInfo[I, J, X]]
+              .SearchInt1) and (PInteger(Input + Pos + MinSize - Integer.Size)
+              ^ = CodecSearch[I, SearchInfo[I, J, X]].SearchInt2) then
             begin
-              if not MD5Checked then
+              if not Checked then
               begin
-                MD5.Full(Input + Pos, CodecSearch[I, 0].HashSize, Digest);
-                MD5Checked := True;
+                CRC := Utils.Hash32(0, Input + Pos, MinSize);
+                Checked := True;
               end;
-              // fix this
-              if CompareMem(@CodecSearch[I, SearchInfo[I, J, X]].HashDigest[0],
-                @Digest[0], sizeof(TMD5Digest)) then
+              if (CodecSearch[I, SearchInfo[I, J, X]].Hash = CRC) and
+                CheckHashList(Instance, Pos, CodecSearch[I, SearchInfo[I, J, X]]
+                .HashList, Funcs) then
               begin
                 SS := @CodecSearch[I, SearchInfo[I, J, X]];
-                Output(Instance, nil, -1);
+                Output(Instance, nil, 0);
                 for Y := Low(SS^.EntryList) to High(SS^.EntryList) do
                 begin
                   SI.Position := Pos + SS^.EntryList[Y].Position;
@@ -168,7 +218,10 @@ begin
                     SI.Status := TStreamStatus.Predicted
                   else
                     SI.Status := TStreamStatus.None;
-                  Add(Instance, @SI, PChar(SS^.Codec), nil);
+                  DI.Codec := Funcs^.GetDepthCodec(PChar(SS^.Codec));
+                  DI.OldSize := SI.NewSize;
+                  DI.NewSize := SI.NewSize;
+                  Add(Instance, @SI, PChar(SS^.Codec), @DI);
                 end;
               end;
             end;
@@ -180,7 +233,8 @@ begin
 end;
 
 function SearchScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 begin
   Result := False;
 end;
@@ -204,6 +258,7 @@ var
   FStream: TFileStream;
   I32: Integer;
   SearchStruct: PSearchStruct;
+  HList: TArray<THashStruct>;
 
 initialization
 
@@ -213,7 +268,7 @@ for I := Low(SearchList) to High(SearchList) do
 begin
   FStream := TFileStream.Create(SearchList[I], fmShareDenyNone);
   try
-    if FStream.Size >= 4 then
+    if FStream.Size >= 8 then
     begin
       FStream.ReadBuffer(I32, I32.Size);
       if (I32 = XTOOL_DB) then
@@ -229,11 +284,14 @@ begin
         begin
           New(SearchStruct);
           SearchStruct^.Name := S;
-          FStream.ReadBuffer(SearchStruct^.SearchInt,
-            SearchStruct^.SearchInt.Size);
-          FStream.ReadBuffer(SearchStruct^.HashSize,
-            SearchStruct^.HashSize.Size);
-          FStream.ReadBuffer(SearchStruct^.HashDigest, sizeof(THash128));
+          FStream.ReadBuffer(SearchStruct^.SearchInt1,
+            SearchStruct^.SearchInt1.Size);
+          FStream.ReadBuffer(SearchStruct^.SearchInt2,
+            SearchStruct^.SearchInt2.Size);
+          FStream.ReadBuffer(SearchStruct^.Hash, SearchStruct^.Hash.Size);
+          FStream.ReadBuffer(I32, I32.Size);
+          SetLength(HList, I32);
+          FStream.ReadBuffer(HList[0], I32 * sizeof(THashStruct));
           FStream.ReadBuffer(I32, I32.Size);
           SetLength(Bytes, I32);
           FStream.ReadBuffer(Bytes[0], I32);
@@ -241,6 +299,9 @@ begin
           Insert(SearchStruct^, CodecSearch[J], Length(CodecSearch[J]));
           FStream.ReadBuffer(I32, I32.Size);
           K := Pred(Length(CodecSearch[J]));
+          SetLength(CodecSearch[J, K].HashList, Length(HList));
+          Move(HList[0], CodecSearch[J, K].HashList[0],
+            Length(HList) * sizeof(THashStruct));
           SetLength(CodecSearch[J, K].EntryList, I32);
           FStream.ReadBuffer(CodecSearch[J, K].EntryList[0],
             I32 * sizeof(TEntryStruct));
@@ -251,7 +312,6 @@ begin
     FStream.Free;
   end;
 end;
-
 Codec.Initialised := False;
 Codec.Init := @SearchInit;
 Codec.Free := @SearchFree;

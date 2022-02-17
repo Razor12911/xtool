@@ -41,6 +41,7 @@ const
 
 const
   O_TRADEOFF = 256;
+  O_MAXSIZE = 16 * 1024 * 1024;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
@@ -445,9 +446,70 @@ procedure OodleScan1(Instance, Depth: Integer; Input: PByte;
   Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
   Funcs: PPrecompFuncs);
 var
+  Buffer: PByte;
   Pos: NativeInt;
+  X: Integer;
+  Res: Integer;
+  SI: _StrInfo1;
   OodleSI: TOodleSI;
+  DI1, DI2: TDepthInfo;
+  DS: TPrecompCmd;
 begin
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  if DS <> '' then
+  begin
+    X := IndexTextW(@DS[0], OodleCodecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
+      exit;
+    if not CodecAvailable[X] then
+      exit;
+    if (X in [LZNA_CODEC, LEVIATHAN_CODEC]) and (DI1.NewSize <= 0) then
+      exit;
+    if DI1.NewSize <= 0 then
+      Res := O_MAXSIZE
+    else
+      Res := DI1.NewSize;
+    Buffer := Funcs^.Allocator(Instance, Res);
+    case X of
+      KRAKEN_CODEC, MERMAID_CODEC, SELKIE_CODEC, HYDRA_CODEC:
+        begin
+          if DI1.NewSize <= 0 then
+          begin
+            if not CustomLZ_Decompress(Input, Buffer, DI1.OldSize, Res, $32, Res)
+            then
+              Res := 0;
+          end
+          else
+            Res := OodleLZ_Decompress(Input, DI1.OldSize, Buffer, Res);
+        end;
+    else
+      begin
+        if DI1.NewSize > 0 then
+          Res := OodleLZ_Decompress(Input, DI1.OldSize, Buffer, Res)
+        else
+          Res := 0;
+      end;
+    end;
+    if (Res > DI1.OldSize) then
+    begin
+      Output(Instance, Buffer, Res);
+      SI.Position := 0;
+      SI.OldSize := DI1.OldSize;
+      SI.NewSize := Res;
+      SI.Option := 0;
+      SetBits(SI.Option, X, 0, 5);
+      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
+        SI.Status := TStreamStatus.Predicted
+      else
+        SI.Status := TStreamStatus.None;
+      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DI2.OldSize := SI.NewSize;
+      DI2.NewSize := SI.NewSize;
+      Add(Instance, @SI, DI1.Codec, @DI2);
+    end;
+    exit;
+  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Pos := 0;
@@ -465,32 +527,44 @@ begin
 end;
 
 function OodleScan2(Instance, Depth: Integer; Input: Pointer; Size: cardinal;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  X: Integer;
   Res: Integer;
   OodleSI: TOodleSI;
 begin
   Result := False;
-  if StreamInfo^.NewSize <= 0 then
-    exit;
-  Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
-  if StreamInfo^.OldSize <= Size then
+  X := GetBits(StreamInfo^.Option, 0, 5);
+  if (X <> LZNA_CODEC) and (StreamInfo^.OldSize <= 0) then
   begin
-    if GetBits(StreamInfo^.Option, 0, 5) = LZNA_CODEC then
-      OodleSI.CSize := StreamInfo^.OldSize
-    else
-      GetOodleSI(Input, Size, @OodleSI);
-    if (OodleSI.CSize > 0) then
+    GetOodleSI(Input, Size, @OodleSI);
+    StreamInfo^.OldSize := OodleSI.CSize;
+  end
+  else
+    exit;
+  if StreamInfo^.NewSize > 0 then
+  begin
+    Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
+    Res := OodleLZ_Decompress(Input, StreamInfo^.OldSize, Buffer,
+      StreamInfo^.NewSize);
+    if Res = StreamInfo^.NewSize then
     begin
-      Res := OodleLZ_Decompress(Input, OodleSI.CSize, Buffer,
-        StreamInfo^.NewSize);
-      if Res = StreamInfo^.NewSize then
-      begin
-        StreamInfo^.OldSize := OodleSI.CSize;
-        Output(Instance, Buffer, Res);
-        Result := True;
-      end;
+      Output(Instance, Buffer, Res);
+      Result := True;
+    end;
+  end
+  else if (not X in [LZNA_CODEC, LEVIATHAN_CODEC]) and (StreamInfo^.NewSize <= 0)
+  then
+  begin
+    Buffer := Funcs^.Allocator(Instance, OodleSI.DSize);
+    if CustomLZ_Decompress(Input, Buffer, StreamInfo^.OldSize, OodleSI.DSize,
+      $32, Res) then
+    begin
+      StreamInfo^.NewSize := Res;
+      Output(Instance, Buffer, Res);
+      Result := True;
     end;
   end;
 end;

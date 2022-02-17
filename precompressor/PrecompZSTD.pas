@@ -126,7 +126,45 @@ var
   Pos: NativeInt;
   X, Y, Z: Integer;
   SI: _StrInfo1;
+  DI1, DI2: TDepthInfo;
+  DS: TPrecompCmd;
 begin
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  if DS <> '' then
+  begin
+    X := IndexTextW(@DS[0], ZSTDCodecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
+      exit;
+    if not CodecAvailable[X] then
+      exit;
+    Y := ZSTD_findDecompressedSize(Input, SizeEx);
+    if Y <= 0 then
+      exit;
+    Buffer := Funcs^.Allocator(Instance, Y);
+    case X of
+      ZSTD_CODEC:
+        Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Y, Input, X);
+    end;
+    if (Y > DI1.OldSize) then
+    begin
+      Output(Instance, Buffer, Y);
+      SI.Position := 0;
+      SI.OldSize := DI1.OldSize;
+      SI.NewSize := Y;
+      SI.Option := 0;
+      SetBits(SI.Option, X, 0, 5);
+      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
+        SI.Status := TStreamStatus.Predicted
+      else
+        SI.Status := TStreamStatus.None;
+      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DI2.OldSize := SI.NewSize;
+      DI2.NewSize := SI.NewSize;
+      Add(Instance, @SI, DI1.Codec, @DI2);
+    end;
+    exit;
+  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Pos := 0;
@@ -165,21 +203,32 @@ begin
 end;
 
 function ZSTDScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  X: Integer;
   Res: Integer;
 begin
   Result := False;
+  X := GetBits(StreamInfo^.Option, 0, 5);
+  if StreamInfo^.OldSize <= 0 then
+    StreamInfo^.OldSize := ZSTD_findFrameCompressedSize(Input, Size);
+  if StreamInfo^.OldSize <= 0 then
+    exit;
+  if StreamInfo^.NewSize <= 0 then
+    StreamInfo^.NewSize := ZSTD_findDecompressedSize(Input, Size);
   if StreamInfo^.NewSize <= 0 then
     exit;
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
-  Res := ZSTD_decompressDCtx(dctx[Instance], Buffer, StreamInfo^.NewSize, Input,
-    StreamInfo^.OldSize);
-  { Res := ZSTD_decompress_usingDDict(dctx[Instance], Buffer, StreamInfo^.NewSize,
-    Input, StreamInfo^.OldSize, ddict); }
-  if Res = StreamInfo^.NewSize then
+  case X of
+    ZSTD_CODEC:
+      Res := ZSTD_decompressDCtx(dctx[Instance], Buffer, StreamInfo^.NewSize,
+        Input, StreamInfo^.OldSize);
+  end;
+  if Res > StreamInfo^.OldSize then
   begin
+    StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
     Result := True;
   end;

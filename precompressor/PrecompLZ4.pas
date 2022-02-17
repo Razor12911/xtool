@@ -14,10 +14,11 @@ var
 implementation
 
 const
-  LZ4Codecs: array of PChar = ['lz4', 'lz4hc'];
-  CODEC_COUNT = 2;
+  LZ4Codecs: array of PChar = ['lz4', 'lz4hc', 'lz4f'];
+  CODEC_COUNT = 3;
   LZ4_CODEC = 0;
   LZ4HC_CODEC = 1;
+  LZ4F_CODEC = 2;
 
 const
   L_MAXSIZE = 16 * 1024 * 1024;
@@ -61,6 +62,15 @@ begin
       if Funcs^.GetParam(Command, X, 'l') <> '' then
         for I := Low(SOList) to High(SOList) do
           SOList[I][LZ4HC_CODEC].Update
+            ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
+    end
+    else if (CompareText(S, LZ4Codecs[LZ4F_CODEC]) = 0) and LZ4DLL.DLLLoaded
+    then
+    begin
+      CodecEnabled[LZ4F_CODEC] := True;
+      if Funcs^.GetParam(Command, X, 'l') <> '' then
+        for I := Low(SOList) to High(SOList) do
+          SOList[I][LZ4F_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
     end;
     Inc(X);
@@ -107,6 +117,14 @@ begin
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       Result := True;
+    end
+    else if (CompareText(S, LZ4Codecs[LZ4F_CODEC]) = 0) and LZ4DLL.DLLLoaded
+    then
+    begin
+      SetBits(Option^, 2, 0, 5);
+      if Funcs^.GetParam(Command, I, 'l') <> '' then
+        SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
+      Result := True;
     end;
     Inc(I);
   end;
@@ -117,85 +135,55 @@ procedure LZ4Scan1(Instance, Depth: Integer; Input: PByte;
   Funcs: PPrecompFuncs);
 var
   Buffer: PByte;
-  Pos: NativeInt;
-  LSize: NativeInt;
-  P: Integer;
-  Frame: Byte;
-  CSize, DSize: Integer;
+  X, Y: Integer;
   SI: _StrInfo1;
-  DI: TDepthInfo;
+  DI1, DI2: TDepthInfo;
   DS: TPrecompCmd;
 begin
-  if BoolArray(CodecEnabled, False) then
-    exit;
-  Buffer := Funcs^.Allocator(Instance, L_MAXSIZE);
-  Pos := 0;
-  LSize := Size - 11;
-  while Pos < LSize do
-  begin
-    if (PInteger(Input + Pos)^ = $184D2204) then
-    begin
-      P := 0;
-      Inc(P, 4);
-      Frame := PByte(Input + Pos + P)^;
-      if Frame = $64 then
-      begin
-        Inc(P, 3);
-        CSize := PInteger(Input + Pos + P)^;
-        Inc(P, 4);
-        DSize := LZ4_decompress_safe((Input + Pos + P), Buffer, CSize,
-          L_MAXSIZE);
-        if CSize > DSize then
-        begin
-          Inc(Pos);
-          continue;
-        end
-        else
-        begin
-          Output(Instance, Buffer, DSize);
-          SI.Position := Pos + P;
-          SI.OldSize := CSize;
-          SI.NewSize := DSize;
-          SI.Option := 0;
-          SI.Status := TStreamStatus.None;
-          Add(Instance, @SI, nil, nil);
-          Inc(Pos, P);
-          continue;
-        end;
-      end;
-    end;
-    Inc(Pos);
-  end;
-  DI := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI.Codec, 0, False);
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
   if DS <> '' then
   begin
-    if IndexTextW(@DS[0], LZ4Codecs) < 0 then
+    X := IndexTextW(@DS[0], LZ4Codecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
       exit;
-  end
-  else
+    if not CodecAvailable[X] then
+      exit;
+    Y := Max(DI1.NewSize, L_MAXSIZE);
+    Buffer := Funcs^.Allocator(Instance, Y);
+    case X of
+      LZ4_CODEC, LZ4HC_CODEC:
+        Y := LZ4_decompress_safe(Input, Buffer, DI1.OldSize, Y);
+      LZ4F_CODEC:
+        Y := LZ4F_decompress_safe(Input, Buffer, DI1.OldSize, Y);
+    end;
+    if (Y > DI1.OldSize) then
+    begin
+      Output(Instance, Buffer, Y);
+      SI.Position := 0;
+      SI.OldSize := DI1.OldSize;
+      SI.NewSize := Y;
+      SI.Option := 0;
+      SetBits(SI.Option, X, 0, 5);
+      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
+        SI.Status := TStreamStatus.Predicted
+      else
+        SI.Status := TStreamStatus.None;
+      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DI2.OldSize := SI.NewSize;
+      DI2.NewSize := SI.NewSize;
+      Add(Instance, @SI, DI1.Codec, @DI2);
+    end;
     exit;
-  if (DI.OldSize <> Size) or (DI.OldSize >= DI.NewSize) then
-    exit;
-  Buffer := Funcs^.Allocator(Instance, DI.NewSize);
-  DSize := LZ4_decompress_safe(Input, Buffer, Size, DI.NewSize);
-  if (DSize > DI.OldSize) then
-  begin
-    Output(Instance, Buffer, DSize);
-    SI.Position := 0;
-    SI.OldSize := DI.OldSize;
-    SI.NewSize := DSize;
-    SI.Option := 0;
-    if System.Pos(SPrecompSep2, DI.Codec) > 0 then
-      SI.Status := TStreamStatus.Predicted
-    else
-      SI.Status := TStreamStatus.None;
-    Add(Instance, @SI, DI.Codec, nil);
   end;
+  if BoolArray(CodecEnabled, False) then
+    exit;
+  //
 end;
 
 function LZ4Scan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
   X: Integer;
@@ -203,18 +191,19 @@ var
 begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
-  if StreamInfo^.NewSize <= 0 then
+  if StreamInfo^.OldSize <= 0 then
     exit;
+  StreamInfo^.NewSize := Max(StreamInfo^.NewSize, L_MAXSIZE);
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
   case X of
     LZ4_CODEC, LZ4HC_CODEC:
       Res := LZ4_decompress_safe(Input, Buffer, StreamInfo^.OldSize,
         StreamInfo^.NewSize);
-  else
-    Res := LZ4_decompress_safe(Input, Buffer, StreamInfo^.OldSize,
-      StreamInfo^.NewSize);
+    LZ4F_CODEC:
+      Res := LZ4F_decompress_safe(Input, Buffer, StreamInfo^.OldSize,
+        StreamInfo^.NewSize);
   end;
-  if Res = StreamInfo^.NewSize then
+  if Res > StreamInfo^.OldSize then
   begin
     StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
@@ -227,15 +216,17 @@ function LZ4Process(Instance, Depth: Integer; OldInput, NewInput: Pointer;
 var
   Buffer, Ptr: PByte;
   I: Integer;
-  X: Integer;
+  X, Y: Integer;
   Res1: Integer;
   Res2: NativeUInt;
+  LZ4FT: LZ4F_preferences_t;
 begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
-  Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
+  Y := LZ4F_compressFrameBound(StreamInfo^.NewSize, nil);
+  Buffer := Funcs^.Allocator(Instance, Y);
   SOList[Instance][X].Index := 0;
   while SOList[Instance][X].Get(I) >= 0 do
   begin
@@ -244,11 +235,16 @@ begin
         continue;
     case X of
       LZ4_CODEC:
-        Res1 := LZ4_compress_default(NewInput, Buffer, StreamInfo^.NewSize,
-          StreamInfo^.NewSize);
+        Res1 := LZ4_compress_default(NewInput, Buffer, StreamInfo^.NewSize, Y);
       LZ4HC_CODEC:
-        Res1 := LZ4_compress_HC(NewInput, Buffer, StreamInfo^.NewSize,
-          StreamInfo^.NewSize, I);
+        Res1 := LZ4_compress_HC(NewInput, Buffer, StreamInfo^.NewSize, Y, I);
+      LZ4F_CODEC:
+        begin
+          FillChar(LZ4FT, SizeOf(LZ4F_preferences_t), 0);
+          LZ4FT.compressionLevel := I;
+          Res1 := LZ4F_compressFrame(Buffer, Y, NewInput,
+            StreamInfo^.NewSize, LZ4FT);
+        end;
     end;
     Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
       StreamInfo^.OldSize);
@@ -283,19 +279,30 @@ var
   X: Integer;
   Res1: Integer;
   Res2: NativeUInt;
+  LZ4FT: LZ4F_preferences_t;
 begin
   Result := False;
   X := GetBits(StreamInfo.Option, 0, 5);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
-  Buffer := Funcs^.Allocator(Instance, StreamInfo.NewSize);
+  Buffer := Funcs^.Allocator(Instance,
+    LZ4F_compressFrameBound(StreamInfo.NewSize, nil));
   case X of
     LZ4_CODEC:
       Res1 := LZ4_compress_default(Input, Buffer, StreamInfo.NewSize,
-        StreamInfo.NewSize);
+        LZ4F_compressFrameBound(StreamInfo.NewSize, nil));
     LZ4HC_CODEC:
       Res1 := LZ4_compress_HC(Input, Buffer, StreamInfo.NewSize,
-        StreamInfo.NewSize, GetBits(StreamInfo.Option, 5, 7));
+        LZ4F_compressFrameBound(StreamInfo.NewSize, nil),
+        GetBits(StreamInfo.Option, 5, 7));
+    LZ4F_CODEC:
+      begin
+        FillChar(LZ4FT, SizeOf(LZ4F_preferences_t), 0);
+        LZ4FT.compressionLevel := GetBits(StreamInfo.Option, 5, 7);
+        Res1 := LZ4F_compressFrame(Buffer,
+          LZ4F_compressFrameBound(StreamInfo.NewSize, nil), Input,
+          StreamInfo.NewSize, LZ4FT);
+      end;
   end;
   if GetBits(StreamInfo.Option, 31, 1) = 1 then
   begin

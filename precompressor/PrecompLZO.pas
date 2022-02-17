@@ -180,10 +180,49 @@ procedure LZOScan1(Instance, Depth: Integer; Input: PByte;
   Funcs: PPrecompFuncs);
 var
   Buffer: PByte;
+  X: Integer;
+  Res: NativeUInt;
   Pos: NativeInt;
   LZOSI: TLZOSI;
   SI: _StrInfo1;
+  DI1, DI2: TDepthInfo;
+  DS: TPrecompCmd;
 begin
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  if DS <> '' then
+  begin
+    X := IndexTextW(@DS[0], LZOCodecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
+      exit;
+    if not CodecAvailable[X] then
+      exit;
+    Res := Max(DI1.NewSize, L_MAXSIZE);
+    Buffer := Funcs^.Allocator(Instance, Res);
+    case X of
+      LZO1X_CODEC:
+        if not lzo1x_decompress_safe(Input, DI1.OldSize, Buffer, @Res) = 0 then
+          Res := 0;
+    end;
+    if (Res > DI1.OldSize) then
+    begin
+      Output(Instance, Buffer, Res);
+      SI.Position := 0;
+      SI.OldSize := DI1.OldSize;
+      SI.NewSize := Res;
+      SI.Option := 0;
+      SetBits(SI.Option, X, 0, 5);
+      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
+        SI.Status := TStreamStatus.Predicted
+      else
+        SI.Status := TStreamStatus.None;
+      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DI2.OldSize := SI.NewSize;
+      DI2.NewSize := SI.NewSize;
+      Add(Instance, @SI, DI1.Codec, @DI2);
+    end;
+    exit;
+  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Buffer := Funcs^.Allocator(Instance, L_MAXSIZE);
@@ -207,34 +246,26 @@ begin
 end;
 
 function LZOScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
-  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
   X: Integer;
   Res: NativeUInt;
-  LZOSI: TLZOSI;
 begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
-  if (StreamInfo^.OldSize = 0) or (StreamInfo^.NewSize = 0) then
-  begin
-    Buffer := Funcs^.Allocator(Instance, L_MAXSIZE);
-    if GetLZOSI(Input, Size, Buffer, L_MAXSIZE, @LZOSI) then
-    begin
-      StreamInfo^.OldSize := LZOSI.CSize;
-      StreamInfo^.NewSize := LZOSI.DSize;
-    end;
-  end
-  else
-    Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
-  Res := StreamInfo^.NewSize;
+  if StreamInfo^.OldSize <= 0 then
+    exit;
+  Res := Max(StreamInfo^.NewSize, L_MAXSIZE);
+  Buffer := Funcs^.Allocator(Instance, Res);
   case X of
     LZO1X_CODEC:
       if not lzo1x_decompress_safe(Input, StreamInfo^.OldSize, Buffer, @Res) = 0
       then
         Res := 0;
   end;
-  if Res = StreamInfo^.NewSize then
+  if Res > StreamInfo^.OldSize then
   begin
     StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
