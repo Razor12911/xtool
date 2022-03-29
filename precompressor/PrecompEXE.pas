@@ -13,8 +13,6 @@ uses
 const
   FILE_IN = 'data.in';
   FILE_OUT = 'data.out';
-  FILE_RES = 'data.res';
-  FILE_STORE = 'data.tmp';
   FILE_MODE = 0;
   STDIN_MODE = 1;
   STDOUT_MODE = 2;
@@ -29,7 +27,7 @@ type
     Exec, Param: array [0 .. 1] of String;
     WorkDir: array of array [0 .. 1] of String;
     Mode: array [0 .. 1] of Byte;
-    InFile, OutFile: String;
+    InFile, OutFile: array [0 .. 1] of String;
     IsLib: array [0 .. 1] of Boolean;
     Ctx: array of array [0 .. 1] of Pointer;
   end;
@@ -100,12 +98,9 @@ begin
       FWorkDir := WorkDir
     else
       FWorkDir := GetCurrentDir;
-    FTask := TTask.Create;
-    FTask.Perform(ExecReadTask);
-    MTask := TTask.Create(IntPtr(@ProcessInfo.hProcess), IntPtr(@hstdinw),
-      IntPtr(@hstdoutr));
-    MTask.Perform(ExecMonTask);
     ZeroMemory(@ProcessInfo, SizeOf(ProcessInfo));
+    FTask := nil;
+    MTask := nil;
   end;
 end;
 
@@ -115,15 +110,18 @@ begin
   begin
     TerminateProcess(ProcessInfo.hProcess, 0);
     WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
-    FTask.Free;
-    MTask.Wait;
-    MTask.Free;
+    if Assigned(FTask) then
+    begin
+      FTask.Free;
+      MTask.Wait;
+      MTask.Free;
+    end;
   end;
   Dispose(Ctx);
 end;
 
-function ExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer; InSize: Integer;
-  Output: _ExecOutput): Boolean;
+function ExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer;
+  var InSize, OutSize: Integer; Output: _ExecOutput): Boolean;
 
   function ProcessLib(Instance: Integer; Stdin, Stdout: THandle): Boolean;
   const
@@ -131,23 +129,25 @@ function ExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer; InSize: Integer;
   var
     Buffer: array [0 .. BufferSize - 1] of Byte;
     BytesRead: DWORD;
-    OutSize: Integer;
+    X: Integer;
   begin
     Result := False;
     try
       FileWriteBuffer(Stdin, InSize, InSize.Size);
+      FileWriteBuffer(Stdin, OutSize, OutSize.Size);
       FileWriteBuffer(Stdin, InBuff^, InSize);
       FileReadBuffer(Stdout, OutSize, OutSize.Size);
       if OutSize <= 0 then
         exit
       else
       begin
-        while OutSize > 0 do
+        X := OutSize;
+        while X > 0 do
         begin
-          BytesRead := Min(OutSize, Length(Buffer));
+          BytesRead := Min(X, Length(Buffer));
           FileReadBuffer(Stdout, Buffer[0], BytesRead);
           Output(Instance, @Buffer[0], BytesRead);
-          Dec(OutSize, BytesRead);
+          Dec(X, BytesRead);
         end;
         Result := True;
       end;
@@ -175,6 +175,14 @@ begin
       Result := ProcessLib(FInstance, hstdinw, hstdoutr)
     else
     begin
+      if not Assigned(FTask) then
+      begin
+        FTask := TTask.Create;
+        FTask.Perform(ExecReadTask);
+        MTask := TTask.Create(IntPtr(@ProcessInfo.hProcess), IntPtr(@hstdinw),
+          IntPtr(@hstdoutr));
+        MTask.Perform(ExecMonTask);
+      end;
       CreatePipe(hstdinr, hstdinw, @PipeSecurityAttributes, 0);
       CreatePipe(hstdoutr, hstdoutw, @PipeSecurityAttributes, 0);
       SetHandleInformation(hstdinw, HANDLE_FLAG_INHERIT, 0);
@@ -197,7 +205,7 @@ begin
         if FLib then
         begin
           MTask.Start;
-          Result := ProcessLib(FInstance, hstdinw, hstdoutr)
+          Result := ProcessLib(FInstance, hstdinw, hstdoutr);
         end
         else
         begin
@@ -209,10 +217,11 @@ begin
             CloseHandleEx(hstdinw);
             FTask.Wait;
             CloseHandleEx(hstdoutr);
+            WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+            GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+            CloseHandleEx(ProcessInfo.hProcess);
           end;
-          Result := GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode) and
-            (dwExitCode = 0);
-          CloseHandleEx(ProcessInfo.hProcess);
+          Result := dwExitCode = 0;
         end;
       end
       else
@@ -246,8 +255,11 @@ end;
 function ExeEncode(Index, Instance: Integer; Input: Pointer;
   StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
+  Buffer: PByte;
   X: Integer;
   Executed: Boolean;
+  S, T: String;
+  Res: Integer;
 begin
   Result := False;
   CodecSize[Instance] := 0;
@@ -256,32 +268,54 @@ begin
   begin
     if not DirectoryExists(WorkDir[Instance, 0]) then
       CreateDir(WorkDir[Instance, 0]);
-    DeleteFile(WorkDir[Instance, 0] + InFile);
-    DeleteFile(WorkDir[Instance, 0] + OutFile);
+    DeleteFile(WorkDir[Instance, 0] + InFile[0]);
+    DeleteFile(WorkDir[Instance, 0] + OutFile[0]);
+    S := Param[0];
+    S := ReplaceText(S, '<insize>', StreamInfo^.OldSize.ToString);
+    S := ReplaceText(S, '<outsize>', StreamInfo^.NewSize.ToString);
+    Res := 0;
+    Res := 0;
+    if ContainsText(S, '<fileres>') and Funcs^.GetResource(StreamInfo^.Resource,
+      nil, @Res) and (Res > 0) then
+    begin
+      T := StreamInfo^.Resource.ToHexString.ToLower + '.res';
+      S := ReplaceText(S, '<fileres>', T);
+      S := ReplaceText(S, '<ressize>', Res.ToString);
+      T := WorkDir[Instance, 0] + T;
+      if not FileExists(T) then
+        with TFileStream.Create(T, fmCreate) do
+          try
+            Buffer := Funcs^.Allocator(Instance, Res);
+            if Funcs^.GetResource(StreamInfo^.Resource, Buffer, @Res) then
+              WriteBuffer(Buffer^, Res);
+          finally
+            Free;
+          end;
+    end;
     case Mode[0] of
       FILE_MODE, STDOUT_MODE:
         begin
-          with TFileStream.Create(WorkDir[Instance, 0] + InFile, fmCreate) do
+          with TFileStream.Create(WorkDir[Instance, 0] + InFile[0], fmCreate) do
             try
               WriteBuffer(Input^, StreamInfo^.OldSize);
             finally
               Free;
             end;
           if Mode[0] = FILE_MODE then
-            Executed := PrecompExec(PChar(Exec[0]), PChar(Param[0]),
+            Executed := PrecompExec(PChar(Exec[0]), PChar(S),
               PChar(WorkDir[Instance, 0]))
           else
-            Executed := PrecompExecStdout(Instance, PChar(Exec[0]),
-              PChar(Param[0]), PChar(WorkDir[Instance, 0]), ExecOutput1);
+            Executed := PrecompExecStdout(Instance, PChar(Exec[0]), PChar(S),
+              PChar(WorkDir[Instance, 0]), ExecOutput1);
         end;
     else
       begin
         if Mode[0] = STDIN_MODE then
-          Executed := PrecompExecStdin(PChar(Exec[0]), PChar(Param[0]),
+          Executed := PrecompExecStdin(PChar(Exec[0]), PChar(S),
             PChar(WorkDir[Instance, 0]), Input, StreamInfo^.OldSize)
         else
           Executed := ExecStdioProcess(Ctx[Instance, 0], Input,
-            StreamInfo^.OldSize, ExecOutput1);
+            StreamInfo^.OldSize, StreamInfo^.NewSize, ExecOutput1);
       end;
     end;
     if Executed then
@@ -289,7 +323,7 @@ begin
       case Mode[0] of
         FILE_MODE, STDIN_MODE:
           begin
-            with TFileStream.Create(WorkDir[Instance, 0] + OutFile,
+            with TFileStream.Create(WorkDir[Instance, 0] + OutFile[0],
               fmShareDenyNone) do
               try
                 X := Read(WrkMem[Instance, 0], E_WORKMEM);
@@ -310,10 +344,13 @@ begin
 end;
 
 function ExeDecode(Index, Instance: Integer; Input: Pointer;
-  StreamInfo: _StrInfo2; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Funcs: PPrecompFuncs): Boolean;
 var
+  Buffer: PByte;
   X: Integer;
   Executed: Boolean;
+  S, T: String;
+  Res: Integer;
 begin
   Result := False;
   CodecSize[Instance] := 0;
@@ -322,32 +359,53 @@ begin
   begin
     if not DirectoryExists(WorkDir[Instance, 1]) then
       CreateDir(WorkDir[Instance, 1]);
-    DeleteFile(WorkDir[Instance, 1] + InFile);
-    DeleteFile(WorkDir[Instance, 1] + OutFile);
+    DeleteFile(WorkDir[Instance, 1] + InFile[1]);
+    DeleteFile(WorkDir[Instance, 1] + OutFile[1]);
+    S := Param[1];
+    S := ReplaceText(S, '<insize>', StreamInfo^.NewSize.ToString);
+    S := ReplaceText(S, '<outsize>', StreamInfo^.OldSize.ToString);
+    Res := 0;
+    if ContainsText(S, '<fileres>') and Funcs^.GetResource(StreamInfo^.Resource,
+      nil, @Res) and (Res > 0) then
+    begin
+      T := StreamInfo^.Resource.ToHexString.ToLower + '.res';
+      S := ReplaceText(S, '<fileres>', T);
+      S := ReplaceText(S, '<ressize>', Res.ToString);
+      T := WorkDir[Instance, 0] + T;
+      if not FileExists(T) then
+        with TFileStream.Create(T, fmCreate) do
+          try
+            Buffer := Funcs^.Allocator(Instance, Res);
+            if Funcs^.GetResource(StreamInfo^.Resource, Buffer, @Res) then
+              WriteBuffer(Buffer^, Res);
+          finally
+            Free;
+          end;
+    end;
     case Mode[1] of
       FILE_MODE, STDOUT_MODE:
         begin
-          with TFileStream.Create(WorkDir[Instance, 1] + OutFile, fmCreate) do
+          with TFileStream.Create(WorkDir[Instance, 1] + InFile[1], fmCreate) do
             try
-              WriteBuffer(Input^, StreamInfo.NewSize);
+              WriteBuffer(Input^, StreamInfo^.NewSize);
             finally
               Free;
             end;
           if Mode[1] = FILE_MODE then
-            Executed := PrecompExec(PChar(Exec[1]), PChar(Param[1]),
+            Executed := PrecompExec(PChar(Exec[1]), PChar(S),
               PChar(WorkDir[Instance, 1]))
           else
-            Executed := PrecompExecStdout(Instance, PChar(Exec[1]),
-              PChar(Param[1]), PChar(WorkDir[Instance, 1]), ExecOutput2);
+            Executed := PrecompExecStdout(Instance, PChar(Exec[1]), PChar(S),
+              PChar(WorkDir[Instance, 1]), ExecOutput2);
         end;
     else
       begin
         if Mode[1] = STDIN_MODE then
-          Executed := PrecompExecStdin(PChar(Exec[1]), PChar(Param[1]),
-            PChar(WorkDir[Instance, 1]), Input, StreamInfo.NewSize)
+          Executed := PrecompExecStdin(PChar(Exec[1]), PChar(S),
+            PChar(WorkDir[Instance, 1]), Input, StreamInfo^.NewSize)
         else
           Executed := ExecStdioProcess(Ctx[Instance, 1], Input,
-            StreamInfo.NewSize, ExecOutput2);
+            StreamInfo^.NewSize, StreamInfo^.OldSize, ExecOutput2);
       end;
     end;
     if Executed then
@@ -355,7 +413,7 @@ begin
       case Mode[1] of
         FILE_MODE, STDIN_MODE:
           begin
-            with TFileStream.Create(WorkDir[Instance, 1] + InFile,
+            with TFileStream.Create(WorkDir[Instance, 1] + OutFile[1],
               fmShareDenyNone) do
               try
                 X := Read(WrkMem[Instance, 0], E_WORKMEM);
@@ -417,7 +475,7 @@ begin
         if CodecExe[X].Mode[Z] = STDIO_MODE then
           ExecStdioFree(CodecExe[X].Ctx[Y, Z]);
         if DirectoryExists(CodecExe[X].WorkDir[Y, Z]) then
-          RemoveDir(CodecExe[X].WorkDir[Y, Z]);
+          TDirectory.Delete(CodecExe[X].WorkDir[Y, Z], True);
       end;
 end;
 
@@ -444,11 +502,11 @@ procedure ExeScan1(Instance, Depth: Integer; Input: PByte;
   Funcs: PPrecompFuncs);
 var
   Buffer: PByte;
-  X, Y: Integer;
+  X: Integer;
   SI1: _StrInfo1;
   SI2: _StrInfo2;
   DI1, DI2: TDepthInfo;
-  DS: TPrecompCmd;
+  DS: TPrecompStr;
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
   DS := Funcs^.GetCodec(DI1.Codec, 0, False);
@@ -457,23 +515,24 @@ begin
     X := IndexText(DS, Codec.Names);
     if (X < 0) or (DI1.OldSize <> SizeEx) then
       exit;
-    SI2.OldSize := SizeEx;
-    SI2.NewSize := 0;
+    SI2.OldSize := DI1.OldSize;
+    SI2.NewSize := DI1.NewSize;
     if ExeEncode(X, Instance, Input, @SI2, Output, Funcs) then
     begin
-      Output(Instance, Buffer, Y);
       SI1.Position := 0;
-      SI1.OldSize := DI1.OldSize;
-      SI1.NewSize := Y;
-      ShowMessage(SI1.OldSize.ToString + ' >> ' + SI1.NewSize.ToString);
+      SI1.OldSize := SI2.OldSize;
+      SI1.NewSize := CodecSize[Instance];
       SetBits(SI1.Option, CodecExe[X].ID, 0, 31);
       if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
         SI1.Status := TStreamStatus.Predicted
       else
         SI1.Status := TStreamStatus.None;
-      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DS := Funcs^.GetDepthCodec(DI1.Codec);
+      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
       DI2.OldSize := SI1.NewSize;
-      DI2.NewSize := SI1.NewSize;
+      DI2.NewSize := 0;
+      Funcs^.LogScan1(PChar(Codec.Names[X]), SI1.Position, SI1.OldSize,
+        SI1.NewSize);
       Add(Instance, @SI1, DI1.Codec, @DI2);
     end;
     exit;
@@ -498,6 +557,9 @@ begin
     end;
   end;
   Result := ExeEncode(X, Instance, Input, StreamInfo, Output, Funcs);
+  if Result then
+    Funcs^.LogScan2(PChar(Codec.Names[X]), StreamInfo^.OldSize,
+      StreamInfo^.NewSize);
 end;
 
 function ExeProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
@@ -519,18 +581,22 @@ begin
       break;
     end;
   end;
-  if ExeDecode(X, Instance, NewInput, StreamInfo^, Funcs) then
+  if ExeDecode(X, Instance, NewInput, StreamInfo, Funcs) then
   begin
     Buffer := Funcs^.Allocator(Instance, CodecSize[Instance]);
     Res1 := CodecSize[Instance];
     Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
       StreamInfo^.OldSize);
+    Funcs^.LogProcess(PChar(Codec.Names[X]), nil, StreamInfo^.OldSize,
+      StreamInfo^.NewSize, Res1, Result);
     if Result = False then
     begin
       Buffer := Funcs^.Allocator(Instance,
         Res1 + Max(StreamInfo^.OldSize, Res1));
       Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
         Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
+      Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2, (Res2 > 0) and
+        ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE));
       if (Res2 > 0) and ((Res2 / Max(StreamInfo^.OldSize, Res1)) <=
         DIFF_TOLERANCE) then
       begin
@@ -539,7 +605,10 @@ begin
         Result := True;
       end;
     end;
-  end;
+  end
+  else
+    Funcs^.LogProcess(PChar(Codec.Names[X]), nil, StreamInfo^.OldSize,
+      StreamInfo^.NewSize, Res1, Result);
 end;
 
 function ExeRestore(Instance, Depth: Integer; Input, InputExt: Pointer;
@@ -566,10 +635,13 @@ begin
   SI.NewSize := StreamInfo.NewSize;
   SI.Resource := StreamInfo.Resource;
   SI.Option := StreamInfo.Option;
-  if ExeDecode(X, Instance, Input, SI, Funcs) then
+  if ExeDecode(X, Instance, Input, @SI, Funcs) then
   begin
+    Funcs^.LogRestore(PChar(Codec.Names[X]), nil, StreamInfo.OldSize,
+      StreamInfo.NewSize, Res1, True);
     Buffer := Funcs^.Allocator(Instance, CodecSize[Instance]);
     Res1 := CodecSize[Instance];
+    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
     if GetBits(StreamInfo.Option, 31, 1) = 1 then
     begin
       Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
@@ -587,17 +659,31 @@ begin
       Output(Instance, Buffer, StreamInfo.OldSize);
       Result := True;
     end;
-  end;
+  end
+  else
+    Funcs^.LogRestore(PChar(Codec.Names[X]), nil, StreamInfo.OldSize,
+      StreamInfo.NewSize, Res1, False);
+end;
+
+function ExtractStr(SubStr, Str: String): String;
+var
+  I: Integer;
+begin
+  Result := Str.Substring(Str.IndexOf(SubStr));
+  I := Result.IndexOf(' ');
+  if I >= 0 then
+    Result := Result.Substring(0, Result.IndexOf(' '));
 end;
 
 var
-  I, J, X: Integer;
-  S1, S2: String;
+  I, J, K, X: Integer;
+  S1, S2, S3: String;
   Bytes: TBytes;
   Ini: TMemIniFile;
   SL: TStringList;
   ExeStruct: PExeStruct;
   Y, Z: Integer;
+  List: TStringDynArray;
 
 initialization
 
@@ -608,75 +694,96 @@ begin
   SL := TStringList.Create;
   Ini.ReadSections(SL);
   for I := 0 to SL.Count - 1 do
+  begin
+    List := DecodeStr(SL[I], ',');
     if FileExists(ExtractFilePath(Utils.GetModuleName) +
       GetCmdStr(Ini.ReadString(SL[I], 'Decode', ''), 0)) then
-    begin
-      New(ExeStruct);
-      Insert(SL[I], Codec.Names, Length(Codec.Names));
-      ExeStruct^.Name := SL[I];
-      Bytes := BytesOf(ExeStruct^.Name);
-      ExeStruct^.ID := Utils.Hash32(0, @Bytes[0], Length(Bytes));
-      for X := 0 to 1 do
+      for K := Low(List) to High(List) do
       begin
-        ExeStruct^.IsLib[X] := False;
-        if X = 0 then
-          S1 := Ini.ReadString(SL[I], 'Encode', '')
-        else
-          S1 := Ini.ReadString(SL[I], 'Decode', '');
-        ExeStruct^.Exec[X] := ExtractFilePath(Utils.GetModuleName) +
-          GetCmdStr(S1, 0);
-        ExeStruct^.Param[X] := '';
-        ExeStruct^.Mode[X] := 0;
-        for J := 1 to GetCmdCount(S1) do
+        New(ExeStruct);
+        Insert(List[K], Codec.Names, Length(Codec.Names));
+        ExeStruct^.Name := List[K];
+        Bytes := BytesOf(ExeStruct^.Name);
+        ExeStruct^.ID := Utils.Hash32(0, @Bytes[0], Length(Bytes));
+        for X := 0 to 1 do
         begin
-          S2 := GetCmdStr(S1, J);
-          if ContainsText(S2, '<library>') then
+          ExeStruct^.IsLib[X] := False;
+          if X = 0 then
+            S1 := Ini.ReadString(SL[I], 'Encode', '')
+          else
+            S1 := Ini.ReadString(SL[I], 'Decode', '');
+          S1 := ReplaceText(S1, '<codec>', List[K]);
+          ExeStruct^.Exec[X] := ExtractFilePath(Utils.GetModuleName) +
+            GetCmdStr(S1, 0);
+          ExeStruct^.Param[X] := '';
+          ExeStruct^.Mode[X] := 0;
+          for J := 1 to GetCmdCount(S1) - 1 do
           begin
-            SetBits(ExeStruct^.Mode[X], STDIO_MODE, 0, 2);
-            ExeStruct^.IsLib[X] := True;
-            continue;
-          end
-          else if ContainsText(S2, '<stdin>') then
-          begin
-            SetBits(ExeStruct^.Mode[X], 1, 0, 1);
-            continue;
-          end
-          else if ContainsText(S2, '<stdout>') then
-          begin
-            SetBits(ExeStruct^.Mode[X], 1, 1, 1);
-            continue;
-          end
-          else if ContainsText(S2, '<filein>') or ContainsText(S2, '[filein]')
-          then
-          begin
-            SetBits(ExeStruct^.Mode[X], 0, 0, 1);
-            ExeStruct^.InFile := S2;
-            ExeStruct^.InFile := ReplaceStr(ExeStruct^.InFile,
-              '<filein>', FILE_IN);
-            ExeStruct^.InFile := ReplaceStr(ExeStruct^.InFile,
-              '[filein]', FILE_IN);
-            if ContainsText(S2, '[filein]') then
+            S2 := GetCmdStr(S1, J);
+            if ContainsText(S2, '<library>') then
+            begin
+              SetBits(ExeStruct^.Mode[X], STDIO_MODE, 0, 2);
+              ExeStruct^.IsLib[X] := True;
               continue;
-          end
-          else if ContainsText(S2, '<fileout>') or ContainsText(S2, '[fileout]')
-          then
-          begin
-            SetBits(ExeStruct^.Mode[X], 0, 1, 1);
-            ExeStruct^.OutFile := S2;
-            ExeStruct^.OutFile := ReplaceStr(ExeStruct^.OutFile, '<fileout>',
-              FILE_OUT);
-            ExeStruct^.OutFile := ReplaceStr(ExeStruct^.OutFile, '[fileout]',
-              FILE_OUT);
-            if ContainsText(S2, '[fileout]') then
+            end
+            else if ContainsText(S2, '<stdin>') then
+            begin
+              SetBits(ExeStruct^.Mode[X], 1, 0, 1);
               continue;
+            end
+            else if ContainsText(S2, '<stdout>') then
+            begin
+              SetBits(ExeStruct^.Mode[X], 1, 1, 1);
+              continue;
+            end
+            else if ContainsText(S2, '<filein>') or ContainsText(S2, '[filein]')
+            then
+            begin
+              S3 := IfThen(X = 0, FILE_IN, FILE_OUT);
+              SetBits(ExeStruct^.Mode[X], 0, 0, 1);
+              if ContainsText(S2, '<filein>') then
+              begin
+                ExeStruct^.InFile[X] := ExtractStr('<filein>', S2);
+                S2 := ReplaceText(S2, ExeStruct^.InFile[X], S3);
+                ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+                  '<filein>', S3);
+              end
+              else
+              begin
+                ExeStruct^.InFile[X] := ExtractStr('[filein]', S2);
+                S2 := ReplaceText(S2, ExeStruct^.InFile[X], '');
+                ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+                  '[filein]', S3);
+              end;
+            end
+            else if ContainsText(S2, '<fileout>') or
+              ContainsText(S2, '[fileout]') then
+            begin
+              S3 := IfThen(X = 0, FILE_OUT, FILE_IN);
+              SetBits(ExeStruct^.Mode[X], 0, 1, 1);
+              if ContainsText(S2, '<fileout>') then
+              begin
+                ExeStruct^.OutFile[X] := ExtractStr('<fileout>', S2);
+                S2 := ReplaceText(S2, ExeStruct^.OutFile[X], S3);
+                ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+                  '<fileout>', S3);
+              end
+              else
+              begin
+                ExeStruct^.OutFile[X] := ExtractStr('[fileout]', S2);
+                S2 := ReplaceText(S2, ExeStruct^.OutFile[X], '');
+                ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+                  '[fileout]', S3);
+              end;
+            end;
+            S2 := IfThen((Pos(' ', S2) > 0) or (S2 = ''), '"' + S2 + '"', S2);
+            ExeStruct^.Param[X] := ExeStruct^.Param[X] + ' ' + S2;
           end;
-          S2 := IfThen(Pos(' ', S2) > 0, '"' + S2 + '"', S2);
-          ExeStruct^.Param[X] := ExeStruct^.Param[X] + ' ' + S2;
+          ExeStruct^.Param[X] := Trim(ExeStruct^.Param[X]);
         end;
-        ExeStruct^.Param[X] := Trim(ExeStruct^.Param[X]);
+        Insert(ExeStruct^, CodecExe, Length(CodecExe));
       end;
-      Insert(ExeStruct^, CodecExe, Length(CodecExe));
-    end;
+  end;
   SL.Free;
   Ini.Free;
 end;
@@ -695,6 +802,6 @@ for X := Low(CodecExe) to High(CodecExe) do
   for Z := 0 to 1 do
     for Y := Low(CodecSize) to High(CodecSize) do
       if DirectoryExists(CodecExe[X].WorkDir[Y, Z]) then
-        RemoveDir(CodecExe[X].WorkDir[Y, Z]);
+        TDirectory.Delete(CodecExe[X].WorkDir[Y, Z], True);
 
 end.

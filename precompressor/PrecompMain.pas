@@ -50,6 +50,17 @@ function PrecompAllocator(Instance: Integer; Size: Integer): Pointer cdecl;
 function PrecompGetDepthInfo(Index: Integer): TDepthInfo cdecl;
 function PrecompReadFuture(Index: Integer; Position: NativeInt; Buffer: Pointer;
   Count: Integer): Integer cdecl;
+procedure PrecompLogScan1(Codec: PChar; Position: Int64;
+  InSize, OutSize: Integer)cdecl;
+procedure PrecompLogScan2(Codec: PChar; InSize, OutSize: Integer)cdecl;
+procedure PrecompLogProcess(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+procedure PrecompLogRestore(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
+  Status: Boolean)cdecl;
+procedure PrecompLogPatch2(OldSize, NewSize, PatchSize: Integer;
+  Status: Boolean)cdecl;
 
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
   Size: Integer);
@@ -163,7 +174,7 @@ begin
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
     Options.Threads := Max(1, Round(ExpParse.Evaluate(S)));
-    Options.Depth := Succ(ArgParse.AsInteger('-d'));
+    Options.Depth := EnsureRange(Succ(ArgParse.AsInteger('-d')), 1, 10);
     Options.LowMem := ArgParse.AsBoolean('-lm');
     UseDB := ArgParse.AsBoolean('--dbase');
     Options.DBaseFile := ArgParse.AsString('--dbase=');
@@ -174,10 +185,13 @@ begin
     S := ArgParse.AsString('--diff=', 0, '5p');
     S := ReplaceText(S, 'p', '%');
     DIFF_TOLERANCE := Max(0.00, ExpParse.Evaluate(S));
+    VERBOSE := ArgParse.AsBoolean('--verbose');
   finally
     ArgParse.Free;
     ExpParse.Free;
   end;
+  if VERBOSE then
+    Options.Threads := 1;
 end;
 
 procedure Parse(ParamArg: TArray<string>; out Options: TDecodeOptions);
@@ -209,10 +223,13 @@ begin
     Options.DedupSysMem := Max(0, Round(ExpParse.Evaluate(S)));
     if B then
       Options.DedupSysMem := -Options.DedupSysMem;
+    VERBOSE := ArgParse.AsBoolean('--verbose');
   finally
     ArgParse.Free;
     ExpParse.Free;
   end;
+  if VERBOSE then
+    Options.Threads := 1;
 end;
 
 function GetIndex(Scanned, Processed: TArray<Boolean>): Integer;
@@ -264,6 +281,8 @@ var
   ThrIdx: TArray<Integer>;
   WorkStream: TArray<TMemoryStream>;
   Scanned1, Scanned2, Processed: TArray<Boolean>;
+  LogInt: Integer;
+  LogInt64: Int64;
 
 procedure CodecInit(Count: Integer; Method: String);
 var
@@ -323,7 +342,7 @@ var
 begin
   for I := Low(CurCodec) to High(CurCodec) do
   begin
-    CurCodec[I] := X;
+    CurCodec[I] := 0;
     CurDepth[I] := 0;
   end;
   for I := Low(Codecs) to High(Codecs) do
@@ -369,6 +388,98 @@ begin
       Result := TDataStore1(ComVars1[CurDepth[Index]].DataStore).
         Read(Index, Position, Buffer^, Count);
   end;
+end;
+
+procedure PrecompLogScan1(Codec: PChar; Position: Int64;
+  InSize, OutSize: Integer);
+begin
+  if not VERBOSE then
+    exit;
+  with ComVars1[CurDepth[0]] do
+  begin
+    if (OutSize > 0) and (Position < DataStore.Size(0)) and
+      (MemOutput1[0].Position - CurPos1[0] = OutSize) then
+      WriteLn(ErrOutput, Format('[%d] Actual %s stream found at %s (%d >> %d)',
+        [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
+        InSize, OutSize]))
+    else
+      WriteLn(ErrOutput,
+        Format('[%d] Possible %s stream located at %s (%d >> %d)',
+        [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
+        InSize, OutSize]));
+  end;
+end;
+
+procedure PrecompLogScan2(Codec: PChar; InSize, OutSize: Integer);
+begin
+  if not VERBOSE then
+    exit;
+  WriteLn(ErrOutput, Format('[%d] Confirmed %s stream at %s (%d >> %d)',
+    [CurDepth[0], Codec, LogInt64.ToHexString, InSize, OutSize]));
+end;
+
+procedure PrecompLogProcess(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean);
+var
+  S: String;
+begin
+  if not VERBOSE then
+    exit;
+  if Status then
+    S := '[%d] Processed %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' successfully'
+  else
+    S := '[%d] Processing %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], Codec, LogInt64.ToHexString,
+    OriginalSize, InSize, OutSize, Method]));
+end;
+
+procedure PrecompLogRestore(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean);
+var
+  S: String;
+begin
+  if not VERBOSE then
+    exit;
+  if Status then
+    S := '[%d] Restored %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' successfully'
+  else
+    S := '[%d] Restoring %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], Codec, LogInt64.ToHexString,
+    OriginalSize, InSize, OutSize, Method]));
+end;
+
+procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
+  Status: Boolean);
+var
+  S: String;
+begin
+  if not VERBOSE then
+    exit;
+  if Status then
+    S := '[%d] - Patched stream at %s (%d >> %d) [%d] successfully'
+  else
+    S := '[%d] - Patching stream at %s (%d >> %d) [%d] has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize,
+    NewSize, PatchSize]));
+end;
+
+procedure PrecompLogPatch2(OldSize, NewSize, PatchSize: Integer;
+  Status: Boolean);
+var
+  S: String;
+begin
+  if not VERBOSE then
+    exit;
+  if Status then
+    S := '[%d] - Patched stream at %s (%d >> %d) [%d] successfully'
+  else
+    S := '[%d] - Patching stream at %s (%d >> %d) [%d] has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize,
+    NewSize, PatchSize]));
 end;
 
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
@@ -452,6 +563,7 @@ begin
       SI1.Resource := Info^.Resource;
       SI1.Thread := Instance;
       SI1.Codec := LCodec;
+      SI1.Scan2 := False;
       SI1.Option := LOption;
       SI1.Checksum := Utils.Hash32(0, PByte(DataStore.Slot(Instance).Memory) +
         SI1.ActualPosition, SI1.OldSize);
@@ -469,6 +581,7 @@ begin
       SI2.NewSize := Info^.NewSize;
       SI2.Resource := Info^.Resource;
       SI2.Codec := LCodec;
+      SI2.Scan2 := True;
       SI2.Option := LOption;
       SI2.Status := Info^.Status;
       if Assigned(DepthInfo) then
@@ -582,7 +695,7 @@ begin
       I := InfoStore2[Index, ISIndex[Index].ToInteger].Get(SI2);
       while I >= 0 do
       begin
-        if InRange(SI2.Position, DataStore.Position(Index),
+        if SI2.Scan2 and InRange(SI2.Position, DataStore.Position(Index),
           Pred(DataStore.Position(Index) + DataStore.Size(Index))) then
         begin
           CurPos1[Index] := MemOutput1[Index].Position;
@@ -596,6 +709,7 @@ begin
           J := 0;
           X := DataStore.ActualSize(Index) -
             NativeInt(SI2.Position - DataStore.Position(Index));
+          LogInt64 := SI2.Position;
           if (SI1.OldSize <= X) and Codecs[SI2.Codec].Scan2(Index, Depth,
             PByte(DataStore.Slot(Index).Memory) +
             NativeInt(SI2.Position - DataStore.Position(Index)), X, @SI1, @J,
@@ -617,6 +731,7 @@ begin
               SI3.Resource := SI1.Resource;
               SI3.Thread := Index;
               SI3.Codec := SI2.Codec;
+              SI3.Scan2 := False;
               SI3.Option := SI1.Option;
               SI3.Status := SI1.Status;
               SI3.Checksum :=
@@ -657,6 +772,7 @@ begin
     SI1.Resource := SI2.Resource;
     SI1.Option := SI2.Option;
     SI1.Status := SI2.Status;
+    LogInt64 := DataStore.Position(0) + SI2.ActualPosition;
     if UseDB and (SI2.Codec > 2) then
     begin
       DBBool := CheckDB(Database, SI2, DBTyp);
@@ -757,7 +873,15 @@ begin
   begin
     if InRange(Y, Low(InfoStore1), High(InfoStore1)) then
     begin
+      if VERBOSE then
+        WriteLn(ErrOutput,
+          Format('[%d] Performing scan from block %s to %s (%d)',
+          [W, DataStore.Position(0).ToHexString,
+          (DataStore.Position(0) + Pred(DataStore.Size(0))).ToHexString,
+          DataStore.Size(0)]));
       Scan1(Y, W);
+      if VERBOSE then
+        WriteLn(ErrOutput, '');
       if W = 0 then
       begin
         Scanned1[Y] := True;
@@ -785,6 +909,12 @@ begin
       end
       else
         Z := Y;
+      if VERBOSE and (InfoStore1[Z].Count > 0) then
+        WriteLn(ErrOutput,
+          Format('[%d] Processing streams on block %s to %s (%d)',
+          [W, DataStore.Position(0).ToHexString,
+          (DataStore.Position(0) + Pred(DataStore.Size(0))).ToHexString,
+          DataStore.Size(0)]));
       X := AtomicIncrement(StrIdx[Z]);
       while X < InfoStore1[Z].Count do
       begin
@@ -803,6 +933,8 @@ begin
         end;
         X := AtomicIncrement(StrIdx[Z]);
       end;
+      if VERBOSE and (InfoStore1[Z].Count > 0) then
+        WriteLn(ErrOutput, '');
       if W = 0 then
       begin
         if Z < -1 then
@@ -1733,6 +1865,8 @@ var
   UI32: UInt32;
   I, J: Integer;
 begin
+  if Depth = 0 then
+    LogInt64 := 0;
   with ComVars2[Depth] do
   begin
     DecInput[Index] := Input;
@@ -1936,7 +2070,8 @@ begin
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(EncodeStats);
-  ConTask.Start;
+  if not VERBOSE then
+    ConTask.Start;
   try
     EncInit(Input, Output, @Options);
     EncData(Input, Output, 0, 0);
@@ -1947,6 +2082,8 @@ begin
       Stopwatch.Stop;
     end;
   end;
+  if VERBOSE then
+    EncodeStats;
   ConTask.Wait;
   ConTask.Free;
   InternalSync.Leave;
@@ -1960,7 +2097,8 @@ begin
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(DecodeStats);
-  ConTask.Start;
+  if not VERBOSE then
+    ConTask.Start;
   NStream := TArrayStream.Create;
   try
     DecInit(Input, Output, @Options);
@@ -1973,6 +2111,8 @@ begin
       Stopwatch.Stop;
     end;
   end;
+  if VERBOSE then
+    DecodeStats;
   ConTask.Wait;
   ConTask.Free;
   InternalSync.Leave;
@@ -2014,6 +2154,12 @@ PrecompFunctions.ExecStdio := @PrecompExecStdio;
 PrecompFunctions.ExecStdioSync := @PrecompExecStdioSync;
 PrecompFunctions.GetDepthCodec := @PrecompGetDepthCodec;
 PrecompFunctions.ReadFuture := @PrecompReadFuture;
+PrecompFunctions.LogScan1 := PrecompLogScan1;
+PrecompFunctions.LogScan2 := PrecompLogScan2;
+PrecompFunctions.LogProcess := PrecompLogProcess;
+PrecompFunctions.LogRestore := PrecompLogRestore;
+PrecompFunctions.LogPatch1 := PrecompLogPatch1;
+PrecompFunctions.LogPatch2 := PrecompLogPatch2;
 
 finalization
 

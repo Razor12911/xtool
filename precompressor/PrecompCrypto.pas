@@ -63,8 +63,37 @@ end;
 procedure CryptoScan1(Instance, Depth: Integer; Input: PByte;
   Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
   Funcs: PPrecompFuncs);
+var
+  X: Integer;
+  SI: _StrInfo1;
+  DI1, DI2: TDepthInfo;
+  DS: TPrecompStr;
 begin
-
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  if DS <> '' then
+  begin
+    X := IndexTextW(@DS[0], CryptoCodecs);
+    if (X < 0) or (DI1.OldSize <> SizeEx) then
+      exit;
+    Output(Instance, Input, DI1.OldSize);
+    SI.Position := 0;
+    SI.OldSize := DI1.OldSize;
+    SI.NewSize := DI1.NewSize;
+    SI.Option := 0;
+    SetBits(SI.Option, X, 0, 5);
+    if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
+      SI.Status := TStreamStatus.Predicted
+    else
+      SI.Status := TStreamStatus.None;
+    DS := Funcs^.GetDepthCodec(DI1.Codec);
+    Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
+    DI2.OldSize := SI.NewSize;
+    DI2.NewSize := SI.NewSize;
+    Funcs^.LogScan1(CryptoCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+      SI.OldSize, SI.NewSize);
+    Add(Instance, @SI, DI1.Codec, @DI2);
+  end;
 end;
 
 function CryptoScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
@@ -74,13 +103,15 @@ var
   Res: Integer;
 begin
   Result := False;
-  Res := -1;
+  Res := 0;
   if not Funcs^.GetResource(StreamInfo^.Resource, nil, @Res) then
     exit;
   if (Res > 0) and (StreamInfo^.OldSize > 0) then
   begin
     StreamInfo^.NewSize := StreamInfo^.OldSize;
     Output(Instance, Input, StreamInfo^.OldSize);
+    Funcs^.LogScan2(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
   end;
 end;
@@ -100,11 +131,6 @@ begin
   Buffer := Funcs^.Allocator(Instance, Res);
   if Funcs^.GetResource(StreamInfo^.Resource, Buffer, @Res) then
   begin
-    with TFileStream.Create('xtest1', fmCreate) do
-    begin
-      WriteBuffer(NewInput^, StreamInfo^.NewSize);
-      Free;
-    end;
     case X of
       XOR_CODEC:
         Funcs^.Decrypt('xor', NewInput, StreamInfo^.NewSize, Buffer, Res);
@@ -115,13 +141,9 @@ begin
     else
       exit;
     end;
-    with TFileStream.Create('xtest2', fmCreate) do
-    begin
-      WriteBuffer(NewInput^, StreamInfo^.NewSize);
-      Free;
-    end;
-    ShowMessage('');
     Result := True;
+    Funcs^.LogProcess(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)], nil,
+      StreamInfo^.OldSize, StreamInfo^.NewSize, StreamInfo^.OldSize, Result);
   end;
 end;
 
@@ -152,6 +174,8 @@ begin
     end;
     Output(Instance, Input, StreamInfo.OldSize);
     Result := True;
+    Funcs^.LogRestore(CryptoCodecs[GetBits(StreamInfo.Option, 0, 5)], nil,
+      StreamInfo.OldSize, StreamInfo.NewSize, StreamInfo.OldSize, Result);
   end;
 end;
 

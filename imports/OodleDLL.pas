@@ -77,7 +77,7 @@ var
     OldGetCompressedBufferSizeNeeded: Boolean;
   DLLs: TStringDynArray;
 
-procedure Init;
+procedure Init(Filename: String);
 var
   I: Integer;
   C: Cardinal;
@@ -86,6 +86,7 @@ begin
     Exit;
   DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'oo2core*.dll',
     TSearchOption.soTopDirectoryOnly);
+  Insert(ExtractFilePath(ParamStr(0)) + Filename, DLLs, 0);
   for I := Low(DLLs) to High(DLLs) do
   begin
     DLLHandle := LoadLibrary(PChar(DLLs[I]));
@@ -107,8 +108,6 @@ begin
   begin
     DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'oodle2*.dll',
       TSearchOption.soTopDirectoryOnly);
-    SetLength(DLLs, Succ(Length(DLLs)));
-    DLLs[Pred(Length(DLLs))] := ExtractFilePath(ParamStr(0)) + 'oodle.dll';
     for I := Low(DLLs) to High(DLLs) do
     begin
       DLLHandle := LoadLibrary(PChar(DLLs[I]));
@@ -118,7 +117,6 @@ begin
   end;
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     Oodle_CheckVersion := GetProcAddress(DLLHandle, 'Oodle_CheckVersion');
     if not Assigned(Oodle_CheckVersion) then
       for I := 0 to 32 do
@@ -128,7 +126,7 @@ begin
         if Assigned(Oodle_CheckVersion) then
           break;
       end;
-    Assert(@Oodle_CheckVersion <> nil);
+    DLLLoaded := Assigned(Oodle_CheckVersion);
     Oodle_CheckVersion(0, @C);
     OldCompress := LongRec(C).Hi < $2E06;
     OldGetCompressedBufferSizeNeeded := LongRec(C).Hi < $2E08;
@@ -142,7 +140,6 @@ begin
         if Assigned(OodleLZ_Compress_1) then
           break;
       end;
-    Assert(@OodleLZ_Compress_1 <> nil);
     @OodleLZ_Compress_2 := @OodleLZ_Compress_1;
     OodleLZ_Decompress := GetProcAddress(DLLHandle, 'OodleLZ_Decompress');
     if not Assigned(OodleLZ_Decompress) then
@@ -153,7 +150,6 @@ begin
         if Assigned(OodleLZ_Decompress) then
           break;
       end;
-    Assert(@OodleLZ_Decompress <> nil);
     OodleLZ_CompressOptions_GetDefault_1 := GetProcAddress(DLLHandle,
       'OodleLZ_CompressOptions_GetDefault');
     if not Assigned(OodleLZ_CompressOptions_GetDefault_1) then
@@ -165,7 +161,6 @@ begin
         if Assigned(OodleLZ_CompressOptions_GetDefault_1) then
           break;
       end;
-    Assert(@OodleLZ_CompressOptions_GetDefault_1 <> nil);
     @OodleLZ_CompressOptions_GetDefault_2 :=
       @OodleLZ_CompressOptions_GetDefault_1;
     OodleLZ_GetCompressedBufferSizeNeeded_1 :=
@@ -179,7 +174,6 @@ begin
         if Assigned(OodleLZ_GetCompressedBufferSizeNeeded_1) then
           break;
       end;
-    Assert(@OodleLZ_GetCompressedBufferSizeNeeded_1 <> nil);
     @OodleLZ_GetCompressedBufferSizeNeeded_2 :=
       @OodleLZ_GetCompressedBufferSizeNeeded_1;
   end
@@ -225,9 +219,23 @@ begin
     Result := OodleLZ_GetCompressedBufferSizeNeeded_2(compressor, rawSize);
 end;
 
+const
+  DLLParam = '--oodle=';
+
+var
+  I: Integer;
+  DLLFile: String;
+
 initialization
 
-Init;
+DLLFile := 'oodle.dll';
+for I := 1 to ParamCount do
+  if ParamStr(I).StartsWith(DLLParam) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    break;
+  end;
+Init(DLLFile);
 
 finalization
 

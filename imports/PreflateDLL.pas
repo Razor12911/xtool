@@ -26,11 +26,9 @@ begin
     'preflate_dll.dll'));
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     @preflate_decode := GetProcAddress(DLLHandle, 'decode');
-    Assert(@preflate_decode <> nil);
     @preflate_reencode := GetProcAddress(DLLHandle, 'reencode');
-    Assert(@preflate_reencode <> nil);
+    DLLLoaded := Assigned(preflate_decode) and Assigned(preflate_reencode);
   end
   else
     DLLLoaded := False;

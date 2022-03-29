@@ -433,8 +433,9 @@ function ExecStdio(Executable, CommandLine, WorkDir: string; InBuff: Pointer;
   InSize: Integer; Output: TExecOutput): Boolean;
 function ExecStdioSync(Executable, CommandLine, WorkDir: string;
   InBuff: Pointer; InSize: Integer; Output: TExecOutput): Boolean;
+function GetCmdStr(CommandLine: String; Index: Integer;
+  KeepQuotes: Boolean = False): string;
 function GetCmdCount(CommandLine: String): Integer;
-function GetCmdStr(CommandLine: String; Index: Integer): string;
 
 implementation
 
@@ -446,50 +447,82 @@ end;
 
 procedure SetBits(var Data: Int8; Value: Int8; Index: TInt8_BitIndex;
   Count: TInt8_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: UInt8; Value: Int8; Index: TInt8_BitIndex;
   Count: TInt8_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: Int16; Value: Int16; Index: TInt16_BitIndex;
   Count: TInt16_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: UInt16; Value: Int16; Index: TInt16_BitIndex;
   Count: TInt16_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: Int32; Value: Int32; Index: TInt32_BitIndex;
   Count: TInt32_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: UInt32; Value: Int32; Index: TInt32_BitIndex;
   Count: TInt32_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: Int64; Value: Int64; Index: TInt64_BitIndex;
   Count: TInt64_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure SetBits(var Data: UInt64; Value: Int64; Index: TInt64_BitIndex;
   Count: TInt64_BitCount);
+var
+  I: Integer;
 begin
-  Data := (Data and (not(((1 shl Count) - 1) shl Index))) or (Value shl Index);
+  I := Index + Count;
+  Data := (GetBits(Data, I, Data.Size - I) shl I) or
+    (GetBits(Value, 0, Count) shl Index) or GetBits(Data, 0, Index);
 end;
 
 procedure ShowMessage(Msg: string; Caption: string = '');
@@ -1351,6 +1384,7 @@ begin
   inherited Create;
   FSync.Init;
   FInput := AInput;
+  FTemp := nil;
   FTempFile := ATempFile;
   FTempPos := 0;
   FDynamic := ADynamic;
@@ -1447,6 +1481,8 @@ begin
   end
   else
   begin
+    if Count = 0 then
+      exit;
     FSync.Lock;
     try
       if not Assigned(FTemp) then
@@ -2924,8 +2960,10 @@ begin
     exit;
   if GetHandleInformation(Handle, lpdwFlags) then
     if lpdwFlags <> HANDLE_FLAG_PROTECT_FROM_CLOSE then
+    begin
       CloseHandle(Handle);
-  Handle := 0;
+      Handle := 0;
+    end;
 end;
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;
@@ -2950,12 +2988,14 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     False, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
+    CloseHandleEx(ProcessInfo.hThread);
     WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
     GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    Result := True;
-  end;
+    CloseHandleEx(ProcessInfo.hProcess);
+    Result := dwExitCode = 0;
+  end
+  else
+    RaiseLastOSError;
 end;
 
 function ExecStdin(Executable, CommandLine, WorkDir: string; InBuff: Pointer;
@@ -2967,6 +3007,7 @@ var
   hstdinr, hstdinw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   LWorkDir: PChar;
 begin
   Result := False;
@@ -2987,17 +3028,22 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    Result := True;
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    FileWriteBuffer(hstdinw, InBuff^, InSize);
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdinr);
+    try
+      FileWriteBuffer(hstdinw, InBuff^, InSize);
+    finally
+      CloseHandleEx(hstdinw);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+      GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+      CloseHandleEx(ProcessInfo.hProcess);
+    end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdinw);
     RaiseLastOSError;
   end;
 end;
@@ -3012,6 +3058,7 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   Buffer: array [0 .. BufferSize - 1] of Byte;
   BytesRead: DWORD;
   LWorkDir: PChar;
@@ -3034,19 +3081,24 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdoutw);
-    while ReadFile(hstdoutr, Buffer, Length(Buffer), BytesRead, nil) and
-      (BytesRead > 0) do
-      Output(@Buffer[0], BytesRead);
-    CloseHandle(hstdoutr);
-    Result := True;
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdoutw);
+    try
+      while ReadFile(hstdoutr, Buffer, Length(Buffer), BytesRead, nil) and
+        (BytesRead > 0) do
+        Output(@Buffer[0], BytesRead);
+    finally
+      CloseHandleEx(hstdoutr);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+      GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+      CloseHandleEx(ProcessInfo.hProcess);
+    end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;
@@ -3064,6 +3116,7 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   LWorkDir: PChar;
 begin
   Result := True;
@@ -3086,24 +3139,30 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdinr);
-    CloseHandle(hstdoutw);
-    FileWriteBuffer(hstdinw, InBuff^, InSize);
-    CloseHandle(hstdinw);
-    while ReadFile(hstdoutr, Buffer[0], Length(Buffer), BytesRead, nil) and
-      (BytesRead > 0) do
-      Output(@Buffer[0], BytesRead);
-    CloseHandle(hstdoutr);
-    Result := True;
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdoutw);
+    try
+      FileWriteBuffer(hstdinw, InBuff^, InSize);
+      CloseHandleEx(hstdinw);
+      while ReadFile(hstdoutr, Buffer[0], Length(Buffer), BytesRead, nil) and
+        (BytesRead > 0) do
+        Output(@Buffer[0], BytesRead);
+    finally
+      CloseHandleEx(hstdinw);
+      CloseHandleEx(hstdoutr);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+      GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+      CloseHandleEx(ProcessInfo.hProcess);
+    end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdinw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;
@@ -3132,6 +3191,7 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   LWorkDir: PChar;
   LTask: TTask;
   LDone: Boolean;
@@ -3156,126 +3216,95 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdinr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdoutw);
     LTask := TTask.Create(hstdoutr, NativeInt(@Output), NativeInt(@LDone));
     LTask.Perform(ExecReadTask);
     LTask.Start;
-    FileWriteBuffer(hstdinw, InBuff^, InSize);
-    CloseHandle(hstdinw);
-    LTask.Wait;
-    LTask.Free;
-    CloseHandle(hstdoutr);
-    Result := True;
+    try
+      FileWriteBuffer(hstdinw, InBuff^, InSize);
+    finally
+      CloseHandleEx(hstdinw);
+      LTask.Wait;
+      if LTask.Status <> TThreadStatus.tsErrored then
+      begin
+        LTask.Free;
+        LTask := nil;
+      end;
+      CloseHandleEx(hstdoutr);
+    end;
+    if Assigned(LTask) then
+      if LTask.Status <> TThreadStatus.tsErrored then
+        try
+          LTask.RaiseLastError;
+        finally
+          LTask.Free;
+        end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdinw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;
 
-type
-  PAnsiCharArray = array [0 .. 0] of PAnsiChar;
-
-function GetParamStr(P: PChar; var Param: string): PChar;
+function GetCmdStr(CommandLine: String; Index: Integer;
+  KeepQuotes: Boolean): string;
 var
-  I, len: Integer;
-  Start, S: PChar;
+  I, J, Idx: Integer;
+  Quoted: Boolean;
 begin
-  while True do
+  Result := '';
+  Quoted := False;
+  Idx := 0;
+  I := 1;
+  while Idx <= Index do
   begin
-    while (P[0] <> #0) and (P[0] <= ' ') do
-      Inc(P);
-    if (P[0] = '"') and (P[1] = '"') then
-      Inc(P, 2)
-    else
-      break;
-  end;
-  len := 0;
-  Start := P;
-  while P[0] > ' ' do
-  begin
-    if P[0] = '"' then
-    begin
-      Inc(P);
-      while (P[0] <> #0) and (P[0] <> '"') do
-      begin
-        Inc(len);
-        Inc(P);
-      end;
-      if P[0] <> #0 then
-        Inc(P);
-    end
-    else
-    begin
-      Inc(len);
-      Inc(P);
-    end;
-  end;
-  SetLength(Param, len);
-  P := Start;
-  S := Pointer(Param);
-  I := 0;
-  while P[0] > ' ' do
-  begin
-    if P[0] = '"' then
-    begin
-      Inc(P);
-      while (P[0] <> #0) and (P[0] <> '"') do
-      begin
-        S[I] := P^;
-        Inc(P);
-        Inc(I);
-      end;
-      if P[0] <> #0 then
-        Inc(P);
-    end
-    else
-    begin
-      S[I] := P^;
-      Inc(P);
+    Quoted := False;
+    while (I <= CommandLine.Length) and (CommandLine[I] = ' ') do
       Inc(I);
+    if I > CommandLine.Length then
+      break;
+    Quoted := CommandLine[I] = '"';
+    J := Succ(I);
+    if Quoted then
+      Inc(I);
+    if Quoted then
+    begin
+      while (J <= CommandLine.Length) and (CommandLine[J] <> '"') do
+        Inc(J);
+    end
+    else
+    begin
+      while (J <= CommandLine.Length) and
+        (not(CharInSet(CommandLine[J], [' ', '"']))) do
+        Inc(J);
     end;
+    if Idx = Index then
+      if (CommandLine[I] = '"') and (CommandLine[I] = CommandLine[Succ(I)]) then
+        Result := ''
+      else
+        Result := CommandLine.Substring(Pred(I), J - I);
+    if (Quoted = False) and (CommandLine[J] = '"') then
+      I := J
+    else
+      I := Succ(J);
+    Inc(Idx);
   end;
-  Result := P;
+  if KeepQuotes and Quoted then
+    Result := '"' + Result + '"';
 end;
 
 function GetCmdCount(CommandLine: String): Integer;
-var
-  P: PChar;
-  S: string;
 begin
   Result := 0;
-  P := GetParamStr(PChar(CommandLine), S);
-  while True do
-  begin
-    P := GetParamStr(P, S);
-    if S = '' then
-      break;
+  while GetCmdStr(CommandLine, Result, True) <> '' do
     Inc(Result);
-  end;
-end;
-
-function GetCmdStr(CommandLine: String; Index: Integer): string;
-var
-  P: PChar;
-  Buffer: array [0 .. 260] of char;
-begin
-  Result := '';
-  P := PChar(CommandLine);
-  while Index >= 0 do
-  begin
-    P := GetParamStr(P, Result);
-    if (Index = 0) or (Result = '') then
-      break;
-    Dec(Index);
-  end;
 end;
 
 end.

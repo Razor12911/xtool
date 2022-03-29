@@ -186,6 +186,39 @@ begin
 end;
 
 { changelog
+  ES_R29 (0.4.7)
+  - updated oodle scanner
+  - updated external executable support
+  - updated configuration based plugin support to add depth information
+  - updated verbose mode
+
+  ES_R28 (0.4.6)
+  - generate database feature fixed
+  - fixed external executable support issues
+  - fixed lz4f level setting bug
+
+  ES_R28 (0.4.5)
+  - removed leviathan codec restriction
+
+  ES_R27 (0.4.4)
+  - fixed issue of lz4 codec loading incorrect library
+  - fixed issue with handling endianess via configuration based plugins
+  - updated framework of library based plugins
+
+  ES_R26 (0.4.3)
+  - added verbose mode
+  - added feature that allows you to enforce a different library to be loaded
+  - fixed issues related to imperfect stream patching
+  - fixed issues with old libraries with missing functions that cause xtool to crash on startup
+  - updated oodle codec
+  - updated reflate codec
+  - updated zstd codec
+
+  ES_R25 (0.4.2)
+  - removed debugging code from encryption and executable codec
+  - fixed issue with depth when using search codec
+  - fixed external executable support issues
+
   ES_R24 (0.4.1)
   - fixed issue of status not reporting when encoding
   - added depth method support for search support
@@ -195,6 +228,8 @@ end;
   - updated lz4f codec and removed temporarily removed support for universal scanning
   - added option to change recompression level to be used by reflate
   - updated external executable support
+  - generate database feature currently bugged, wait for next update
+  - search database structure changed, older database files will no longer work with newer releases
 
   ES_R23 (0.4.0)
   - project made open source

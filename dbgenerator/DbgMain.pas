@@ -28,6 +28,7 @@ implementation
 const
   MinSize1 = 256;
   MinSize2 = 65536;
+  HashSize = 4 * 1024 * 1024;
 
 type
   PScanInfo = ^TScanInfo;
@@ -35,6 +36,13 @@ type
   TScanInfo = record
     Size: Integer;
     CRC1, CRC2: Cardinal;
+  end;
+
+  PHashStruct = ^THashStruct;
+
+  THashStruct = record
+    Size: Integer;
+    Hash: Cardinal;
   end;
 
 var
@@ -55,7 +63,7 @@ begin
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Parameters:');
   WriteLn(ErrOutput, '  -m#  - codec to use for precompression');
-  WriteLn(ErrOutput, '  -c#  - scanning range of precompressor [16mb]');
+  WriteLn(ErrOutput, '  -c#  - scanning range of generator [16mb]');
   WriteLn(ErrOutput, '  -t#  - number of working threads [50p]');
   WriteLn(ErrOutput, '');
 end;
@@ -102,6 +110,44 @@ begin
   end;
 end;
 
+function GenerateHashList(Stream: TStream;
+  var HashList: TArray<THashStruct>): Integer;
+const
+  BufferSize = 65536;
+var
+  Buffer: array [0 .. BufferSize - 1] of Byte;
+  I: Integer;
+  X, Y: Integer;
+  OldPos: Int64;
+begin
+  Result := 0;
+  SetLength(HashList, Max(Length(HashList), IfThen(Stream.Size mod HashSize = 0,
+    Stream.Size div HashSize, Succ(Stream.Size div HashSize))));
+  OldPos := Stream.Position;
+  Stream.Position := 0;
+  try
+    for I := Low(HashList) to High(HashList) do
+    begin
+      HashList[I].Size := 0;
+      HashList[I].Hash := 0;
+      X := HashSize;
+      Y := Stream.Read(Buffer[0], Min(X, BufferSize));
+      while Y > 0 do
+      begin
+        Inc(HashList[I].Size, Y);
+        HashList[I].Hash := Utils.Hash32(HashList[I].Hash, @Buffer[0], Y);
+        Dec(X, Y);
+        Y := Stream.Read(Buffer[0], Min(X, BufferSize));
+      end;
+      Inc(Result);
+      if HashList[I].Size = 0 then
+        break;
+    end;
+  finally
+    Stream.Position := OldPos;
+  end;
+end;
+
 procedure Encode(Input1, Input2, Output: String; Options: TEncodeOptions);
 const
   BufferSize = 65536;
@@ -117,8 +163,9 @@ var
   LSInfo: PScanInfo;
   LEntry: TEntryStruct;
   LBytes: TBytes;
-  LMD5: TMD5;
-  Hash: TMD5Digest;
+  Hash: Cardinal;
+  HashList: TArray<THashStruct>;
+  HashCount: Integer;
   FStream: TFileStream;
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
@@ -219,6 +266,7 @@ begin
                     E.Position := DataStore.Position(X) + Pos;
                     E.OldSize := SearchInfo[C, D, Y].Size;
                     E.NewSize := 0;
+                    E.DepthSize := 0;
                     InfoStore[X].Add(E);
                     Inc(Pos, E.OldSize);
                     F := True;
@@ -239,16 +287,19 @@ begin
       begin
         FStream := TFileStream.Create(LList[I], fmShareDenyNone);
         try
+          HashCount := GenerateHashList(FStream, HashList);
           LastStream := 0;
           MStream.Position := 0;
           Found2 := False;
           DataStore.ChangeInput(FStream);
           DataStore.Load;
-          LMD5.Full(DataStore.Slot(0).Memory, MinSize2, Hash);
-          MStream.WriteBuffer(DataStore.Slot(0).Memory^, Int64.Size);
-          K := MinSize2;
-          MStream.WriteBuffer(K, K.Size);
-          MStream.WriteBuffer(Hash, SizeOf(TMD5Digest));
+          Hash := Utils.Hash32(0, DataStore.Slot(0).Memory, MinSize2);
+          MStream.WriteBuffer(DataStore.Slot(0).Memory^, Integer.Size);
+          MStream.WriteBuffer(PInteger(PByte(DataStore.Slot(0).Memory) +
+            MinSize2 - Integer.Size)^, Integer.Size);
+          MStream.WriteBuffer(Hash, Hash.Size);
+          MStream.WriteBuffer(HashCount, HashCount.Size);
+          MStream.WriteBuffer(HashList[0], HashCount * SizeOf(THashStruct));
           LBytes := BytesOf(Options.Method);
           K := Length(LBytes);
           MStream.WriteBuffer(K, K.Size);

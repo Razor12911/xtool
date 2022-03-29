@@ -33,7 +33,7 @@ type
     Resource: Integer;
     BigEndian: Boolean;
     Structure: TArray<TCfgStruct>;
-    StreamOffset, OldSize, NewSize: String;
+    StreamOffset, OldSize, NewSize, DepthSize: String;
     Names, Exprs: TArray<String>;
     Values: TArray<Double>;
     Conditions: TArray<String>;
@@ -109,6 +109,7 @@ begin
             StreamOffset := CodecCfg[0, J, X].StreamOffset;
             OldSize := CodecCfg[0, J, X].OldSize;
             NewSize := CodecCfg[0, J, X].NewSize;
+            DepthSize := CodecCfg[0, J, X].DepthSize;
             SetLength(Names, Length(CodecCfg[0, J, X].Names));
             SetLength(Exprs, Length(CodecCfg[0, J, X].Exprs));
             SetLength(Values, Length(CodecCfg[0, J, X].Values));
@@ -195,8 +196,11 @@ var
   Pos: NativeInt;
   NI: NativeInt;
   I64: Int64;
-  StreamPosInt, StreamOffsetInt, OldSizeInt, NewSizeInt: NativeInt;
+  StreamPosInt, StreamOffsetInt, OldSizeInt, NewSizeInt,
+    DepthSizeInt: NativeInt;
   SI: _StrInfo1;
+  DI: TDepthInfo;
+  DS: TPrecompStr;
 begin
   if Depth > 0 then
     exit;
@@ -260,6 +264,7 @@ begin
                 StreamOffsetInt := Round(Parser.Evaluate(StreamOffset));
                 OldSizeInt := Round(Parser.Evaluate(OldSize));
                 NewSizeInt := Round(Parser.Evaluate(NewSize));
+                DepthSizeInt := Round(Parser.Evaluate(DepthSize));
                 for Y := Low(Structure) to High(Structure) do
                 begin
                   if (X <> Y) and (Structure[Y].BeforeStream = False) then
@@ -281,12 +286,18 @@ begin
                   if Status = TScanStatus.Fail then
                     break;
                 end;
-                for Y := Low(Conditions) to High(Conditions) do
+                if Status = TScanStatus.Fail then
                 begin
-                  if Round(Parser.Evaluate(Conditions[Y])) = 0 then
-                    break;
+                  Inc(Pos);
+                  continue;
                 end;
-                if (Length(Conditions) = 0) or (Y = High(Conditions)) then
+                for Y := Low(Conditions) to High(Conditions) do
+                  if Round(Parser.Evaluate(Conditions[Y])) = 0 then
+                  begin
+                    Status := TScanStatus.Fail;
+                    break;
+                  end;
+                if Status = TScanStatus.None then
                 begin
                   Output(Instance, nil, -1);
                   SI.Position := StreamPosInt + StreamOffsetInt;
@@ -298,7 +309,11 @@ begin
                     SI.Status := TStreamStatus.Predicted
                   else
                     SI.Status := TStreamStatus.None;
-                  Add(Instance, @SI, PChar(Codec), nil);
+                  DS := Funcs^.GetDepthCodec(PChar(Codec));
+                  Move(DS[0], DI.Codec, SizeOf(DI.Codec));
+                  DI.OldSize := NewSizeInt;
+                  DI.NewSize := DepthSizeInt;
+                  Add(Instance, @SI, PChar(Codec), @DI);
                   Inc(Pos, Max(OldSizeInt, 1));
                   // fix this
                   Status := TScanStatus.Success;
@@ -410,10 +425,7 @@ begin
                 SetLength(Bytes, CfgStruct^.Size);
                 SetLength(Bytes, HexToBin(BytesOf(S1), 0, Bytes, 0,
                   Length(Bytes)));
-                if CfgRec^.BigEndian then
-                  Move(Bytes[0], CfgStruct^.Data^, CfgStruct^.Size)
-                else
-                  ReverseBytes(@Bytes[0], CfgStruct^.Data, CfgStruct^.Size);
+                ReverseBytes(@Bytes[0], CfgStruct^.Data, CfgStruct^.Size);
               end
               else
               begin
@@ -443,6 +455,9 @@ begin
           CfgRec^.NewSize := ReadString('Stream' + X.ToString,
             'DecompressedSize', '0');
           ConvertHexChr(CfgRec^.NewSize);
+          CfgRec^.DepthSize := ReadString('Stream' + X.ToString,
+            'DepthSize', '0');
+          ConvertHexChr(CfgRec^.DepthSize);
           Y := 1;
           while ReadString('Stream' + X.ToString, 'Condition' + Y.ToString,
             '') <> '' do

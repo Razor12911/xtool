@@ -40,7 +40,6 @@ var
   RefInst1, RefInst2: TArray<Pointer>;
   RLevel: Integer = R_LEVEL;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
-  Storage: TArray<TMemoryStream>;
   Scan2Pos: TArray<Integer>;
   Scan2SI: TArray<PStrInfo2>;
 
@@ -57,11 +56,8 @@ begin
   for X := Low(SOList) to High(SOList) do
     for Y := Low(SOList[X]) to High(SOList[X]) do
       SOList[X, Y] := TSOList.Create([], TSOMethod.MTF);
-  SetLength(Storage, Count);
   SetLength(Scan2Pos, Count);
   SetLength(Scan2SI, Count);
-  for X := Low(Storage) to High(Storage) do
-    Storage[X] := TMemoryStream.Create;
   for X := Low(CodecAvailable) to High(CodecAvailable) do
   begin
     CodecAvailable[X] := False;
@@ -91,8 +87,7 @@ begin
     begin
       CodecEnabled[REFLATE_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'l') <> '' then
-        for I := Low(SOList) to High(SOList) do
-          RLevel := StrToInt(Funcs^.GetParam(Command, X, 'l'));
+        RLevel := StrToInt(Funcs^.GetParam(Command, X, 'l'));
     end
     else if (CompareText(S, ZlibCodecs[PREFLATE_CODEC]) = 0) and PreflateDLL.DLLLoaded
     then
@@ -159,8 +154,6 @@ begin
   for X := Low(SOList) to High(SOList) do
     for Y := Low(SOList[X]) to High(SOList[X]) do
       SOList[X, Y].Free;
-  for X := Low(Storage) to High(Storage) do
-    Storage[X].Free;
   if CodecAvailable[ZLIB_CODEC] then
   begin
     for W := Low(ZStream1) to High(ZStream1) do
@@ -248,7 +241,7 @@ var
   ScanBytes: Integer;
   SI: _StrInfo1;
   DI1, DI2: TDepthInfo;
-  DS: TPrecompCmd;
+  DS: TPrecompStr;
   LastIn, LastOut: cardinal;
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
@@ -368,11 +361,16 @@ begin
             SetBits(SI.Option, I, 0, 5);
             if CodecEnabled[I] then
             begin
-              DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+              DS := Funcs^.GetDepthCodec(DI1.Codec);
+              Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
               DI2.OldSize := SI.NewSize;
               DI2.NewSize := SI.NewSize;
               if Assigned(Add) then
-                Add(Instance, @SI, DI1.Codec, @DI2)
+              begin
+                Funcs^.LogScan1(ZlibCodecs[GetBits(SI.Option, 0, 5)],
+                  SI.Position, SI.OldSize, SI.NewSize);
+                Add(Instance, @SI, DI1.Codec, @DI2);
+              end
               else
               begin
                 Scan2Pos[Instance] := SI.Position;
@@ -414,7 +412,11 @@ begin
   ZlibScan1(Instance, Depth, Input, Size, Size, Output, nil, Funcs);
   Result := Scan2SI[Instance]^.OldSize > 0;
   if Result then
+  begin
     Offset^ := Scan2Pos[Instance];
+    Funcs^.LogScan2(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      StreamInfo^.OldSize, StreamInfo^.NewSize);
+  end;
 end;
 
 function ZlibProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
@@ -439,6 +441,7 @@ function ZlibProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
 
 var
   Buffer, Ptr: PByte;
+  Params: String;
   Res1, Res2: Integer;
   L, M: Integer;
   I, J: Integer;
@@ -478,6 +481,8 @@ begin
                 break; }
             end;
           end;
+          Params := 'l' + I.ToString + ':' + 'w' +
+            (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
           ZStream := @ZStream1[Instance, L, M,
             GetBits(StreamInfo^.Option, 12, 3)];
           ZStream^.next_in := NewInput;
@@ -496,6 +501,9 @@ begin
             if not Verified then
               break;
           until (ZStream^.avail_in = 0) and (ZStream^.avail_out > 0);
+          Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+            PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize,
+            ZStream^.total_out, Verified and (Res1 = Z_STREAM_END));
           if Verified and (Res1 = Z_STREAM_END) then
           begin
             SetBits(StreamInfo^.Option, I, 5, 7);
@@ -523,7 +531,7 @@ begin
     REFLATE_CODEC:
       begin
         Buffer := Funcs^.Allocator(Instance, R_WORKMEM * 2);
-        Storage[Instance].Position := 0;
+        J := 0;
         HR := RefInst1[Instance];
         if StreamInfo^.Status = TStreamStatus.Predicted then
           L := GetBits(StreamInfo^.Option, 5, 7)
@@ -534,6 +542,8 @@ begin
         L := EnsureRange(L, 1, 9);
         M := 0;
         I := 0;
+        Params := 'l' + L.ToString + ':' + 'w' +
+          (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
         raw2hif_Init(HR, L);
         while True do
         begin
@@ -542,7 +552,7 @@ begin
           begin
             Res2 := raw2hif_getoutlen(HR);
             Output(Instance, Buffer, Res2);
-            Storage[Instance].WriteBuffer(Buffer^, Res2);
+            Inc(J, Res2);
             raw2hif_addbuf(HR, Buffer, R_WORKMEM);
           end;
           if (Res1 = 3) or (Res1 = 0) then
@@ -560,46 +570,13 @@ begin
             Inc(I, Res2);
           end;
         end;
+        Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+          PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize + J,
+          StreamInfo^.OldSize, M = StreamInfo^.NewSize);
         if M = StreamInfo^.NewSize then
         begin
-          { HR := RefInst2[Instance];
-            I := 0;
-            J := 0;
-            M := 0;
-            CRC := 0;
-            M := Storage[Instance].Position;
-            Ptr := Storage[Instance].Memory;
-            hif2raw_Init(HR, L);
-            while True do
-            begin
-            Res1 := hif2raw_Loop(HR);
-            if (Res1 in [0, 2]) or (Res1 > 3) then
-            begin
-            Res2 := hif2raw_getoutlen(HR);
-            if Res2 > 0 then
-            CRC := Hash32(CRC, Buffer, Res2);
-            hif2raw_addbuf(HR, Buffer, R_WORKMEM);
-            if Res1 = 0 then
-            break;
-            end;
-            if Res1 = 1 then
-            begin
-            Res2 := Min(M - J, R_WORKMEM);
-            hif2raw_addbuf(HR, Ptr + J, Res2);
-            Inc(J, Res2);
-            end;
-            if Res1 = 3 then
-            begin
-            Res2 := Min(StreamInfo^.NewSize - I, R_WORKMEM);
-            hif2raw_addbuf(HR, PByte(NewInput) + I, Res2);
-            Inc(I, Res2);
-            end;
-            end;
-            if CRC = Hash32(0, OldInput, StreamInfo^.OldSize) then
-            begin }
           SetBits(StreamInfo^.Option, L, 5, 7);
           Result := True;
-          // end;
         end;
       end;
     PREFLATE_CODEC:
@@ -607,24 +584,32 @@ begin
         Res1 := StreamInfo^.NewSize;
         Res2 := P_HIFSIZE;
         Buffer := Funcs^.Allocator(Instance, Res2);
+        Params := 'w' + (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
         if preflate_decode(OldInput, StreamInfo^.OldSize, NewInput, @Res1,
           Buffer, @Res2) then
         begin
           Output(Instance, Buffer, Res2);
           Result := True;
         end;
+        Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+          PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize + Res2,
+          StreamInfo^.OldSize, Result);
       end;
     GRITTIBANZLI_CODEC:
       begin
         Res1 := StreamInfo^.NewSize;
         Res2 := G_HIFSIZE;
         Buffer := Funcs^.Allocator(Instance, Res2);
+        Params := 'w' + (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
         if Grittibanzli(OldInput, StreamInfo^.OldSize, NewInput, @Res1, Buffer,
           @Res2) then
         begin
           Output(Instance, Buffer, Res2);
           Result := True;
         end;
+        Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+          PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize + Res2,
+          StreamInfo^.OldSize, Result);
       end;
   end;
 end;
@@ -633,6 +618,7 @@ function ZlibRestore(Instance, Depth: Integer; Input, InputExt: Pointer;
   StreamInfo: _StrInfo3; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  Params: String;
   Res1, Res2: Integer;
   L, M: Integer;
   I, J: Integer;
@@ -650,6 +636,8 @@ begin
         Buffer := Funcs^.Allocator(Instance, Z_WORKMEM);
         L := GetBits(StreamInfo.Option, 5, 7) div 10;
         M := GetBits(StreamInfo.Option, 5, 7) mod 10;
+        Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'w' +
+          (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
         ZStream := @ZStream1[Instance, L, M, GetBits(StreamInfo.Option, 12, 3)];
         ZStream^.next_in := Input;
         ZStream^.avail_in := StreamInfo.NewSize;
@@ -664,6 +652,9 @@ begin
           Res2 := Z_WORKMEM - ZStream^.avail_out;
           Output(Instance, Buffer, Res2);
         until (ZStream^.avail_in = 0) and (ZStream^.avail_out > 0);
+        Funcs^.LogRestore(ZlibCodecs[GetBits(StreamInfo.Option, 0, 5)],
+          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize,
+          ZStream^.total_out, True);
         Result := True;
       end;
     REFLATE_CODEC:
@@ -672,6 +663,9 @@ begin
         HR := RefInst2[Instance];
         I := 0;
         J := 0;
+        M := 0;
+        Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'w' +
+          (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
         hif2raw_Init(HR, GetBits(StreamInfo.Option, 5, 7));
         while True do
         begin
@@ -679,6 +673,7 @@ begin
           if (Res1 in [0, 2]) or (Res1 > 3) then
           begin
             Res2 := hif2raw_getoutlen(HR);
+            Inc(M, Res2);
             Output(Instance, Buffer, Res2);
             hif2raw_addbuf(HR, Buffer, R_WORKMEM);
             if Res1 = 0 then
@@ -697,29 +692,39 @@ begin
             Inc(I, Res2);
           end;
         end;
-        Result := True;
+        Result := StreamInfo.OldSize = M;
+        Funcs^.LogRestore(ZlibCodecs[GetBits(StreamInfo.Option, 0, 5)],
+          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize + J, M, Result);
       end;
     PREFLATE_CODEC:
       begin
         Res1 := StreamInfo.OldSize;
         Buffer := Funcs^.Allocator(Instance, Res1);
+        Params := 'w' + (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
         if preflate_reencode(Input, StreamInfo.NewSize, InputExt,
           StreamInfo.ExtSize, Buffer, @Res1) then
         begin
           Output(Instance, Buffer, Res1);
           Result := True;
         end;
+        Funcs^.LogRestore(ZlibCodecs[GetBits(StreamInfo.Option, 0, 5)],
+          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize +
+          StreamInfo.ExtSize, Res1, Result);
       end;
     GRITTIBANZLI_CODEC:
       begin
         Res1 := StreamInfo.OldSize;
         Buffer := Funcs^.Allocator(Instance, Res1);
+        Params := 'w' + (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
         if Ungrittibanzli(Input, StreamInfo.NewSize, InputExt,
           StreamInfo.ExtSize, Buffer, @Res1) then
         begin
           Output(Instance, Buffer, Res1);
           Result := True;
         end;
+        Funcs^.LogRestore(ZlibCodecs[GetBits(StreamInfo.Option, 0, 5)],
+          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize +
+          StreamInfo.ExtSize, Res1, Result);
       end;
   end;
 end;

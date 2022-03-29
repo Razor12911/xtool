@@ -186,7 +186,7 @@ var
   LZOSI: TLZOSI;
   SI: _StrInfo1;
   DI1, DI2: TDepthInfo;
-  DS: TPrecompCmd;
+  DS: TPrecompStr;
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
   DS := Funcs^.GetCodec(DI1.Codec, 0, False);
@@ -216,9 +216,12 @@ begin
         SI.Status := TStreamStatus.Predicted
       else
         SI.Status := TStreamStatus.None;
-      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DS := Funcs^.GetDepthCodec(DI1.Codec);
+      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
       DI2.OldSize := SI.NewSize;
       DI2.NewSize := SI.NewSize;
+      Funcs^.LogScan1(LZOCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        SI.OldSize, SI.NewSize);
       Add(Instance, @SI, DI1.Codec, @DI2);
     end;
     exit;
@@ -237,6 +240,8 @@ begin
       SI.NewSize := LZOSI.DSize;
       SI.Option := 0;
       SI.Status := TStreamStatus.None;
+      Funcs^.LogScan1(LZOCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        SI.OldSize, SI.NewSize);
       Add(Instance, @SI, nil, nil);
       Inc(Pos, LZOSI.CSize);
       continue;
@@ -269,6 +274,8 @@ begin
   begin
     StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
+    Funcs^.LogScan2(LZOCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
   end;
 end;
@@ -277,6 +284,7 @@ function LZOProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
   StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  Params: String;
   I: Integer;
   X: Integer;
   Res1: NativeUInt;
@@ -298,9 +306,13 @@ begin
       LZO1X_CODEC:
         case GetBits(StreamInfo^.Option, 12, 5) of
           LZO1X_999:
-            if not lzo1x_999_compress_level(NewInput, StreamInfo^.NewSize,
-              Buffer, @Res1, @WrkMem[Instance, 0], nil, 0, nil, I) = 0 then
-              Res1 := 0;
+            begin
+              Params := 'l' + I.ToString + ':' + 'v' +
+                GetBits(StreamInfo^.Option, 12, 5).ToString;
+              if not lzo1x_999_compress_level(NewInput, StreamInfo^.NewSize,
+                Buffer, @Res1, @WrkMem[Instance, 0], nil, 0, nil, I) = 0 then
+                Res1 := 0;
+            end;
           { if not lzo1x_1_compress(NewInput, StreamInfo^.NewSize, Buffer,
             @Res1, @WrkMem[Instance, 0]) = 0 then
             Res1 := 0; }
@@ -308,17 +320,10 @@ begin
     end;
     Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
       StreamInfo^.OldSize);
+    Funcs^.LogProcess(LZOCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result then
-    begin
-      SetBits(StreamInfo^.Option, I, 5, 7);
-      SOList[Instance][X].Add(I);
       break;
-    end;
-    case X of
-      LZO1X_CODEC:
-        if not GetBits(StreamInfo^.Option, 12, 5) in [0] then
-          break;
-    end;
   end;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) then
@@ -326,6 +331,8 @@ begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
       Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
+    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2, (Res2 > 0) and
+      ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE));
     if (Res2 > 0) and ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE)
     then
     begin
@@ -335,12 +342,18 @@ begin
       Result := True;
     end;
   end;
+  if Result then
+  begin
+    SetBits(StreamInfo^.Option, I, 5, 7);
+    SOList[Instance][X].Add(I);
+  end;
 end;
 
 function LZORestore(Instance, Depth: Integer; Input, InputExt: Pointer;
   StreamInfo: _StrInfo3; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  Params: String;
   X: Integer;
   Res1: NativeUInt;
   Res2: NativeUInt;
@@ -355,17 +368,24 @@ begin
     LZO1X_CODEC:
       case GetBits(StreamInfo.Option, 12, 5) of
         LZO1X_999:
-          if not lzo1x_999_compress_level(Input, StreamInfo.NewSize, Buffer,
-            @Res1, @WrkMem[Instance, 0], nil, 0, nil,
-            GetBits(StreamInfo.Option, 5, 7)) = 0 then
-            Res1 := 0;
+          begin
+            Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' +
+              'v' + GetBits(StreamInfo.Option, 12, 5).ToString;
+            if not lzo1x_999_compress_level(Input, StreamInfo.NewSize, Buffer,
+              @Res1, @WrkMem[Instance, 0], nil, 0, nil,
+              GetBits(StreamInfo.Option, 5, 7)) = 0 then
+              Res1 := 0;
+          end;
       end;
   end;
+  Funcs^.LogRestore(LZOCodecs[GetBits(StreamInfo.Option, 0, 5)], PChar(Params),
+    StreamInfo.OldSize, StreamInfo.NewSize, Res1, True);
   if GetBits(StreamInfo.Option, 31, 1) = 1 then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
     Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
       Buffer + Res1, StreamInfo.OldSize);
+    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
     if Res2 > 0 then
     begin
       Output(Instance, Buffer + Res1, StreamInfo.OldSize);

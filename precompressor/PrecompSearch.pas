@@ -23,9 +23,9 @@ const
 type
   PEntryStruct = ^TEntryStruct;
 
-  TEntryStruct = record
+  TEntryStruct = packed record
     Position: Int64;
-    OldSize, NewSize: Integer;
+    OldSize, NewSize, DepthSize: Integer;
   end;
 
   PSearchStruct = ^TSearchStruct;
@@ -173,6 +173,7 @@ var
   Pos, LSize: NativeInt;
   SI: _StrInfo1;
   DI: TDepthInfo;
+  DS: TPrecompStr;
   SS: PSearchStruct;
   CRC: Cardinal;
   Checked: Boolean;
@@ -214,13 +215,14 @@ begin
                   SI.NewSize := SS^.EntryList[Y].NewSize;
                   SI.Option := 0;
                   SI.Resource := SS^.Resource;
-                  if System.Pos(SPrecompSep2, SS^.Codec) > 0 then
+                  if System.Pos(SPrecompSep2 + 'l', SS^.Codec) > 0 then
                     SI.Status := TStreamStatus.Predicted
                   else
                     SI.Status := TStreamStatus.None;
-                  DI.Codec := Funcs^.GetDepthCodec(PChar(SS^.Codec));
-                  DI.OldSize := SI.NewSize;
-                  DI.NewSize := SI.NewSize;
+                  DS := Funcs^.GetDepthCodec(PChar(SS^.Codec));
+                  Move(DS[0], DI.Codec, SizeOf(DI.Codec));
+                  DI.OldSize := SS^.EntryList[Y].NewSize;
+                  DI.NewSize := SS^.EntryList[Y].DepthSize;
                   Add(Instance, @SI, PChar(SS^.Codec), @DI);
                 end;
               end;
@@ -291,7 +293,7 @@ begin
           FStream.ReadBuffer(SearchStruct^.Hash, SearchStruct^.Hash.Size);
           FStream.ReadBuffer(I32, I32.Size);
           SetLength(HList, I32);
-          FStream.ReadBuffer(HList[0], I32 * sizeof(THashStruct));
+          FStream.ReadBuffer(HList[0], I32 * SizeOf(THashStruct));
           FStream.ReadBuffer(I32, I32.Size);
           SetLength(Bytes, I32);
           FStream.ReadBuffer(Bytes[0], I32);
@@ -301,10 +303,10 @@ begin
           K := Pred(Length(CodecSearch[J]));
           SetLength(CodecSearch[J, K].HashList, Length(HList));
           Move(HList[0], CodecSearch[J, K].HashList[0],
-            Length(HList) * sizeof(THashStruct));
+            Length(HList) * SizeOf(THashStruct));
           SetLength(CodecSearch[J, K].EntryList, I32);
           FStream.ReadBuffer(CodecSearch[J, K].EntryList[0],
-            I32 * sizeof(TEntryStruct));
+            I32 * SizeOf(TEntryStruct));
         end;
       end;
     end;

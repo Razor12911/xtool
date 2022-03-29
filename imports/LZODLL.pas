@@ -104,50 +104,29 @@ begin
     compression_level);
 end;
 
-procedure Init;
+procedure Init(Filename: String);
 begin
   if DLLLoaded then
     Exit;
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + 'lzo2.dll'));
+  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + Filename));
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     @lzo1x_1_compress := GetProcAddress(DLLHandle, 'lzo1x_1_compress');
-    Assert(@lzo1x_1_compress <> nil);
     @lzo1x_1_11_compress := GetProcAddress(DLLHandle, 'lzo1x_1_11_compress');
-    Assert(@lzo1x_1_11_compress <> nil);
     @lzo1x_1_12_compress := GetProcAddress(DLLHandle, 'lzo1x_1_12_compress');
-    Assert(@lzo1x_1_12_compress <> nil);
     @lzo1x_1_15_compress := GetProcAddress(DLLHandle, 'lzo1x_1_15_compress');
-    Assert(@lzo1x_1_15_compress <> nil);
     @lzo1x_999_compress := GetProcAddress(DLLHandle, 'lzo1x_999_compress');
-    Assert(@lzo1x_999_compress <> nil);
     @lzo1x_999_compress_level := GetProcAddress(DLLHandle,
       'lzo1x_999_compress_level');
-    Assert(@lzo1x_999_compress_level <> nil);
     @lzo1x_decompress_safe := GetProcAddress(DLLHandle,
       'lzo1x_decompress_safe');
-    Assert(@lzo1x_decompress_safe <> nil);
     @lzo1c_999_compress := GetProcAddress(DLLHandle, 'lzo1c_999_compress');
-    Assert(@lzo1c_999_compress <> nil);
     @lzo1c_decompress_safe := GetProcAddress(DLLHandle,
       'lzo1c_decompress_safe');
-    Assert(@lzo1c_decompress_safe <> nil);
     @lzo2a_999_compress := GetProcAddress(DLLHandle, 'lzo2a_999_compress');
-    Assert(@lzo2a_999_compress <> nil);
     @lzo2a_decompress_safe := GetProcAddress(DLLHandle,
       'lzo2a_decompress_safe');
-    Assert(@lzo2a_decompress_safe <> nil);
-    (* if Length(lzoprodll) > 0 then
-      begin
-      MDLLHandle := MemoryLoadLibary(@lzoprodll[0]);
-      @lzopro_lzo1x_w03_15_compress := MemoryGetProcAddress(MDLLHandle,
-      'lzopro_lzo1x_w03_15_compress');
-      Assert(@lzopro_lzo1x_w03_15_compress <> nil);
-      @lzopro_lzo1x_99_compress := MemoryGetProcAddress(MDLLHandle,
-      'lzopro_lzo1x_99_compress');
-      Assert(@lzopro_lzo1x_99_compress <> nil);
-      end; *)
+    DLLLoaded := Assigned(lzo1x_decompress_safe);
   end
   else
     DLLLoaded := False;
@@ -160,9 +139,23 @@ begin
   FreeLibrary(DLLHandle);
 end;
 
+const
+  DLLParam = '--lzo=';
+
+var
+  I: integer;
+  DLLFile: String;
+
 initialization
 
-Init;
+DLLFile := 'lzo2.dll';
+for I := 1 to ParamCount do
+  if ParamStr(I).StartsWith(DLLParam) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    break;
+  end;
+Init(DLLFile);
 
 finalization
 

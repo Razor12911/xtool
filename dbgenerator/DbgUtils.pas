@@ -12,14 +12,14 @@ resourcestring
   SPrecompSep3 = ',';
 
 const
-  XTOOL_DB = $42445458;
+  XTOOL_DB = $31445458;
 
 type
   PEntryStruct = ^TEntryStruct;
 
-  TEntryStruct = record
+  TEntryStruct = packed record
     Position: Int64;
-    OldSize, NewSize: Integer;
+    OldSize, NewSize, DepthSize: Integer;
   end;
 
   TEntryStructComparer = class(TComparer<TEntryStruct>)

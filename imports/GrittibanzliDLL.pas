@@ -26,11 +26,9 @@ begin
     'grittibanzli_dll.dll'));
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     @Grittibanzli := GetProcAddress(DLLHandle, '__Grittibanzli');
-    Assert(@Grittibanzli <> nil);
     @Ungrittibanzli := GetProcAddress(DLLHandle, '__Ungrittibanzli');
-    Assert(@Ungrittibanzli <> nil);
+    DLLLoaded := Assigned(Grittibanzli) and Assigned(Ungrittibanzli);
   end
   else
     DLLLoaded := False;

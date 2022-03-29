@@ -100,31 +100,6 @@ var
     dstCapacity: size_t; const src: Pointer; srcSize: size_t;
     const ddict: Pointer): size_t cdecl;
 
-  ZSTD_getParams: function(compressionLevel: Integer; estimatedSrcSize: UInt64;
-    dictSize: size_t): ZSTD_parameters cdecl;
-  ZSTD_initCStream: function(zcs: Pointer; compressionLevel: Integer)
-    : size_t cdecl;
-  ZSTD_initCStream_advanced: function(zcs: Pointer; const dict: Pointer;
-    dictSize: size_t; params: ZSTD_parameters; pledgedSrcSize: UInt64)
-    : size_t cdecl;
-  ZSTD_compressStream: function(zcs: Pointer; output: PZSTD_outBuffer;
-    input: PZSTD_inBuffer): size_t cdecl;
-  ZSTD_flushStream: function(zcs: Pointer; output: PZSTD_outBuffer)
-    : size_t cdecl;
-  ZSTD_endStream: function(zcs: Pointer; output: PZSTD_outBuffer): size_t cdecl;
-
-  ZSTD_createCCtxParams: function: PZSTD_CCtx_params cdecl;
-  ZSTD_freeCCtxParams: function(params: PZSTD_CCtx_params): size_t cdecl;
-  ZSTD_CCtxParams_reset: function(params: PZSTD_CCtx_params): size_t cdecl;
-  ZSTD_CCtxParams_init: function(cctxParams: PZSTD_CCtx_params;
-    compressionLevel: Integer): size_t cdecl;
-  ZSTD_CCtx_setParameter: function(params: PZSTD_CCtx_params;
-    param: ZSTD_cParameter; value: Integer): size_t cdecl;
-  ZSTD_CCtx_setParametersUsingCCtxParams: function(cctx: Pointer;
-    const params: PZSTD_CCtx_params): size_t cdecl;
-
-  ZSTD_CStreamInSize: function: size_t cdecl;
-  ZSTD_CStreamOutSize: function: size_t cdecl;
   DLLLoaded: Boolean = False;
 
 function ZSTD_compress_dict(cctx: Pointer; dst: Pointer; dstCapacity: size_t;
@@ -155,86 +130,34 @@ end;
 var
   DLLHandle: THandle;
 
-procedure Init;
+procedure Init(Filename: String);
 begin
   if DLLLoaded then
     Exit;
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + 'libzstd.dll'));
+  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + Filename));
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     @ZSTD_compress := GetProcAddress(DLLHandle, 'ZSTD_compress');
-    Assert(@ZSTD_compress <> nil);
     @ZSTD_decompress := GetProcAddress(DLLHandle, 'ZSTD_decompress');
-    Assert(@ZSTD_decompress <> nil);
     @ZSTD_findFrameCompressedSize := GetProcAddress(DLLHandle,
       'ZSTD_findFrameCompressedSize');
-    Assert(@ZSTD_findFrameCompressedSize <> nil);
     @ZSTD_findDecompressedSize := GetProcAddress(DLLHandle,
       'ZSTD_findDecompressedSize');
-    Assert(@ZSTD_findDecompressedSize <> nil);
     @ZSTD_createCCtx := GetProcAddress(DLLHandle, 'ZSTD_createCCtx');
-    Assert(@ZSTD_createCCtx <> nil);
     @ZSTD_freeCCtx := GetProcAddress(DLLHandle, 'ZSTD_freeCCtx');
-    Assert(@ZSTD_freeCCtx <> nil);
     @ZSTD_createDCtx := GetProcAddress(DLLHandle, 'ZSTD_createDCtx');
-    Assert(@ZSTD_createDCtx <> nil);
     @ZSTD_freeDCtx := GetProcAddress(DLLHandle, 'ZSTD_freeDCtx');
-    Assert(@ZSTD_freeDCtx <> nil);
     @ZSTD_createCDict := GetProcAddress(DLLHandle, 'ZSTD_createCDict');
-    Assert(@ZSTD_createCDict <> nil);
     @ZSTD_freeCDict := GetProcAddress(DLLHandle, 'ZSTD_freeCDict');
-    Assert(@ZSTD_freeCDict <> nil);
     @ZSTD_compressCCtx := GetProcAddress(DLLHandle, 'ZSTD_compressCCtx');
-    Assert(@ZSTD_compressCCtx <> nil);
     @ZSTD_createDDict := GetProcAddress(DLLHandle, 'ZSTD_createDDict');
-    Assert(@ZSTD_createDDict <> nil);
     @ZSTD_freeDDict := GetProcAddress(DLLHandle, 'ZSTD_freeDDict');
-    Assert(@ZSTD_freeDDict <> nil);
     @ZSTD_decompressDCtx := GetProcAddress(DLLHandle, 'ZSTD_decompressDCtx');
-    Assert(@ZSTD_decompressDCtx <> nil);
     @ZSTD_compress_usingCDict := GetProcAddress(DLLHandle,
       'ZSTD_compress_usingCDict');
-    Assert(@ZSTD_compress_usingCDict <> nil);
     @ZSTD_decompress_usingDDict := GetProcAddress(DLLHandle,
       'ZSTD_decompress_usingDDict');
-    Assert(@ZSTD_decompress_usingDDict <> nil);
-
-    @ZSTD_getParams := GetProcAddress(DLLHandle, 'ZSTD_getParams');
-    Assert(@ZSTD_getParams <> nil);
-    @ZSTD_initCStream := GetProcAddress(DLLHandle, 'ZSTD_initCStream');
-    Assert(@ZSTD_initCStream <> nil);
-    @ZSTD_initCStream_advanced := GetProcAddress(DLLHandle,
-      'ZSTD_initCStream_advanced');
-    Assert(@ZSTD_initCStream_advanced <> nil);
-    @ZSTD_compressStream := GetProcAddress(DLLHandle, 'ZSTD_compressStream');
-    Assert(@ZSTD_compressStream <> nil);
-    @ZSTD_flushStream := GetProcAddress(DLLHandle, 'ZSTD_flushStream');
-    Assert(@ZSTD_flushStream <> nil);
-    @ZSTD_endStream := GetProcAddress(DLLHandle, 'ZSTD_endStream');
-    Assert(@ZSTD_endStream <> nil);
-
-    @ZSTD_CStreamInSize := GetProcAddress(DLLHandle, 'ZSTD_CStreamInSize');
-    Assert(@ZSTD_CStreamInSize <> nil);
-    @ZSTD_CStreamOutSize := GetProcAddress(DLLHandle, 'ZSTD_CStreamOutSize');
-    Assert(@ZSTD_CStreamOutSize <> nil);
-
-    @ZSTD_createCCtxParams := GetProcAddress(DLLHandle,
-      'ZSTD_createCCtxParams');
-    Assert(@ZSTD_createCCtxParams <> nil);
-    @ZSTD_freeCCtxParams := GetProcAddress(DLLHandle, 'ZSTD_freeCCtxParams');
-    Assert(@ZSTD_freeCCtxParams <> nil);
-    @ZSTD_CCtxParams_reset := GetProcAddress(DLLHandle,
-      'ZSTD_CCtxParams_reset');
-    Assert(@ZSTD_CCtxParams_reset <> nil);
-    @ZSTD_CCtxParams_init := GetProcAddress(DLLHandle, 'ZSTD_CCtxParams_init');
-    Assert(@ZSTD_CCtxParams_init <> nil);
-    @ZSTD_CCtx_setParameter := GetProcAddress(DLLHandle,
-      'ZSTD_CCtx_setParameter');
-    Assert(@ZSTD_CCtx_setParameter <> nil);
-    @ZSTD_CCtx_setParametersUsingCCtxParams :=
-      GetProcAddress(DLLHandle, 'ZSTD_CCtx_setParametersUsingCCtxParams');
-    Assert(@ZSTD_CCtx_setParametersUsingCCtxParams <> nil);
+    DLLLoaded := Assigned(ZSTD_compress) and Assigned(ZSTD_decompress);
   end
   else
     DLLLoaded := False;
@@ -247,9 +170,23 @@ begin
   FreeLibrary(DLLHandle);
 end;
 
+const
+  DLLParam = '--zstd=';
+
+var
+  I: Integer;
+  DLLFile: String;
+
 initialization
 
-Init;
+DLLFile := 'libzstd.dll';
+for I := 1 to ParamCount do
+  if ParamStr(I).StartsWith(DLLParam) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    break;
+  end;
+Init(DLLFile);
 
 finalization
 

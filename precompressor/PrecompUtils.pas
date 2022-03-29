@@ -28,15 +28,16 @@ const
   PRECOMP_FCOUNT = 128;
 
 type
-  PPrecompCmd = ^TPrecompCmd;
-  TPrecompCmd = array [0 .. 63] of Char;
+  PPrecompStr = ^TPrecompStr;
+
+  TPrecompStr = array [0 .. 255] of Char;
 
   TStreamStatus = (None, Invalid, Predicted);
 
   PDepthInfo = ^TDepthInfo;
 
   TDepthInfo = packed record
-    Codec: TPrecompCmd;
+    Codec: array [0 .. 31] of Char;
     OldSize: Integer;
     NewSize: Integer;
   end;
@@ -51,6 +52,7 @@ type
     ExtSize, ExtThread: Integer;
     Resource: Integer;
     Codec: Byte;
+    Scan2: Boolean;
     Option: Integer;
     Checksum: Cardinal;
     Status: TStreamStatus;
@@ -64,6 +66,7 @@ type
     OldSize, NewSize: Integer;
     Resource: Integer;
     Codec: Byte;
+    Scan2: Boolean;
     Option: Integer;
     Status: TStreamStatus;
     DepthInfo: TDepthInfo;
@@ -116,9 +119,9 @@ type
   _PrecompFuncs = record
     Allocator: function(Index: Integer; Size: Integer): Pointer cdecl;
     GetCodec: function(Cmd: PChar; Index: Integer; Param: Boolean)
-      : TPrecompCmd cdecl;
+      : TPrecompStr cdecl;
     GetParam: function(Cmd: PChar; Index: Integer; Param: PChar)
-      : TPrecompCmd cdecl;
+      : TPrecompStr cdecl;
     GetDepthInfo: function(Index: Integer): TDepthInfo cdecl;
     Compress: function(Codec: PChar; InBuff: Pointer; InSize: Integer;
       OutBuff: Pointer; OutSize: Integer; DictBuff: Pointer; DictSize: Integer)
@@ -158,7 +161,7 @@ type
     FileWrite: function(Handle: THandle; Buffer: Pointer; Count: Integer)
       : Integer cdecl;
     IniRead: function(Section, Key, Default, FileName: PChar)
-      : TPrecompCmd cdecl;
+      : TPrecompStr cdecl;
     // 25
     IniWrite: procedure(Section, Key, Value, FileName: PChar)cdecl;
     Exec: function(Executable, CommandLine, WorkDir: PChar): Boolean cdecl;
@@ -173,10 +176,21 @@ type
     ExecStdioSync: function(Instance: Integer;
       Executable, CommandLine, WorkDir: PChar; InBuff: Pointer; InSize: Integer;
       Output: _ExecOutput): Boolean cdecl;
-    GetDepthCodec: function(Cmd: PChar): TPrecompCmd cdecl;
+    GetDepthCodec: function(Cmd: PChar): TPrecompStr cdecl;
     ReadFuture: function(Index: Integer; Position: NativeInt; Buffer: Pointer;
       Count: Integer): Integer cdecl;
-    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 33] of Pointer;
+    LogScan1: procedure(Codec: PChar; Position: Int64;
+      InSize, OutSize: Integer)cdecl;
+    LogScan2: procedure(Codec: PChar; InSize, OutSize: Integer)cdecl; // 35
+    LogProcess: procedure(Codec, Method: PChar;
+      OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+    LogRestore: procedure(Codec, Method: PChar;
+      OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+    LogPatch1: procedure(OldSize, NewSize, PatchSize: Integer;
+      Status: Boolean)cdecl;
+    LogPatch2: procedure(OldSize, NewSize, PatchSize: Integer;
+      Status: Boolean)cdecl;
+    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 39] of Pointer;
   end;
 
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
@@ -280,10 +294,10 @@ function RegisterResources(Cmd: String): Integer;
 procedure FreeResources;
 
 function PrecompGetCodec(Cmd: PChar; Index: Integer; WithParams: Boolean)
-  : TPrecompCmd cdecl;
+  : TPrecompStr cdecl;
 function PrecompGetParam(Cmd: PChar; Index: Integer; Param: PChar)
-  : TPrecompCmd cdecl;
-function PrecompGetDepthCodec(Cmd: PChar): TPrecompCmd cdecl;
+  : TPrecompStr cdecl;
+function PrecompGetDepthCodec(Cmd: PChar): TPrecompStr cdecl;
 function PrecompCompress(Codec: PChar; InBuff: Pointer; InSize: Integer;
   OutBuff: Pointer; OutSize: Integer; DictBuff: Pointer; DictSize: Integer)
   : Integer cdecl;
@@ -322,7 +336,7 @@ function PrecompFileRead(Handle: THandle; Buffer: Pointer; Count: Integer)
 function PrecompFileWrite(Handle: THandle; Buffer: Pointer; Count: Integer)
   : Integer cdecl;
 function PrecompIniRead(Section, Key, Default, FileName: PChar)
-  : TPrecompCmd cdecl;
+  : TPrecompStr cdecl;
 procedure PrecompIniWrite(Section, Key, Value, FileName: PChar)cdecl;
 function PrecompExec(Executable, CommandLine, WorkDir: PChar): Boolean cdecl;
 function PrecompExecStdin(Executable, CommandLine, WorkDir: PChar;
@@ -339,6 +353,7 @@ function PrecompExecStdioSync(Instance: Integer;
 var
   PrecompFunctions: _PrecompFuncs;
   DIFF_TOLERANCE: Single = 0.05;
+  VERBOSE: Boolean = False;
   EncodeSICmp: TEncodeSIComparer;
   FutureSICmp: TFutureSIComparer;
   StockMethods, ExternalMethods: TStringList;
@@ -503,7 +518,7 @@ begin
 end;
 
 function PrecompGetCodec(Cmd: PChar; Index: Integer; WithParams: Boolean)
-  : TPrecompCmd;
+  : TPrecompStr;
 var
   List0, List1, List2: System.Types.TStringDynArray;
   I: Integer;
@@ -532,7 +547,7 @@ begin
   StringToWideChar(S, @Result, Length(Result));
 end;
 
-function PrecompGetParam(Cmd: PChar; Index: Integer; Param: PChar): TPrecompCmd;
+function PrecompGetParam(Cmd: PChar; Index: Integer; Param: PChar): TPrecompStr;
 var
   List0, List1, List2: System.Types.TStringDynArray;
   I: Integer;
@@ -573,7 +588,7 @@ begin
   StringToWideChar(S, @Result, Length(Result));
 end;
 
-function PrecompGetDepthCodec(Cmd: PChar): TPrecompCmd cdecl;
+function PrecompGetDepthCodec(Cmd: PChar): TPrecompStr cdecl;
 var
   List: System.Types.TStringDynArray;
   I: Integer;
@@ -972,7 +987,7 @@ begin
   Result := FileWrite(Handle, Buffer^, Count);
 end;
 
-function PrecompIniRead(Section, Key, Default, FileName: PChar): TPrecompCmd;
+function PrecompIniRead(Section, Key, Default, FileName: PChar): TPrecompStr;
 var
   S: String;
 begin
@@ -1006,15 +1021,18 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   Buffer: array [0 .. BufferSize - 1] of Byte;
   BytesRead: DWORD;
   LWorkDir: PChar;
 begin
+  Result := False;
   CreatePipe(hstdoutr, hstdoutw, @PipeSecurityAttributes, 0);
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, SizeOf(StartupInfo));
   StartupInfo.cb := SizeOf(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := 0;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;
@@ -1026,18 +1044,24 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdoutw);
-    while ReadFile(hstdoutr, Buffer, Length(Buffer), BytesRead, nil) and
-      (BytesRead > 0) do
-      Output(Instance, @Buffer[0], BytesRead);
-    CloseHandle(hstdoutr);
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdoutw);
+    try
+      while ReadFile(hstdoutr, Buffer, Length(Buffer), BytesRead, nil) and
+        (BytesRead > 0) do
+        Output(Instance, @Buffer[0], BytesRead);
+    finally
+      CloseHandleEx(hstdoutr);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+      GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+      CloseHandleEx(ProcessInfo.hProcess);
+    end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;
@@ -1056,6 +1080,7 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   LWorkDir: PChar;
 begin
   Result := True;
@@ -1065,7 +1090,8 @@ begin
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, SizeOf(StartupInfo));
   StartupInfo.cb := SizeOf(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := hstdinr;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;
@@ -1077,24 +1103,30 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdinr);
-    CloseHandle(hstdoutw);
-    FileWriteBuffer(hstdinw, InBuff^, InSize);
-    CloseHandle(hstdinw);
-    while ReadFile(hstdoutr, Buffer[0], Length(Buffer), BytesRead, nil) and
-      (BytesRead > 0) do
-      Output(Instance, @Buffer[0], BytesRead);
-    CloseHandle(hstdoutr);
-    Result := True;
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdoutw);
+    try
+      FileWriteBuffer(hstdinw, InBuff^, InSize);
+      CloseHandleEx(hstdinw);
+      while ReadFile(hstdoutr, Buffer[0], Length(Buffer), BytesRead, nil) and
+        (BytesRead > 0) do
+        Output(Instance, @Buffer[0], BytesRead);
+    finally
+      CloseHandleEx(hstdinw);
+      CloseHandleEx(hstdoutr);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+      GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+      CloseHandleEx(ProcessInfo.hProcess);
+    end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdinw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;
@@ -1122,18 +1154,20 @@ var
   hstdoutr, hstdoutw: THandle;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
   LWorkDir: PChar;
   LTask: TTask;
   LDone: Boolean;
 begin
-  Result := False;
+  Result := True;
   CreatePipe(hstdinr, hstdinw, @PipeSecurityAttributes, 0);
   CreatePipe(hstdoutr, hstdoutw, @PipeSecurityAttributes, 0);
   SetHandleInformation(hstdinw, HANDLE_FLAG_INHERIT, 0);
   SetHandleInformation(hstdoutr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, SizeOf(StartupInfo));
   StartupInfo.cb := SizeOf(StartupInfo);
-  StartupInfo.dwFlags := STARTF_USESTDHANDLES;
+  StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+  StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := hstdinr;
   StartupInfo.hStdOutput := hstdoutw;
   StartupInfo.hStdError := 0;
@@ -1145,27 +1179,37 @@ begin
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
     True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
-    CloseHandle(ProcessInfo.hProcess);
-    CloseHandle(ProcessInfo.hThread);
-    CloseHandle(hstdinr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(ProcessInfo.hThread);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdoutw);
     LTask := TTask.Create(Instance, hstdoutr, NativeInt(@Output),
       NativeInt(@LDone));
     LTask.Perform(ExecReadTask);
     LTask.Start;
-    FileWriteBuffer(hstdinw, InBuff^, InSize);
-    CloseHandle(hstdinw);
-    LTask.Wait;
-    LTask.Free;
-    CloseHandle(hstdoutr);
-    Result := True;
+    try
+      FileWriteBuffer(hstdinw, InBuff^, InSize);
+    finally
+      CloseHandleEx(hstdinw);
+      LTask.Wait;
+      if LTask.Status <> TThreadStatus.tsErrored then
+        LTask.Free;
+      CloseHandleEx(hstdoutr);
+    end;
+    if Assigned(LTask) then
+      if LTask.Status <> TThreadStatus.tsErrored then
+        try
+          LTask.RaiseLastError;
+        finally
+          LTask.Free;
+        end;
+    Result := dwExitCode = 0;
   end
   else
   begin
-    CloseHandle(hstdinr);
-    CloseHandle(hstdinw);
-    CloseHandle(hstdoutr);
-    CloseHandle(hstdoutw);
+    CloseHandleEx(hstdinr);
+    CloseHandleEx(hstdinw);
+    CloseHandleEx(hstdoutr);
+    CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
 end;

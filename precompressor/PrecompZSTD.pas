@@ -18,6 +18,9 @@ const
   CODEC_COUNT = 1;
   ZSTD_CODEC = 0;
 
+const
+  Z_MAXSIZE = 16 * 1024 * 1024;
+
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
   cctx, dctx: array of Pointer;
@@ -127,7 +130,7 @@ var
   X, Y, Z: Integer;
   SI: _StrInfo1;
   DI1, DI2: TDepthInfo;
-  DS: TPrecompCmd;
+  DS: TPrecompStr;
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
   DS := Funcs^.GetCodec(DI1.Codec, 0, False);
@@ -140,7 +143,7 @@ begin
       exit;
     Y := ZSTD_findDecompressedSize(Input, SizeEx);
     if Y <= 0 then
-      exit;
+      Y := Z_MAXSIZE;
     Buffer := Funcs^.Allocator(Instance, Y);
     case X of
       ZSTD_CODEC:
@@ -158,9 +161,12 @@ begin
         SI.Status := TStreamStatus.Predicted
       else
         SI.Status := TStreamStatus.None;
-      DI2.Codec := Funcs^.GetDepthCodec(DI1.Codec);
+      DS := Funcs^.GetDepthCodec(DI1.Codec);
+      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
       DI2.OldSize := SI.NewSize;
       DI2.NewSize := SI.NewSize;
+      Funcs^.LogScan1(ZSTDCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        SI.OldSize, SI.NewSize);
       Add(Instance, @SI, DI1.Codec, @DI2);
     end;
     exit;
@@ -177,10 +183,7 @@ begin
       begin
         Z := ZSTD_findDecompressedSize(Input + Pos, X);
         if Z <= 0 then
-        begin
-          Inc(Pos);
-          continue;
-        end;
+          Z := Z_MAXSIZE;
         Buffer := Funcs^.Allocator(Instance, Z);
         Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Z, Input + Pos, X);
         // Y := ZSTD_decompress_usingDDict(dctx[Instance], Buffer, Z, Input + Pos, X, ddict);
@@ -192,6 +195,8 @@ begin
           SI.NewSize := Y;
           SI.Option := 0;
           SI.Status := TStreamStatus.None;
+          Funcs^.LogScan1(ZSTDCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+            SI.OldSize, SI.NewSize);
           Add(Instance, @SI, nil, nil);
           Inc(Pos, SI.OldSize);
           continue;
@@ -219,7 +224,7 @@ begin
   if StreamInfo^.NewSize <= 0 then
     StreamInfo^.NewSize := ZSTD_findDecompressedSize(Input, Size);
   if StreamInfo^.NewSize <= 0 then
-    exit;
+    StreamInfo^.NewSize := Z_MAXSIZE;
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
   case X of
     ZSTD_CODEC:
@@ -230,6 +235,8 @@ begin
   begin
     StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
+    Funcs^.LogScan2(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
   end;
 end;
@@ -238,6 +245,7 @@ function ZSTDProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
   StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  Params: String;
   I: Integer;
   X: Integer;
   Res1: Integer;
@@ -259,8 +267,11 @@ begin
         continue;
     case X of
       ZSTD_CODEC:
-        Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo^.NewSize,
-          NewInput, StreamInfo^.NewSize, I);
+        begin
+          Params := 'l' + I.ToString;
+          Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo^.NewSize,
+            NewInput, StreamInfo^.NewSize, I);
+        end;
       { Res1 := ZSTD_compress_usingCDict(cctx[Instance], Buffer,
         StreamInfo^.NewSize, NewInput, StreamInfo^.NewSize, cdict); }
       { begin
@@ -288,19 +299,21 @@ begin
     end;
     Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
       StreamInfo^.OldSize);
+    Funcs^.LogProcess(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result then
-    begin
-      SetBits(StreamInfo^.Option, I, 5, 7);
-      SOList[Instance][X].Add(I);
       break;
-    end;
   end;
+  if Res1 < 0 then
+    exit;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
       Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
+    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2, (Res2 > 0) and
+      ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE));
     if (Res2 > 0) and ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE)
     then
     begin
@@ -310,12 +323,18 @@ begin
       Result := True;
     end;
   end;
+  if Result then
+  begin
+    SetBits(StreamInfo^.Option, I, 5, 7);
+    SOList[Instance][X].Add(I);
+  end;
 end;
 
 function ZSTDRestore(Instance, Depth: Integer; Input, InputExt: Pointer;
   StreamInfo: _StrInfo3; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
+  Params: String;
   X: Integer;
   Res1: Integer;
   Res2: NativeUInt;
@@ -325,6 +344,7 @@ begin
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Buffer := Funcs^.Allocator(Instance, StreamInfo.NewSize);
+  Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString;
   case X of
     ZSTD_CODEC:
       Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo.NewSize,
@@ -332,11 +352,14 @@ begin
     { Res1 := ZSTD_compress_usingCDict(cctx[Instance], Buffer,
       StreamInfo.NewSize, Input, StreamInfo.NewSize, cdict); }
   end;
+  Funcs^.LogRestore(ZSTDCodecs[GetBits(StreamInfo.Option, 0, 5)], PChar(Params),
+    StreamInfo.OldSize, StreamInfo.NewSize, Res1, True);
   if GetBits(StreamInfo.Option, 31, 1) = 1 then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
     Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
       Buffer + Res1, StreamInfo.OldSize);
+    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
     if Res2 > 0 then
     begin
       Output(Instance, Buffer + Res1, StreamInfo.OldSize);

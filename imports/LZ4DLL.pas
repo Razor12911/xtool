@@ -4,7 +4,7 @@ interface
 
 uses
   WinAPI.Windows,
-  System.SysUtils, System.Classes;
+  System.SysUtils;
 
 const
   LZ4F_VERSION = 100;
@@ -13,15 +13,18 @@ type
   LZ4F_errorCode_t = type size_t;
 
   LZ4F_blockSizeID_t = (LZ4F_default = 0, LZ4F_max64KB = 4, LZ4F_max256KB = 5,
-    LZ4F_max1MB = 6, LZ4F_max4MB = 7);
-  LZ4F_blockMode_t = (LZ4F_blockLinked = 0, LZ4F_blockIndependent);
+    LZ4F_max1MB = 6, LZ4F_max4MB = 7, LZ4F_blockSizeID_Force32 = $40000000);
+  LZ4F_blockMode_t = (LZ4F_blockLinked = 0, LZ4F_blockIndependent,
+    LZ4F_blockMode_Force32 = $40000000);
 
   LZ4F_contentChecksum_t = (LZ4F_noContentChecksum = 0,
-    LZ4F_contentChecksumEnabled);
+    LZ4F_contentChecksumEnabled, LZ4F_contentChecksum_Force32 = $40000000);
 
-  LZ4F_blockChecksum_t = (LZ4F_noBlockChecksum = 0, LZ4F_blockChecksumEnabled);
+  LZ4F_blockChecksum_t = (LZ4F_noBlockChecksum = 0, LZ4F_blockChecksumEnabled,
+    LZ4F_blockChecksum_Force32 = $40000000);
 
-  LZ4F_frameType_t = (LZ4F_frame = 0, LZ4F_skippableFrame);
+  LZ4F_frameType_t = (LZ4F_frame = 0, LZ4F_skippableFrame,
+    LZ4F_frameType_Force32 = $40000000);
 
   LZ4F_frameInfo_t = record
     blockSizeID: LZ4F_blockSizeID_t;
@@ -64,8 +67,8 @@ var
   LZ4_compress_HC: function(const src: Pointer; dst: Pointer; srcSize: Integer;
     maxDstSize: Integer; compressionLevel: Integer): Integer cdecl;
   LZ4F_compressFrame: function(dstBuffer: Pointer; dstCapacity: size_t;
-    srcBuffer: Pointer; srcSize: size_t;
-    const preferencesPtr: LZ4F_preferences_t): size_t cdecl;
+    srcBuffer: Pointer; srcSize: size_t; preferencesPtr: PLZ4F_preferences_t)
+    : size_t cdecl;
   LZ4F_compressFrameBound: function(srcSize: size_t;
     preferencesPtr: PLZ4F_preferences_t): size_t cdecl;
   LZ4F_createDecompressionContext: function(out dctxPtr: LZ4F_dctx;
@@ -88,41 +91,29 @@ implementation
 var
   DLLHandle: THandle;
 
-procedure Init;
+procedure Init(Filename: String);
 begin
   if DLLLoaded then
     Exit;
   DLLHandle := 0;
-  DLLHandle := LoadLibrary(PWideChar(ExtractFilePath(ParamStr(0)) +
-    'liblz4.dll'));
+  DLLHandle := LoadLibrary(PWideChar(ExtractFilePath(ParamStr(0)) + Filename));
   if DLLHandle >= 32 then
   begin
-    DLLLoaded := True;
     @LZ4_decompress_safe := GetProcAddress(DLLHandle, 'LZ4_decompress_safe');
-    Assert(@LZ4_decompress_safe <> nil);
     @LZ4_decompress_fast := GetProcAddress(DLLHandle, 'LZ4_decompress_fast');
-    Assert(@LZ4_decompress_fast <> nil);
     @LZ4_compress_default := GetProcAddress(DLLHandle, 'LZ4_compress_default');
-    Assert(@LZ4_compress_default <> nil);
     @LZ4_compress_fast := GetProcAddress(DLLHandle, 'LZ4_compress_fast');
-    Assert(@LZ4_compress_fast <> nil);
     @LZ4_compress_HC := GetProcAddress(DLLHandle, 'LZ4_compress_HC');
-    Assert(@LZ4_compress_HC <> nil);
     @LZ4F_compressFrame := GetProcAddress(DLLHandle, 'LZ4F_compressFrame');
-    Assert(@LZ4F_compressFrame <> nil);
     @LZ4F_compressFrameBound := GetProcAddress(DLLHandle,
       'LZ4F_compressFrameBound');
-    Assert(@LZ4F_compressFrameBound <> nil);
     @LZ4F_createDecompressionContext := GetProcAddress(DLLHandle,
       'LZ4F_createDecompressionContext');
-    Assert(@LZ4F_createDecompressionContext <> nil);
     @LZ4F_freeDecompressionContext := GetProcAddress(DLLHandle,
       'LZ4F_freeDecompressionContext');
-    Assert(@LZ4F_freeDecompressionContext <> nil);
     @LZ4F_decompress := GetProcAddress(DLLHandle, 'LZ4F_decompress');
-    Assert(@LZ4F_decompress <> nil);
     @LZ4F_getFrameInfo := GetProcAddress(DLLHandle, 'LZ4F_getFrameInfo');
-    Assert(@LZ4F_getFrameInfo <> nil);
+    DLLLoaded := Assigned(LZ4_decompress_safe);
   end
   else
     DLLLoaded := False;
@@ -157,9 +148,24 @@ begin
     end;
 end;
 
+const
+  DLLParam = '--lz4=';
+
+var
+  I: Integer;
+  DLLFile: String;
+
 initialization
 
-Init;
+DLLFile := 'liblz4.dll';
+for I := 1 to ParamCount do
+  if ParamStr(I).StartsWith(DLLParam) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    break;
+  end;
+
+Init(DLLFile);
 
 finalization
 
