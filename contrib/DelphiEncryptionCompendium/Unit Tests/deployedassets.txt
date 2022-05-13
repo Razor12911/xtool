@@ -1,2 +1,0 @@
-.\assets\internal\defines.inc
-.\assets\internal\DECOptions.inc

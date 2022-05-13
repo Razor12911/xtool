@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<TgConfig Version="3" SubLevelDisabled="False">
-  <Option Name="namespaceFolder.TestDECBaseClass" Type="System.String" Value="TestDECBaseClass" Category="General" IsBrowsable="False" />
-</TgConfig>

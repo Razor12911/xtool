@@ -190,7 +190,10 @@ type
       Status: Boolean)cdecl;
     LogPatch2: procedure(OldSize, NewSize, PatchSize: Integer;
       Status: Boolean)cdecl;
-    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 39] of Pointer;
+    AcceptPatch: function(OldSize, NewSize, PatchSize: Integer): Boolean cdecl;
+    // 40
+    Transfer: procedure(Instance: Integer; Codec: PChar)cdecl;
+    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 41] of Pointer;
   end;
 
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
@@ -349,6 +352,8 @@ function PrecompExecStdio(Instance: Integer;
 function PrecompExecStdioSync(Instance: Integer;
   Executable, CommandLine, WorkDir: PChar; InBuff: Pointer; InSize: Integer;
   Output: _ExecOutput): Boolean cdecl;
+function PrecompAcceptPatch(OldSize, NewSize, PatchSize: Integer)
+  : Boolean cdecl;
 
 var
   PrecompFunctions: _PrecompFuncs;
@@ -362,7 +367,6 @@ var
 implementation
 
 uses
-  BDiffEncoder, BDiffDecoder,
   ZLibDLL, LZ4DLL, LZODLL, ZSTDDLL, OodleDLL, XDeltaDLL,
   SynCommons, SynCrypto;
 
@@ -1212,6 +1216,16 @@ begin
     CloseHandleEx(hstdoutw);
     RaiseLastOSError;
   end;
+end;
+
+function PrecompAcceptPatch(OldSize, NewSize, PatchSize: Integer): Boolean;
+begin
+  Result := False;
+  if PatchSize > 0 then
+    if DIFF_TOLERANCE <= 1 then
+      Result := (PatchSize / Max(OldSize, NewSize)) <= DIFF_TOLERANCE
+    else
+      Result := PatchSize <= DIFF_TOLERANCE;
 end;
 
 initialization

@@ -24,7 +24,6 @@ program xtool;
 
 {$APPTYPE CONSOLE}
 {$R *.res}
-{$SETPEFLAGS 1}
 {$SETPEOSVERSION 6.0}
 {$SETPESUBSYSVERSION 6.0}
 {$WEAKLINKRTTI ON}
@@ -37,40 +36,13 @@ uses
   System.StrUtils,
   System.Classes,
   System.Types,
+  System.Math,
   System.IOUtils,
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
-  BDiffDecoder in 'contrib\bdiff\BDiffDecoder.pas',
-  BDiffEncoder in 'contrib\bdiff\BDiffEncoder.pas',
-  UAppInfo in 'contrib\bdiff\UAppInfo.pas',
-  UBaseParams in 'contrib\bdiff\UBaseParams.pas',
-  UBDiffInfoWriter in 'contrib\bdiff\UBDiffInfoWriter.pas',
-  UBDiffMain in 'contrib\bdiff\UBDiffMain.pas',
-  UBDiffParams in 'contrib\bdiff\UBDiffParams.pas',
-  UBDiffTypes in 'contrib\bdiff\UBDiffTypes.pas',
-  UBDiffUtils in 'contrib\bdiff\UBDiffUtils.pas',
-  UBlockSort in 'contrib\bdiff\UBlockSort.pas',
-  UBPatchInfoWriter in 'contrib\bdiff\UBPatchInfoWriter.pas',
-  UBPatchMain in 'contrib\bdiff\UBPatchMain.pas',
-  UBPatchParams in 'contrib\bdiff\UBPatchParams.pas',
-  UBPatchUtils in 'contrib\bdiff\UBPatchUtils.pas',
-  UDiffer in 'contrib\bdiff\UDiffer.pas',
-  UErrors in 'contrib\bdiff\UErrors.pas',
-  UFileData in 'contrib\bdiff\UFileData.pas',
-  UInfoWriter in 'contrib\bdiff\UInfoWriter.pas',
-  ULogger in 'contrib\bdiff\ULogger.pas',
-  UPatcher in 'contrib\bdiff\UPatcher.pas',
-  UPatchWriters in 'contrib\bdiff\UPatchWriters.pas',
-  UUtils in 'contrib\bdiff\UUtils.pas',
   FuncHook in 'contrib\Delphi_MemoryModule\FuncHook.pas',
   MemoryModule in 'contrib\Delphi_MemoryModule\MemoryModule.pas',
   MemoryModuleHook in 'contrib\Delphi_MemoryModule\MemoryModuleHook.pas',
-  flcHash in 'contrib\fundamentals\Utils\flcHash.pas',
-  flcHugeInt in 'contrib\fundamentals\Utils\flcHugeInt.pas',
-  flcInteger in 'contrib\fundamentals\Utils\flcInteger.pas',
-  flcRandom in 'contrib\fundamentals\Utils\flcRandom.pas',
-  flcStdTypes in 'contrib\fundamentals\Utils\flcStdTypes.pas',
-  flcSysUtils in 'contrib\fundamentals\Utils\flcSysUtils.pas',
   SynCommons in 'contrib\mORMot\SynCommons.pas',
   SynCrypto in 'contrib\mORMot\SynCrypto.pas',
   SynLZ in 'contrib\mORMot\SynLZ.pas',
@@ -103,31 +75,24 @@ uses
   PrecompDLL in 'precompressor\PrecompDLL.pas',
   PrecompEXE in 'precompressor\PrecompEXE.pas',
   DbgMain in 'dbgenerator\DbgMain.pas',
-  DbgLog in 'dbgenerator\DbgLog.pas',
-  DbgSearch in 'dbgenerator\DbgSearch.pas',
-  DbgUtils in 'dbgenerator\DbgUtils.pas';
+  DbgUtils in 'dbgenerator\DbgUtils.pas',
+  IOFind in 'io\IOFind.pas',
+  IOErase in 'io\IOErase.pas',
+  IOReplace in 'io\IOReplace.pas',
+  IOPatch in 'io\IOPatch.pas',
+  IODecode in 'io\IODecode.pas',
+  IOUtils in 'io\IOUtils.pas';
 
-// {$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE}
 {$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE or IMAGE_FILE_RELOCS_STRIPPED}
-{ ----------------------------------------------------- }
-// Load data into memory
-{ ----------------------------------------------------- }
-
-{ archive
-  combine
-  decode
-  extract
-  insert
-  patch
-  precomp
-  pipe
-  restore
-  split
-  scan }
 
 const
   CommandPrecomp = 'precomp';
   CommandGenerate = 'generate';
+  CommandFind = 'find';
+  CommandErase = 'erase';
+  CommandReplace = 'replace';
+  CommandExtract = 'extract';
+  CommandPatch = 'patch';
   CommandDecode = 'decode';
 
 procedure ProgramInfo;
@@ -140,16 +105,14 @@ procedure ListCommands;
 begin
   WriteLine('Available commands:');
   WriteLine('');
-  { WriteLn(ErrOutput,'  archive');
-    WriteLn(ErrOutput,'  combine'); }
   WriteLine('  ' + CommandDecode);
+  WriteLine('  ' + CommandErase);
+  WriteLine('  ' + CommandExtract);
+  WriteLine('  ' + CommandFind);
   WriteLine('  ' + CommandGenerate);
-  { WriteLn(ErrOutput,'  extract');
-    WriteLn(ErrOutput,'  insert');
-    WriteLn(ErrOutput,'  patch'); }
+  WriteLine('  ' + CommandPatch);
   WriteLine('  ' + CommandPrecomp);
-  { WriteLn(ErrOutput,'  restore');
-    WriteLn(ErrOutput,'  split'); }
+  WriteLine('  ' + CommandReplace);
   WriteLine('');
   WriteLine('Launch program with command to see its usage');
   WriteLine('');
@@ -160,7 +123,7 @@ begin
   WriteLine('decode - restores data processed by xtool');
   WriteLine('');
   WriteLine('Usage:');
-  WriteLine('  xtool decode input output');
+  WriteLine('  xtool decode input [decode_data] output');
   WriteLine('');
   WriteLine('Parameters:');
   WriteLine('  t# - number of working threads [Threads/2]');
@@ -186,6 +149,17 @@ begin
 end;
 
 { changelog
+  ES_R32 (0.5.1)
+  - added IO functions (find, extract, patch)
+  - generate database feature and IO functions now can search for streams larger than chunk size
+
+  ES_R31 (0.5.0)
+  - added IO functions (erase, replace)
+  - fixed external executable support bugs
+
+  ES_R30 (0.4.8)
+  - fixed issue with storing incorrect recompression information when stream patching is performed
+
   ES_R29 (0.4.7)
   - updated oodle scanner
   - updated external executable support
@@ -418,6 +392,21 @@ var
   PrecompEnc: PrecompMain.TEncodeOptions;
   PrecompDec: PrecompMain.TDecodeOptions;
   GenerateEnc: DbgMain.TEncodeOptions;
+  FindEnc: IOFind.TEncodeOptions;
+  EraseEnc: IOErase.TEncodeOptions;
+  ReplaceEnc: IOReplace.TEncodeOptions;
+  PatchEnc: IOPatch.TEncodeOptions;
+  PatchDec: IOPatch.TDecodeOptions;
+  IODec: IODecode.TDecodeOptions;
+  IOExt: IODecode.TExtractOptions;
+
+function ParamArgSafe(I, J: Integer): String;
+begin
+  Result := '';
+  if InRange(I, 0, Pred(Length(ParamArg))) then
+    if InRange(J, 0, Pred(Length(ParamArg[I]))) then
+      Result := ParamArg[I, J];
+end;
 
 begin
   FormatSettings := TFormatSettings.Invariant;
@@ -431,14 +420,14 @@ begin
     IsParam := True;
     for I := 2 to ParamCount do
     begin
-      if (IsParam = True) and (FileExists(ParamStr(I)) = false) and
-        (DirectoryExists(ParamStr(I)) = false) and (Pos('://', ParamStr(I)) = 0)
+      if (IsParam = True) and (FileExists(ParamStr(I)) = False) and
+        (DirectoryExists(ParamStr(I)) = False) and (Pos('://', ParamStr(I)) = 0)
         and (Pos('*', ParamStr(I)) = 0) and (ParamStr(I) <> '-') then
         J := 0
       else
       begin
         J := 1;
-        IsParam := false;
+        IsParam := False;
       end;
       Insert(ParamStr(I), ParamArg[J], Length(ParamArg[J]));
     end;
@@ -451,7 +440,7 @@ begin
           Insert('-', ParamArg[1], Length(ParamArg[1]));
         Input := TBufferedStream.Create(GetInStream(ParamArg[1][0]), True,
           BufferSize);
-        Output := TBufferedStream.Create(GetOutStream(ParamArg[1][1]), false,
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1][1]), False,
           BufferSize);
         PrecompMain.Parse(ParamArg[0], PrecompEnc);
         PrecompMain.Encode(Input, Output, PrecompEnc);
@@ -467,24 +456,89 @@ begin
         DbgMain.Encode(ParamArg[1][0], ParamArg[1][1], ParamArg[1][2],
           GenerateEnc);
       end;
+    if ParamStr(1).StartsWith(CommandFind, True) then
+      if Length(ParamArg[1]) < 2 then
+        IOFind.PrintHelp
+      else
+      begin
+        IOFind.Parse(ParamArg[0], FindEnc);
+        IOFind.Encode(ParamArg[1][0], ParamArg[1][1],
+          ParamArgSafe(1, 2), FindEnc);
+      end;
+    if ParamStr(1).StartsWith(CommandErase, True) then
+      if Length(ParamArg[1]) < 2 then
+        IOErase.PrintHelp
+      else
+      begin
+        IOErase.Parse(ParamArg[0], EraseEnc);
+        IOErase.Encode(ParamArg[1][0], ParamArg[1][1], ParamArgSafe(1, 2),
+          EraseEnc);
+      end;
+    if ParamStr(1).StartsWith(CommandReplace, True) then
+      if Length(ParamArg[1]) < 3 then
+        IOReplace.PrintHelp
+      else
+      begin
+        IOReplace.Parse(ParamArg[0], ReplaceEnc);
+        IOReplace.Encode(ParamArg[1][0], ParamArg[1][1], ParamArg[1][2],
+          ParamArgSafe(1, 3), ReplaceEnc);
+      end;
+    if ParamStr(1).StartsWith(CommandExtract, True) then
+      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
+        IODecode.PrintHelpExtract
+      else
+      begin
+        Input := TBufferedStream.Create(GetInStream(ParamArgSafe(1, 0)), True,
+          BufferSize);
+        Input.ReadBuffer(I, I.Size);
+        case I of
+          XTOOL_IODEC:
+            begin
+              IODecode.ParseExtract(ParamArg[0], IOExt);
+              IODecode.Extract(Input, ParamArgSafe(1, 1),
+                ParamArgSafe(1, 2), IOExt);
+            end;
+        end;
+        Input.Free;
+      end;
+    if ParamStr(1).StartsWith(CommandPatch, True) then
+      if Length(ParamArg[1]) < 3 then
+        IOPatch.PrintHelp
+      else
+      begin
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1][2]), False,
+          BufferSize);
+        IOPatch.Parse(ParamArg[0], PatchEnc);
+        IOPatch.Encode(ParamArg[1][0], ParamArg[1][1], Output, PatchEnc);
+        Input.Free;
+        Output.Free;
+      end;
     if ParamStr(1).StartsWith(CommandDecode, True) then
       if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
         DecodePrintHelp
       else
       begin
-        while Length(ParamArg[1]) < 2 do
-          Insert('-', ParamArg[1], Length(ParamArg[1]));
-        Input := TBufferedStream.Create(GetInStream(ParamArg[1][0]), True,
+        Input := TBufferedStream.Create(GetInStream(ParamArgSafe(1, 0)), True,
           BufferSize);
         Input.ReadBuffer(I, I.Size);
         case I of
           XTOOL_PRECOMP:
             begin
-              Output := TBufferedStream.Create(GetOutStream(ParamArg[1][1]),
-                false, BufferSize);
+              Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)),
+                False, BufferSize);
               PrecompMain.Parse(ParamArg[0], PrecompDec);
-              PrecompMain.decode(Input, Output, PrecompDec);
+              PrecompMain.Decode(Input, Output, PrecompDec);
               Output.Free;
+            end;
+          XTOOL_IODEC:
+            begin
+              IODecode.ParseDecode(ParamArg[0], IODec);
+              IODecode.Decode(Input, ParamArg[1][1], ParamArg[1][2], IODec);
+            end;
+          XTOOL_PATCH:
+            begin
+              IOPatch.Parse(ParamArg[0], PatchDec);
+              IOPatch.Decode(Input, ParamArg[1][1], PatchDec);
             end;
         end;
         Input.Free;

@@ -1,10 +1,12 @@
-unit DbgMain;
+unit IOErase;
+
+{$POINTERMATH ON}
 
 interface
 
 uses
   Threading, Utils, SynCommons, SynCrypto, ParseClass, ParseExpr,
-  DbgUtils,
+  IOUtils,
   WinAPI.Windows, WinAPI.ShlObj,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.StrUtils, System.RTLConsts, System.TimeSpan, System.Diagnostics,
@@ -15,8 +17,6 @@ type
 
   TEncodeOptions = record
     ChunkSize, Threads: Integer;
-    Method: String;
-    Format: String;
   end;
 
 procedure PrintHelp;
@@ -28,21 +28,14 @@ implementation
 const
   MinSize1 = 256;
   MinSize2 = 65536;
-  HashSize = 4 * 1024 * 1024;
 
 type
   PScanInfo = ^TScanInfo;
 
   TScanInfo = record
+    Filename: String[255];
     CRCSize, ActualSize: Integer;
     CRC1, CRC2: Cardinal;
-  end;
-
-  PHashStruct = ^THashStruct;
-
-  THashStruct = record
-    Size: Integer;
-    Hash: Cardinal;
   end;
 
 var
@@ -54,15 +47,14 @@ var
   I, J: Integer;
   S: string;
 begin
-  WriteLn(ErrOutput, 'generate - database generator');
+  WriteLn(ErrOutput, 'erase - blank out sectors within files');
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Usage:');
   WriteLn(ErrOutput,
-    '  xtool generate [parameters] extracted_streams original_data database_output');
+    '  xtool erase [parameters] extracted_streams original_data [decode_data]');
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Parameters:');
-  WriteLn(ErrOutput, '  -m#  - codec to use for precompression');
   WriteLn(ErrOutput, '  -c#  - scanning range [16mb]');
   WriteLn(ErrOutput, '  -t#  - number of working threads [50p]');
   WriteLn(ErrOutput, '');
@@ -72,26 +64,11 @@ procedure Parse(ParamArg: TArray<string>; out Options: TEncodeOptions);
 var
   ArgParse: TArgParser;
   ExpParse: TExpressionParser;
-  I: Integer;
   S: String;
 begin
   ArgParse := TArgParser.Create(ParamArg);
   ExpParse := TExpressionParser.Create;
   try
-    Options.Method := '';
-    I := 0;
-    while True do
-    begin
-      S := ArgParse.AsString('-m', I);
-      if S = '' then
-        break;
-      S := ReplaceStr(S, SPrecompSep3, SPrecompSep2);
-      if Options.Method <> '' then
-        Options.Method := Options.Method + '+' + S
-      else
-        Options.Method := S;
-      Inc(I);
-    end;
     S := ArgParse.AsString('-c', 0, '16mb');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
@@ -110,44 +87,6 @@ begin
   end;
 end;
 
-function GenerateHashList(Stream: TStream;
-  var HashList: TArray<THashStruct>): Integer;
-const
-  BufferSize = 65536;
-var
-  Buffer: array [0 .. BufferSize - 1] of Byte;
-  I: Integer;
-  X, Y: Integer;
-  OldPos: Int64;
-begin
-  Result := 0;
-  SetLength(HashList, Max(Length(HashList), IfThen(Stream.Size mod HashSize = 0,
-    Stream.Size div HashSize, Succ(Stream.Size div HashSize))));
-  OldPos := Stream.Position;
-  Stream.Position := 0;
-  try
-    for I := Low(HashList) to High(HashList) do
-    begin
-      HashList[I].Size := 0;
-      HashList[I].Hash := 0;
-      X := HashSize;
-      Y := Stream.Read(Buffer[0], Min(X, BufferSize));
-      while Y > 0 do
-      begin
-        Inc(HashList[I].Size, Y);
-        HashList[I].Hash := Utils.Hash32(HashList[I].Hash, @Buffer[0], Y);
-        Dec(X, Y);
-        Y := Stream.Read(Buffer[0], Min(X, BufferSize));
-      end;
-      Inc(Result);
-      if HashList[I].Size = 0 then
-        break;
-    end;
-  finally
-    Stream.Position := OldPos;
-  end;
-end;
-
 procedure Encode(Input1, Input2, Output: String; Options: TEncodeOptions);
 const
   BufferSize = 65536;
@@ -162,16 +101,15 @@ var
   BaseDir: String;
   LList: TArray<String>;
   LSInfo: PScanInfo;
-  LEntry: TEntryStruct;
+  LEntry: TEntryStruct1;
+  PEntry: PEntryStruct1;
   LBytes: TBytes;
-  Hash: Cardinal;
-  HashList: TArray<THashStruct>;
-  HashCount: Integer;
   FStream: TFileStream;
+  SStream: TSharedMemoryStream;
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
   Tasks: TArray<TTask>;
-  InfoStore: TArray<TListEx<TEntryStruct>>;
+  InfoStore: TArray<TListEx<TEntryStruct1>>;
 begin
   SetLength(SearchInfo, $10000);
   SetLength(SearchCount, $10000);
@@ -202,6 +140,7 @@ begin
           B := Buffer[MinSize1 - 1];
           J := MinSize1;
           New(LSInfo);
+          LSInfo^.Filename := ReplaceText(LList[I], BaseDir, '');
           LSInfo^.CRCSize := J;
           LSInfo^.ActualSize := FileSize(LList[I]);
           LSInfo^.CRC1 := Utils.Hash32(0, @Buffer[0], J);
@@ -236,7 +175,7 @@ begin
     OStream.LoadFromFile(Output)
   else
   begin
-    K := XTOOL_DB;
+    K := XTOOL_IODEC;
     OStream.WriteBuffer(K, K.Size);
   end;
   OStream.Position := OStream.Size;
@@ -244,7 +183,7 @@ begin
   try
     for I := Low(Tasks) to High(Tasks) do
     begin
-      InfoStore[I] := TListEx<TEntryStruct>.Create(EntryStructCmp);
+      InfoStore[I] := TListEx<TEntryStruct1>.Create(EntryStructCmp);
       Tasks[I] := TTask.Create(I);
       Tasks[I].Perform(
         procedure(X: IntPtr)
@@ -255,7 +194,7 @@ begin
           D: Byte;
           Pos, Size, SizeEx: NativeInt;
           CRC: Cardinal;
-          E: TEntryStruct;
+          E: TEntryStruct1;
           F: Boolean;
         begin
           Ptr := DataStore.Slot(X).Memory;
@@ -277,12 +216,11 @@ begin
                     (Utils.Hash32(CRC, Ptr + Pos + MinSize1, SearchInfo[C, D,
                     Y].CRCSize - MinSize1) = SearchInfo[C, D, Y].CRC2) then
                   begin
+                    E.Filename := SearchInfo[C, D, Y].Filename;
                     E.Position := DataStore.Position(X) + Pos;
-                    E.OldSize := SearchInfo[C, D, Y].ActualSize;
-                    E.NewSize := 0;
-                    E.DepthSize := 0;
+                    E.Size := SearchInfo[C, D, Y].ActualSize;
                     InfoStore[X].Add(E);
-                    Inc(Pos, E.OldSize);
+                    Inc(Pos, E.Size);
                     F := True;
                     break;
                   end;
@@ -307,20 +245,12 @@ begin
       begin
         FStream := TFileStream.Create(LList[I], fmShareDenyNone);
         try
-          HashCount := GenerateHashList(FStream, HashList);
           LastStream := 0;
           MStream.Position := 0;
           Found2 := False;
           DataStore.ChangeInput(FStream);
           DataStore.Load;
-          Hash := Utils.Hash32(0, DataStore.Slot(0).Memory, MinSize2);
-          MStream.WriteBuffer(DataStore.Slot(0).Memory^, Integer.Size);
-          MStream.WriteBuffer(PInteger(PByte(DataStore.Slot(0).Memory) +
-            MinSize2 - Integer.Size)^, Integer.Size);
-          MStream.WriteBuffer(Hash, Hash.Size);
-          MStream.WriteBuffer(HashCount, HashCount.Size);
-          MStream.WriteBuffer(HashList[0], HashCount * SizeOf(THashStruct));
-          LBytes := BytesOf(Options.Method);
+          LBytes := BytesOf(ReplaceText(LList[I], BaseDir, ''));
           K := Length(LBytes);
           MStream.WriteBuffer(K, K.Size);
           MStream.WriteBuffer(LBytes[0], K);
@@ -358,8 +288,11 @@ begin
               K := InfoStore[J].Get(LEntry);
               while K >= 0 do
               begin
-                MStream.WriteBuffer(LEntry, SizeOf(TEntryStruct));
-                LastStream := LEntry.Position + LEntry.OldSize;
+                MStream.WriteBuffer(LEntry, SizeOf(TEntryStruct1));
+                WriteLn(ErrOutput, Format('Found %s in %s at %s',
+                  [LEntry.Filename, ReplaceText(LList[I], BaseDir, ''),
+                  LEntry.Position.ToHexString]));
+                LastStream := LEntry.Position + LEntry.Size;
                 K := InfoStore[J].Get(LEntry);
               end;
             end;
@@ -370,12 +303,29 @@ begin
         finally
           FStream.Free;
         end;
+        if Found2 then
+        begin
+          SStream := TSharedMemoryStream.Create
+            (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
+            '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), LList[I]);
+          try
+            for J := PInteger(PByte(MStream.Memory) + CountPos)^ - 1 downto 0 do
+            begin
+              PEntry := PEntryStruct1(PByte(MStream.Memory) + CountPos +
+                Integer.Size) + J;
+              FillChar((PByte(SStream.Memory) + PEntry.Position)^,
+                PEntry.Size, 0);
+            end;
+          finally
+            SStream.Free;
+          end;
+        end;
       end
       else if FileSize(LList[I]) < MinSize2 then
         WriteLn(ErrOutput, Format('Skipped %s (Smaller than %d)',
           [ReplaceText(LList[I], BaseDir, ''), MinSize2]));
     end;
-    if Found1 then
+    if Found1 and (Output <> '') then
       OStream.SaveToFile(Output);
   finally
     for I := Low(Tasks) to High(Tasks) do

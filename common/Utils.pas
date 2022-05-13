@@ -1088,29 +1088,34 @@ constructor TSharedMemoryStream.Create(const AMapName: String;
   end;
 
 var
-  LSize: Int64;
+  LSize1, LSize2: Int64;
+  LExists: Boolean;
 begin
   inherited Create(False);
   FStream := nil;
   FMapHandle := 0;
   FMapBuffer := nil;
-  FStream := TFileStream.Create(AFileName, FSMode(FileExists(AFileName)));
+  LExists := FileExists(AFileName);
+  FStream := TFileStream.Create(AFileName, FSMode(LExists));
   FMapName := AMapName;
-  LSize := FStream.Size;
-  if LSize = 0 then
+  LSize1 := FStream.Size;
+  LSize2 := LSize1;
+  if LSize1 = 0 then
   begin
-    LSize := FIncSize;
+    LSize1 := FIncSize;
     FStream.Size := FIncSize;
   end;
   FMapHandle := OpenFileMapping(FILE_MAP_ALL_ACCESS, False, PChar(FMapName));
   if FMapHandle = 0 then
     FMapHandle := CreateFileMapping(FStream.Handle, nil, PAGE_READWRITE,
-      Int64Rec(LSize).Hi, Int64Rec(LSize).Lo, PChar(FMapName));
+      Int64Rec(LSize2).Hi, Int64Rec(LSize2).Lo, PChar(FMapName));
   if FMapHandle = 0 then
     raise EFOpenError.CreateResFmt(@SFCreateErrorEx,
       [FMapName, SysErrorMessage(GetLastError)]);
   FMapBuffer := MapViewOfFile(FMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-  Update(FMapBuffer, LSize);
+  Update(FMapBuffer, LSize1);
+  if LExists then
+    SetSize(LSize2);
 end;
 
 constructor TSharedMemoryStream.Create(const AMapName: String;
@@ -2893,23 +2898,24 @@ var
   I: Integer;
   LList: TStringDynArray;
   LSO: TSearchOption;
+  LPath: String;
 begin
   SetLength(Result, 0);
   LSO := TSearchOption(SubDir);
   for I := Low(APath) to High(APath) do
   begin
-    if FileExists(APath[I]) then
-      Insert(APath[I], Result, Length(Result))
-    else if DirectoryExists(APath[I]) then
+    LPath := TPath.GetFullPath(APath[I]);
+    if FileExists(LPath) then
+      Insert(LPath, Result, Length(Result))
+    else if DirectoryExists(LPath) then
     begin
-      LList := TDirectory.GetFiles(APath[I], '*', LSO);
+      LList := TDirectory.GetFiles(LPath, '*', LSO);
       Insert(LList, Result, Length(Result));
     end
-    else if Pos('*', APath[I]) > 0 then
+    else if Pos('*', LPath) > 0 then
     begin
-      LList := TDirectory.GetFiles(IfThen(ExtractFileDir(APath[I]) = '',
-        GetCurrentDir, ExtractFilePath(APath[I])),
-        ExtractFileName(APath[I]), LSO);
+      LList := TDirectory.GetFiles(IfThen(ExtractFileDir(LPath) = '',
+        GetCurrentDir, ExtractFilePath(LPath)), ExtractFileName(LPath), LSO);
       Insert(LList, Result, Length(Result));
     end;
   end;

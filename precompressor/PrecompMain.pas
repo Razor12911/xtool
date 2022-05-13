@@ -70,6 +70,7 @@ procedure PrecompOutput3(Instance: Integer; const Buffer: Pointer;
   Size: Integer);
 procedure PrecompAddStream(Instance: Integer; Info: PStrInfo1; Codec: PChar;
   DepthInfo: PDepthInfo)cdecl;
+procedure PrecompTransfer(Instance: Integer; Codec: PChar)cdecl;
 
 implementation
 
@@ -259,6 +260,7 @@ type
     DataStore: TDataStore;
     MemOutput1, MemOutput2, MemOutput3: TArray<TMemoryStreamEx>;
     CurPos1, CurPos2: TArray<Int64>;
+    CurTransfer: TArray<String>;
     InfoStore1: TArray<TListEx<TEncodeSI>>;
     InfoStore2: TArray<TArray<TListEx<TFutureSI>>>;
     ISIndex: TArray<Boolean>;
@@ -494,6 +496,37 @@ begin
   end;
 end;
 
+function PrecompGetCodecIndex(Codec: PChar; Index: PByte;
+  Option: PInteger): Boolean;
+var
+  I, X, Y: Integer;
+  S: String;
+begin
+  Result := False;
+  I := 0;
+  while PrecompGetCodec(Codec, I, False) <> '' do
+  begin
+    for X := Low(Codecs) to High(Codecs) do
+    begin
+      for Y := Low(Codecs[X].Names) to High(Codecs[X].Names) do
+        if SameText(PrecompGetCodec(Codec, I, False), Codecs[X].Names[Y]) then
+        begin
+          Index^ := X;
+          S := PrecompGetCodec(Codec, I, True);
+          if Codecs[X].Initialised then
+            if Codecs[X].Parse(PChar(S), Option, @PrecompFunctions) then
+            begin
+              Result := True;
+              break;
+            end;
+        end;
+      if Result then
+        break;
+    end;
+    Inc(I);
+  end;
+end;
+
 procedure PrecompAddStream(Instance: Integer; Info: PStrInfo1; Codec: PChar;
   DepthInfo: PDepthInfo);
 var
@@ -502,8 +535,7 @@ var
   LValid: Boolean;
   LCodec: Byte;
   LOption: Integer;
-  I, X, Y: Integer;
-  S: String;
+  I: Integer;
 begin
   if CurDepth[Instance] > 0 then
     Inc(Info^.Position, Integer.Size);
@@ -516,30 +548,7 @@ begin
     end;
     if Codec <> '' then
     begin
-      LValid := False;
-      I := 0;
-      while PrecompGetCodec(Codec, I, False) <> '' do
-      begin
-        for X := Low(Codecs) to High(Codecs) do
-        begin
-          for Y := Low(Codecs[X].Names) to High(Codecs[X].Names) do
-            if SameText(PrecompGetCodec(Codec, I, False), Codecs[X].Names[Y])
-            then
-            begin
-              LCodec := X;
-              S := PrecompGetCodec(Codec, I, True);
-              if Codecs[X].Initialised then
-                if Codecs[X].Parse(PChar(S), @LOption, @PrecompFunctions) then
-                begin
-                  LValid := True;
-                  break;
-                end;
-            end;
-          if LValid then
-            break;
-        end;
-        Inc(I);
-      end;
+      LValid := PrecompGetCodecIndex(Codec, @LCodec, @LOption);
       if not LValid then
       begin
         MemOutput1[Instance].Position := CurPos1[Instance];
@@ -599,6 +608,12 @@ begin
     end;
     CurPos1[Instance] := MemOutput1[Instance].Position;
   end;
+end;
+
+procedure PrecompTransfer(Instance: Integer; Codec: PChar);
+begin
+  with ComVars1[CurDepth[Instance]] do
+    CurTransfer[Instance] := String(Codec);
 end;
 
 function CheckDB(Dictionary: TSynDictionary; const StreamInfo: TEncodeSI;
@@ -676,6 +691,7 @@ begin
       end;
       Codecs[I].Scan1(Index, Depth, LPtr, LSize, LSizeEx, @PrecompOutput1,
         @PrecompAddStream, @PrecompFunctions);
+      CurTransfer[Index] := '';
     end;
 end;
 
@@ -686,6 +702,9 @@ var
   SI1: _StrInfo2;
   SI2: TFutureSI;
   SI3: TEncodeSI;
+  LValid: Boolean;
+  LCodec: Byte;
+  LOption: Integer;
 begin
   with ComVars1[Depth] do
     try
@@ -715,7 +734,23 @@ begin
             NativeInt(SI2.Position - DataStore.Position(Index)), X, @SI1, @J,
             @PrecompOutput1, @PrecompFunctions) then
           begin
-            if InRange(SI2.Position + J, DataStore.Position(Index),
+            LValid := True;
+            if CurTransfer[Index] <> '' then
+            begin
+              LValid := PrecompGetCodecIndex(PChar(CurTransfer[Index]), @LCodec,
+                @LOption);
+              if LValid then
+              begin
+                SI2.Codec := LCodec;
+                SI1.Option := LOption;
+                if System.Pos(SPrecompSep2, CurTransfer[Index]) > 0 then
+                  SI1.Status := TStreamStatus.Predicted
+                else
+                  SI1.Status := TStreamStatus.None;
+              end;
+              CurTransfer[Index] := '';
+            end;
+            if LValid and InRange(SI2.Position + J, DataStore.Position(Index),
               DataStore.Position(Index) + DataStore.Size(Index)) and
               InRange(SI2.Position + J + SI1.OldSize, DataStore.Position(Index),
               DataStore.Position(Index) + DataStore.ActualSize(Index)) and
@@ -744,7 +779,27 @@ begin
               MemOutput1[Index].Position := CurPos1[Index];
           end
           else
+          begin
+            LValid := False;
+            if CurTransfer[Index] <> '' then
+            begin
+              LValid := PrecompGetCodecIndex(PChar(CurTransfer[Index]), @LCodec,
+                @LOption);
+              if LValid then
+              begin
+                SI2.Codec := LCodec;
+                SI2.Option := LOption;
+                if System.Pos(SPrecompSep2, CurTransfer[Index]) > 0 then
+                  SI2.Status := TStreamStatus.Predicted
+                else
+                  SI2.Status := TStreamStatus.None;
+              end;
+              CurTransfer[Index] := '';
+            end;
             MemOutput1[Index].Position := CurPos1[Index];
+            if LValid then
+              continue;
+          end;
         end
         else
           InfoStore2[Index, (not ISIndex[Index]).ToInteger].Add(SI2);
@@ -762,6 +817,9 @@ var
   DBTyp: TDatabase;
   DBBool: Boolean;
   Errored: Boolean;
+  LValid: Boolean;
+  LCodec: Byte;
+  LOption: Integer;
 begin
   Result := False;
   with ComVars1[Depth] do
@@ -797,6 +855,29 @@ begin
         @PrecompOutput1, @PrecompFunctions);
     except
       Result := False;
+    end;
+    LValid := False;
+    if (CurTransfer[Index] <> '') then
+    begin
+      LValid := PrecompGetCodecIndex(PChar(CurTransfer[Index]), @LCodec,
+        @LOption);
+      if LValid then
+      begin
+        SI2.Codec := LCodec;
+        SI2.Option := LOption;
+        if System.Pos(SPrecompSep2, CurTransfer[Index]) > 0 then
+          SI2.Status := TStreamStatus.Predicted
+        else
+          SI2.Status := TStreamStatus.None;
+        InfoStore1[ThreadIndex][StreamIndex] := SI2;
+      end;
+    end;
+    CurTransfer[Index] := '';
+    if LValid then
+    begin
+      MemOutput1[Index].Position := CurPos1[Index];
+      Result := Process(ThreadIndex, StreamIndex, Index, Depth);
+      exit;
     end;
     if UseDB then
       if not DBBool then
@@ -1005,6 +1086,7 @@ begin
       SetLength(MemOutput3, Options^.Threads);
       SetLength(CurPos1, Options^.Threads);
       SetLength(CurPos2, Options^.Threads);
+      SetLength(CurTransfer, Options^.Threads);
       if Options^.LowMem and (J = 0) then
         I := 1
       else
@@ -1237,6 +1319,7 @@ begin
         MemOutput2[I].Position := 0;
         CurPos1[I] := 0;
         CurPos2[I] := 0;
+        CurTransfer[I] := '';
         if (Depth = 0) and (Length(Tasks) > 1) then
         begin
           Tasks[I].Perform(EncThread);
@@ -2160,6 +2243,8 @@ PrecompFunctions.LogProcess := PrecompLogProcess;
 PrecompFunctions.LogRestore := PrecompLogRestore;
 PrecompFunctions.LogPatch1 := PrecompLogPatch1;
 PrecompFunctions.LogPatch2 := PrecompLogPatch2;
+PrecompFunctions.AcceptPatch := PrecompAcceptPatch;
+PrecompFunctions.Transfer := PrecompTransfer;
 
 finalization
 

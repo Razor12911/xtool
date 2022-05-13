@@ -301,7 +301,7 @@ begin
       StreamInfo^.OldSize);
     Funcs^.LogProcess(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
-    if Result then
+    if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
       break;
   end;
   if Res1 < 0 then
@@ -312,10 +312,9 @@ begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
       Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
-    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2, (Res2 > 0) and
-      ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE));
-    if (Res2 > 0) and ((Res2 / Max(StreamInfo^.OldSize, Res1)) <= DIFF_TOLERANCE)
-    then
+    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2,
+      Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
+    if Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2) then
     begin
       Output(Instance, Buffer + Res1, Res2);
       SetBits(StreamInfo^.Option, 1, 31, 1);
