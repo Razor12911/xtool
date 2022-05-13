@@ -9,7 +9,7 @@ unit SynGdiPlus;
 {
     This file is part of Synopse framework.
 
-    Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -28,7 +28,7 @@ unit SynGdiPlus;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -2285,7 +2285,7 @@ begin
 end;
 
 
- { TGDIPlusEnum }
+{ TGDIPlusEnum }
 
 type
   {$ifdef FPC}
@@ -2365,7 +2365,7 @@ type
   end;
 
 const
-   GdipRectFNull: TGdipRectF = (X:0;Y:0;Width:0;Height:0);
+  GdipRectFNull: TGdipRectF = (X:0;Y:0;Width:0;Height:0);
 
 function DXTextWidth(DX: PIntegerArray; n: Integer): integer;
 var i: integer;

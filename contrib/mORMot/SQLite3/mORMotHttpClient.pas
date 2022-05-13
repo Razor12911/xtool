@@ -6,7 +6,7 @@ unit mORMotHttpClient;
 {
     This file is part of Synopse mORMot framework.
 
-    Synopse mORMot framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse mORMot framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit mORMotHttpClient;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -580,17 +580,17 @@ begin
   Create(URI.Server,URI.Port,aModel,URI.Https);
   P := Pointer(aDefinition.DataBaseName);
   while P<>nil do begin
-    if UrlDecodeCardinal(P,'CONNECTTIMEOUT',V) then
+    if UrlDecodeCardinal(P,'CONNECTTIMEOUT=',V) then
       fConnectTimeout := V else
-    if UrlDecodeCardinal(P,'SENDTIMEOUT',V) then
+    if UrlDecodeCardinal(P,'SENDTIMEOUT=',V) then
       fSendTimeout := V else
-    if UrlDecodeCardinal(P,'RECEIVETIMEOUT',V) then
+    if UrlDecodeCardinal(P,'RECEIVETIMEOUT=',V) then
       fReceiveTimeout := V else
-    if UrlDecodeValue(P,'PROXYNAME',tmp) then
+    if UrlDecodeValue(P,'PROXYNAME=',tmp) then
       fProxyName := CurrentAnsiConvert.UTF8ToAnsi(tmp) else
-    if UrlDecodeValue(P,'PROXYBYPASS',tmp) then
+    if UrlDecodeValue(P,'PROXYBYPASS=',tmp) then
       fProxyByPass := CurrentAnsiConvert.UTF8ToAnsi(tmp);
-    if UrlDecodeCardinal(P,'IGNORESSLCERTIFICATEERRORS',V,@P) then
+    if UrlDecodeCardinal(P,'IGNORESSLCERTIFICATEERRORS=',V,@P) then
       fExtendedOptions.IgnoreSSLCertificateErrors := Boolean(V);
   end;
   inherited RegisteredClassCreateFrom(aModel,aDefinition); // call SetUser()

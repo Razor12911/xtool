@@ -5,10 +5,10 @@ unit SyNodeSimpleProto;
 {
     This file is part of Synopse framework.
 
-    Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - http://synopse.info
 
-    SyNode for mORMot Copyright (C) 2020 Pavel Mashlyakovsky & Vadim Orel
+    SyNode for mORMot Copyright (C) 2022 Pavel Mashlyakovsky & Vadim Orel
       pavel.mash at gmail.com
 
     Some ideas taken from
@@ -180,7 +180,7 @@ begin
       PI.SetInt64Prop(Instance^.instance, val.asInt64);
     tkFloat:
       PI.SetFloatProp(Instance^.instance, val.asDouble);
-    tkLString,{$IFDEF FPC}tkLStringOld{$ENDIF},tkWString{$ifdef HASVARUSTRING},tkUString{$endif}:
+    tkLString{$IFDEF FPC},tkLStringOld{$ENDIF},tkWString{$ifdef HASVARUSTRING},tkUString{$endif}:
       PI.SetLongStrValue(Instance^.instance, val.asJsString.ToUTF8(cx));
   else
     raise ESMException.Create('NotImplemented');

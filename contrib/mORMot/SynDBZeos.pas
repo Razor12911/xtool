@@ -6,7 +6,7 @@ unit SynDBZeos;
 {
   This file is part of Synopse framework.
 
-  Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+  Synopse framework. Copyright (C) 2022 Arnaud Bouchez
   Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynDBZeos;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -158,6 +158,9 @@ uses
   {$if defined(ENABLE_INTERBASE) and not defined(ZEOS_DISABLE_INTERBASE)}
   ZDbcInterbase6,
   {$ifend}
+  {$if defined(ENABLE_FIREBIRD) and not defined(ZEOS_DISABLE_FIREBIRD)}
+  ZDbcFirebird,
+  {$ifend}
   {$if defined(ENABLE_SQLITE) and not defined(ZEOS_DISABLE_SQLITE)}
   ZDbcSqLite,
   {$ifend}
@@ -166,6 +169,9 @@ uses
   {$ifend}
   {$if defined(ENABLE_ASA) and not defined(ZEOS_DISABLE_ASA)}
   ZDbcASA,
+  {$ifend}
+  {$if defined(ENABLE_SQLANY) and not defined(ZEOS_DISABLE_SQLANY)}
+  ZDbcSQLAnywhere,
   {$ifend}
   {$if defined(ENABLE_POOLED) and not defined(ZEOS_DISABLE_POOLED)}
   ZDbcPooled,
@@ -176,10 +182,13 @@ uses
   {$if defined(ENABLE_ODBC) and not defined(ZEOS_DISABLE_ODBC)}
   ZDbcODBCCon,
   {$ifend}
+
   // main ZDBC units
   ZCompatibility,
   ZVariant,
+  {$ifndef ZEOS80UP}
   ZURL,
+  {$endif ZEOS80UP}
   ZDbcIntfs,
   ZDbcResultSet,
   // mORMot units after ZDBC due to some name conflicts (e.g. UTF8ToString)
@@ -728,9 +737,10 @@ begin
     sSchema := UTF8ToString(Schema);
     { mormot does not create the Tables casesensitive but gives mixed cased strings as tablename
       so we normalize the identifiers to database defaults : }
-    sTableName := meta.GetIdentifierConvertor.ExtractQuote(UTF8ToString(TableName));
-    sTableName := meta.AddEscapeCharToWildcards(sTableName); //do not use "like" search patterns ['_','%'] so they need to be escaped
-    res := meta.GetColumns('',sSchema,sTableName,'');
+    sTableName :=  meta.{$ifdef ZEOS80UP}GetIdentifierConverter{$else}GetIdentifierConvertor{$endif}.
+      ExtractQuote(Utf8ToString(TableName));
+    // do not escape sTableName - https://synopse.info/forum/viewtopic.php?pid=34896#p34896
+    res := meta.GetColumns('',sSchema,meta.AddEscapeCharToWildcards(sTableName),'');
     FA.InitSpecific(TypeInfo(TSQLDBColumnDefineDynArray),Fields,djRawUTF8,@n,true);
     FillChar(F,sizeof(F),0);
     while res.Next do begin

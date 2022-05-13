@@ -1,4 +1,4 @@
-/// SQLite3 3.32.3 Database engine - statically linked for Windows/Linux
+/// SQLite3 3.38.2 Database engine - statically linked for Windows/Linux
 // - this unit is a part of the freeware Synopse mORMot framework,
 // licensed under a MPL/GPL/LGPL tri-license; version 1.18
 unit SynSQLite3Static;
@@ -6,7 +6,7 @@ unit SynSQLite3Static;
 {
     This file is part of Synopse mORMot framework.
 
-    Synopse mORMot framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse mORMot framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynSQLite3Static;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -47,7 +47,7 @@ unit SynSQLite3Static;
   ***** END LICENSE BLOCK *****
 
 
-    Statically linked SQLite3 3.32.3 engine with optional AES encryption
+    Statically linked SQLite3 3.38.2 engine with optional AES encryption
    **********************************************************************
 
   To be declared in your project uses clause:  will fill SynSQlite3.sqlite3
@@ -210,13 +210,21 @@ implementation
   {$ifdef ANDROID}
     const _PREFIX = '';
     {$ifdef CPUAARCH64}
-      {$L .\static\aarch64-android\libsqlite3.a}
-      {$L .\static\aarch64-android\libgcc.a}
+      {$L .\static\aarch64-android\sqlite3.o}
+      {$linklib .\static\aarch64-android\libgcc.a}
     {$endif CPUAARCH64}
     {$ifdef CPUARM}
-      {$L .\static\arm-android\libsqlite3.a}
-      {$L .\static\arm-android\libgcc.a}
+      {$L .\static\arm-android\sqlite3.o}
+      {$linklib .\static\arm-android\libgcc.a}
     {$endif CPUARM}
+    {$ifdef CPUX86}
+      {$L .\static\i386-android\sqlite3.o}
+    {$endif CPUX86}
+    {$ifdef CPUX64}
+      {$L .\static\x86_64-android\sqlite3.o}
+      // x86_64-linux-android-ld.bfd: final link failed
+      // (Nonrepresentable section on output)
+    {$endif CPUX64}
   {$endif ANDROID}
 
   {$ifdef FREEBSD}
@@ -1142,7 +1150,8 @@ function sqlite3_trace_v2(DB: TSQLite3DB; Mask: integer; Callback: TSQLTraceCall
 
 const
   // error message if statically linked sqlite3.o(bj) does not match this
-  EXPECTED_SQLITE3_VERSION = {$ifdef ANDROID}''{$else}'3.32.3'{$endif};
+  // - Android may be a little behind, so we don't check exact version
+  EXPECTED_SQLITE3_VERSION = {$ifdef ANDROID}''{$else}'3.38.2'{$endif};
 
 constructor TSQLite3LibraryStatic.Create;
 var error: RawUTF8;
@@ -1256,16 +1265,20 @@ begin
   if (EXPECTED_SQLITE3_VERSION='') or (fVersionText=EXPECTED_SQLITE3_VERSION) then
     exit;
   // you should never see it if you cloned https://github.com/synopse/mORMot
-  FormatUTF8('Static SQLite3 library as included within % is outdated!'#13+
-    'Linked version is % whereas the current/expected is '+EXPECTED_SQLITE3_VERSION+'.'#13#13+
-    'Please download supported latest SQLite3 '+EXPECTED_SQLITE3_VERSION+' revision'#13+
+  FormatUTF8('Static SQLite3 library as included within % is outdated!'#13#10+
+    'Linked version is % whereas the current/expected is '+EXPECTED_SQLITE3_VERSION+'.'#13#10#13#10+
+    'Please download supported latest SQLite3 '+EXPECTED_SQLITE3_VERSION+' revision'#13#10+
     'from https://synopse.info/files/sqlite3'+{$ifdef FPC}'fpc'{$else}'obj'{$endif}+'.7z',
     [ExeVersion.ProgramName,fVersionText],error);
   LogToTextFile(error); // annoyning enough on all platforms
   // SynSQLite3Log.Add.Log() would do nothing: we are in .exe initialization
-  {$ifdef MSWINDOWS} // PITA popup
-  MessageBoxA(0,pointer(error),' WARNING: deprecated SQLite3 engine',MB_OK or MB_ICONWARNING);
-  {$endif}
+  {$ifdef MSWINDOWS} 
+  AllocConsole; // PITA popup - better than a MessageBox() especially for services
+  {$endif MSWINDOWS}
+  {$I-}
+  writeln(error);
+  ioresult;
+  {$I+}
 end;
 
 destructor TSQLite3LibraryStatic.Destroy;

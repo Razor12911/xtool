@@ -6,7 +6,7 @@ unit mORMotReport;
 (*
     This file is part of Synopse framework.
 
-    Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -27,7 +27,7 @@ unit mORMotReport;
 
   Portions created by the Initial Developer are Copyright (C) 2003
   the Initial Developer. All Rights Reserved.
-  Portions created by Arnaud Bouchez for Synopse are Copyright (C) 2020
+  Portions created by Arnaud Bouchez for Synopse are Copyright (C) 2022
   Arnaud Bouchez. All Rights Reserved.
 
   Contributor(s):
@@ -111,7 +111,7 @@ unit mORMotReport;
   - full Unicode text process (even before Delphi 2009)
   - speed up and various bug fixes to work with Delphi 5 up to XE3
 
-  Modifications © 2009-2020 Arnaud Bouchez
+  Modifications (c) 2009-2022 Arnaud Bouchez
 
   Version 1.4 - February 8, 2010
   - whole Synopse SQLite3 database framework released under the GNU Lesser
@@ -4932,11 +4932,9 @@ begin
     rc := rcPage;
     rc.Top := (fCurrentYPos*1440) div LogY;
     LastChar := 0;
-    with TextLenEx do begin
-      flags := GTL_DEFAULT;
-      codepage := CP_ACP;
-    end;
-    MaxLen := SendMessage(RichEditHandle, EM_GETTEXTLENGTHEX, Integer(@TextLenEx), 0);
+    TextLenEx.flags := GTL_DEFAULT;
+    TextLenEx.codepage := CP_ACP;
+    MaxLen := SendMessage(RichEditHandle, EM_GETTEXTLENGTHEX, PtrInt(@TextLenEx), 0);
     chrg.cpMax := -1;
     OldMap := SetMapMode(hdc, MM_TEXT);
     try
@@ -4945,7 +4943,7 @@ begin
         chrg.cpMin := LastChar;
         hdc := fCanvas.Handle;
         hdcTarget := hdc;
-        LastChar := SendMessage(RichEditHandle, EM_FORMATRANGE, 1, Integer(@Range));
+        LastChar := SendMessage(RichEditHandle, EM_FORMATRANGE, 1, PtrInt(@Range));
         if EndOfPagePositions<>nil then
           AddInteger(EndOfPagePositions^,LastChar);
         if cardinal(LastChar)>=cardinal(MaxLen) then

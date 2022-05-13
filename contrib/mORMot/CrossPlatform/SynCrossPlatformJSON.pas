@@ -6,7 +6,7 @@ unit SynCrossPlatformJSON;
 {
     This file is part of Synopse mORMot framework.
 
-    Synopse mORMot framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse mORMot framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynCrossPlatformJSON;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -1682,7 +1682,7 @@ begin
     VKind := jvObject else
     if VKind<>jvObject then
       raise EJSONException.CreateFmt('AddNameValue(%s) over array',[aName]);
-  if VCount<=length(Values) then begin
+  if VCount=length(Values) then begin
     SetLength(Values,VCount+VCount shr 3+32);
     SetLength(Names,VCount+VCount shr 3+32);
   end;
@@ -1697,7 +1697,7 @@ begin
     VKind := jvArray else
     if VKind<>jvArray then
       raise EJSONException.Create('AddValue() over object');
-  if VCount<=length(Values) then
+  if VCount=length(Values) then
     SetLength(Values,VCount+VCount shr 3+32);
   Values[VCount] := aValue;
   inc(VCount);

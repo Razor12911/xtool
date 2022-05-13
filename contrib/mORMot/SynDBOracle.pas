@@ -6,7 +6,7 @@ unit SynDBOracle;
 {
     This file is part of Synopse framework.
 
-    Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynDBOracle;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -73,7 +73,7 @@ uses
 { -------------- Oracle Client Interface native connection  }
 
 type
-  /// execption type associated to the native Oracle Client Interface (OCI)
+  /// exception type associated to the native Oracle Client Interface (OCI)
   ESQLDBOracle = class(ESQLDBException);
 
   POracleDate = ^TOracleDate;
@@ -312,6 +312,11 @@ type
     // - if ExpectResults is TRUE, then Step() and Column*() methods are available
     // to retrieve the data rows
     // - raise an ESQLDBOracle on any error
+    // - if aSQL requires a trailing ';', you should end it with ';;' e.g. for
+    // $ DB.ExecuteNoResult(
+    // $  'CREATE OR REPLACE FUNCTION ORA_POC(MAIN_TABLE IN VARCHAR2, REC_COUNT IN NUMBER, BATCH_SIZE IN NUMBER) RETURN VARCHAR2' +
+    // $  ' AS LANGUAGE JAVA' +
+    // $  ' NAME ''OraMain.selectTable(java.lang.String, int, int) return java.lang.String'';;', []);
     procedure Prepare(const aSQL: RawUTF8; ExpectResults: Boolean=false); overload; override;
     /// Execute a prepared SQL statement
     // - parameters marked as ? should have been already bound with Bind*() functions
@@ -438,6 +443,7 @@ var
 
   /// how many blob chunks should be handled at once
   SynDBOracleBlobChunksCount: integer = 250;
+
 
 implementation
 
@@ -2611,7 +2617,9 @@ begin
 end;
 
 type
+  /// Oracle VARNUM memory structure
   TSQLT_VNU = array[0..21] of byte;
+  /// points to a Oracle VARNUM memory structure
   PSQLT_VNU = ^TSQLT_VNU;
 
 procedure Int64ToSQLT_VNU(Value: Int64; OutData: PSQLT_VNU);
@@ -2657,7 +2665,7 @@ begin
 end;
 
 procedure UnQuoteSQLString(S,D: PUTF8Char; SLen: integer);
-begin
+begin // internal method, tuned for our OCI process
   if S=nil then
     D^ := #0 else
   if S^<>'''' then
@@ -2970,7 +2978,14 @@ begin
             VDBType,@oIndicator[i],nil,nil,0,nil,OCI_DEFAULT),fError);
         end;
       end;
-      // 2. execute prepared statement
+      // 2. retrieve column information (if not already done)
+      if fExpectResults and (fColumn.Count = 0) then
+        // We move this after params binding to prevent "ORA-00932: inconsistent
+        // datatypes" during call to StmtExecute with OCI_DESCRIBE_ONLY.
+        // Because if called here sometimes it breaks the Oracle shared pool and
+        // only `ALTER system flush shared_pool` seems to fix the DB state
+        SetColumnsForPreparedStatement;
+      // 3. execute prepared statement and dispatch data in row buffers
       if (fColumnCount=0) and (Connection.TransactionCount=0) then
         // for INSERT/UPDATE/DELETE without a transaction: AutoCommit after execution
         mode := OCI_COMMIT_ON_SUCCESS else
@@ -2978,6 +2993,7 @@ begin
         mode := OCI_DEFAULT;
       Status := OCI.StmtExecute(TSQLDBOracleConnection(Connection).fContext,
         fStatement,fError,fRowCount,0,nil,nil,mode);
+      // 4. check execution error, and retrieve data result range
       FetchTest(Status); // error + set fRowCount+fCurrentRow+fRowFetchedCurrent
       Status := OCI_SUCCESS; // mark OK for fBoundCursor[] below
     finally
@@ -3412,14 +3428,16 @@ begin
         raise ESQLDBOracle.CreateUTF8('%.Prepare should be called only once',[self]);
       // 1. process SQL
       inherited Prepare(aSQL,ExpectResults); // set fSQL + Connect if necessary
-      fPreparedParamsCount := ReplaceParamsByNumbers(aSQL,fSQLPrepared,':', true);
+      fPreparedParamsCount := ReplaceParamsByNumbers(aSQL,fSQLPrepared,':',true);
       L := Length(fSQLPrepared);
-      while (L>0) and (fSQLPrepared[L] in [#1..' ',';']) do
-      if (fSQLPrepared[L]=';') and (L>5) and IdemPChar(@fSQLPrepared[L-3],'END') then
-        break else // allows 'END;' at the end of a statement
-        dec(L);    // trim ' ' or ';' right (last ';' could be found incorrect)
-      if L <> Length(fSQLPrepared) then
-        fSQLPrepared := copy(fSQLPrepared,1,L); // trim right ';' if any
+      while (L>0) and (fSQLPrepared[L]<=' ') do // trim right
+        dec(L);
+      // allow one trailing ';' by writing ';;' or allows 'END;' at the end of a statement
+      if (L>5) and (fSQLPrepared[L]=';') and not
+         (IdemPChar(@fSQLPrepared[L-3],'END') and (fSQLPrepared[L-4]<='A')) then
+        dec(L);
+      if L<>Length(fSQLPrepared) then
+        SetLength(fSQLPrepared,L); // trim trailing spaces or ';' if needed
       // 2. prepare statement
       env := (Connection as TSQLDBOracleConnection).fEnv;
       with OCI do begin
@@ -3437,8 +3455,8 @@ begin
             OCI_NTV_SYNTAX,OCI_DEFAULT),fError);
         end;
       end;
-      // 3. retrieve column information and dispatch data in row buffer
-      SetColumnsForPreparedStatement;
+      // note: if SetColumnsForPreparedStatement is called here, we randomly got
+      // "ORA-00932 : inconsistent datatypes" error -> moved to ExecutePrepared
     except
       on E: Exception do begin
         FreeHandles(True);

@@ -6,7 +6,7 @@ unit SynDBODBC;
 {
     This file is part of Synopse mORMot framework.
 
-    Synopse mORMot framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse mORMot framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynDBODBC;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -87,6 +87,7 @@ type
   protected
     fDriverDoesNotHandleUnicode: Boolean;
     fSQLDriverConnectPrompt: Boolean;
+    fSQLStatementTimeout: integer;
     /// this overridden method will hide de DATABASE/PWD fields in ODBC connection string
     function GetDatabaseNameSafe: RawUTF8; override;
     /// this overridden method will retrieve the kind of DBMS from the main connection
@@ -159,6 +160,10 @@ type
     // - set to TRUE to allow UI prompt if needed
     property SQLDriverConnectPrompt: boolean read fSQLDriverConnectPrompt
       write fSQLDriverConnectPrompt;
+    /// The number of seconds to wait for a SQL statement to execute before canceling the query.
+    // When set to 0 (the default) there is no timeout. See ODBC SQL_QUERY_TIMEOUT documentation
+    property SQLStatementTimeoutSec: integer read fSQLStatementTimeout
+      write fSQLStatementTimeout;
   end;
 
   /// implements a direct connection to the ODBC library
@@ -292,13 +297,14 @@ type
   end;
 
 {$ifdef MSWINDOWS}
-/// List all ODBC drivers installed
+/// List all ODBC drivers installed, by reading the Windows Registry
 // - aDrivers is the output driver list container, which should be either nil (to
 // create a new TStringList), or any existing TStrings instance (may be from VCL
 // - aIncludeVersion: include the DLL driver version as <driver name>=<dll version>
 // in aDrivers (somewhat slower)
 function ODBCInstalledDriversList(const aIncludeVersion: Boolean; var aDrivers: TStrings): boolean;
 {$endif MSWINDOWS}
+
 
 implementation
 
@@ -384,10 +390,12 @@ const
   SQL_ATTR_METADATA_ID = 10014;
 
   // statement attributes
+  SQL_QUERY_TIMEOUT = 0;
   SQL_ATTR_APP_ROW_DESC = 10010;
   SQL_ATTR_APP_PARAM_DESC = 10011;
   SQL_ATTR_IMP_ROW_DESC = 10012;
   SQL_ATTR_IMP_PARAM_DESC = 10013;
+  SQL_ATTR_QUERY_TIMEOUT = SQL_QUERY_TIMEOUT; // ODBC 3.0
   SQL_ATTR_CURSOR_SCROLLABLE = (-1);
   SQL_ATTR_CURSOR_SENSITIVITY = (-2);
 
@@ -1704,7 +1712,15 @@ begin
             end;
           ftDouble: begin
             CValueType := SQL_C_DOUBLE;
-	    // in case of "Invalid character value for cast specification" error
+            if (fDBMS = dMSSQL) and (VInOut=paramIn) and
+               (PDouble(@VInt64)^ > -1) and (PDouble(@VInt64)^ < 1) then begin
+              // prevent "Invalid character value for cast specification" error for numbers (-1; 1)
+              // for doubles outside this range SQL_C_DOUBLE must be used
+              ParameterType := SQL_NUMERIC;
+              ColumnSize := 9;
+              DecimalDigits := 6;
+            end;
+            // in case of "Invalid character value for cast specification" error
             // for small digits like 0.01, -0.0001 under Linux msodbcsql17 should
             // be updated to >= 17.5.2
             ParameterValue := pointer(@VInt64);
@@ -1728,8 +1744,14 @@ begin
             if ansitext then begin
   retry:      VData := CurrentAnsiConvert.UTF8ToAnsi(VData);
               CValueType := SQL_C_CHAR;
-            end else
+            end else begin
               VData := Utf8DecodeToRawUnicode(VData);
+              if (fDBMS=dMSSQL) then begin // statements like CONTAINS(field, ?) do not accept NVARCHAR(max)
+                ColumnSize := length(VData) shr 1; // length in characters
+                if (ColumnSize > 4000) then // > 8000 bytes - use varchar(max)
+                  ColumnSize := 0;
+              end;
+            end;
           ftBlob:
             StrLen_or_Ind[p] := length(VData);
           else
@@ -1867,6 +1889,10 @@ begin
   try
     ODBC.Check(nil,self,ODBC.PrepareW(fStatement,pointer(fSQLW),length(fSQLW) shr 1),
       SQL_HANDLE_STMT,fStatement);
+    if TODBCConnectionProperties(Connection.Properties).SQLStatementTimeoutSec > 0 then
+      ODBC.Check(nil,self,ODBC.SetStmtAttrA(fStatement,SQL_ATTR_QUERY_TIMEOUT,
+        SQLPOINTER(TODBCConnectionProperties(Connection.Properties).SQLStatementTimeoutSec), SQL_IS_INTEGER),
+       SQL_HANDLE_STMT,fStatement);
     SQLLogEnd;
   except
     on E: Exception do begin
@@ -2054,7 +2080,7 @@ begin
       end;
       FA.Init(TypeInfo(TSQLDBColumnDefineDynArray),Fields,@n);
       FA.Compare := SortDynArrayAnsiStringI; // FA.Find() case insensitive
-      fillchar(F,SizeOf(F),0);
+      FillcharFast(F,SizeOf(F),0);
       if fCurrentRow>0 then // Step done above
       repeat
         F.ColumnName := Trim(ColumnUTF8(3)); // Column*() should be done in order
@@ -2256,7 +2282,7 @@ begin
         Stmt.Step;
       end;
       PA.Init(TypeInfo(TSQLDBColumnDefineDynArray),Parameters,@n);
-      fillchar(P,SizeOf(P),0);
+      FillcharFast(P,SizeOf(P),0);
       if Stmt.fCurrentRow>0 then // Step done above
       repeat
         P.ColumnName := Trim(Stmt.ColumnUTF8(3)); // Column*() should be in order

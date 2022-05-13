@@ -5,7 +5,7 @@ unit SynMemoEx;
 {
     This file is part of Synopse extended TMemo
 
-    Synopse SynMemoEx. Copyright (C) 2020 Arnaud Bouchez
+    Synopse SynMemoEx. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -24,7 +24,7 @@ unit SynMemoEx;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -350,6 +350,7 @@ type
     {$ENDIF MEMOEX_DEFLAYOUT}
   end;
 
+  EComplete = class(EAbort);
   EMemoExError = class(Exception);
 
   {$IFDEF MEMOEX_UNDO}
@@ -2071,7 +2072,6 @@ begin
   fillchar(FList[Index], sizeof(TParagraph), 0); // avoid memory bug
   Inc(FCount);
   AddParaStr(Index, S);
-  Changed;
 end;
 
 {$WARNINGS OFF}
@@ -2275,7 +2275,9 @@ begin
   dec(FMemoEx.FUpdateLock);
   if FMemoEx.FUpdateLock = 0 then
   begin
-    {$IFDEF MEMOEX_EDITOR}    FMemoEx.CantUndo; {$ENDIF MEMOEX_EDITOR}
+    {$IFDEF MEMOEX_EDITOR}
+    FMemoEx.CantUndo;
+    {$ENDIF MEMOEX_EDITOR}
     FMemoEx.TextAllChanged;
     FMemoEx.SetCaretInternal(0, 0);
   end;
@@ -2777,8 +2779,10 @@ begin
     FCellRect.Height := Max(1, Size.cy);
     EditorClient.Canvas.Font := Font;
     Size := EditorClient.Canvas.TextExtent(BiggestSymbol);
+    {
     if FCellRect.Width <> Max(1, Size.cx) then
       raise EMemoExError.CreateFmt('Font %s has inconsistent width vs style', [Font.Name]);
+    }
     FDrawBitmap.Canvas.Font.Assign(Font);
     FDrawBitmap.Canvas.Brush.Assign(EditorClient.Canvas.Brush);
     FDrawBitmap.Width := Width;
@@ -3477,8 +3481,6 @@ begin
 end;
 
 {$IFDEF MEMOEX_EDITOR}
-type
-  EComplete = class(EAbort);
 
 procedure TCustomMemoEx.Command(ACommand: TEditCommand);
 var

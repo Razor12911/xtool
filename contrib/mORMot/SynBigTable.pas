@@ -3,7 +3,7 @@
 unit SynBigTable;
 
 (*
-    Synopse Big Table. Copyright (C) 2020 Arnaud Bouchez
+    Synopse Big Table. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -22,7 +22,7 @@ unit SynBigTable;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -2162,7 +2162,7 @@ begin
   try
     with TFileStream.Create(aFileName,fmOpenRead or fmShareDenyNone) do
     try // same exact layout as in TSynBigTable.LoadFromFile
-      result := (Seek(-4,soFromEnd)>0) and (Read(magic,4)=4) and
+      result := (Seek(-4,soEnd)>0) and (Read(magic,4)=4) and
         (magic=InternalMagic);
     finally
       Free;

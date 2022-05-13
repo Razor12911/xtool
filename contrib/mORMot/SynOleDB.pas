@@ -6,7 +6,7 @@ unit SynOleDB;
 {
     This file is part of Synopse framework.
 
-    Synopse framework. Copyright (C) 2020 Arnaud Bouchez
+    Synopse framework. Copyright (C) 2022 Arnaud Bouchez
       Synopse Informatique - https://synopse.info
 
   *** BEGIN LICENSE BLOCK *****
@@ -25,7 +25,7 @@ unit SynOleDB;
 
   The Initial Developer of the Original Code is Arnaud Bouchez.
 
-  Portions created by the Initial Developer are Copyright (C) 2020
+  Portions created by the Initial Developer are Copyright (C) 2022
   the Initial Developer. All Rights Reserved.
 
   Contributor(s):
@@ -603,6 +603,7 @@ type
 
 
 { -------------- TOleDB* OleDB classes and types }
+
 type
   /// generic Exception type, generated for OleDB connection
   EOleDBException = class(ESQLDBException);
@@ -2792,6 +2793,7 @@ type
     bClass: byte;
     wLineNumber: word;
   end;
+  /// to retrieve enhanced Microsoft SQL Server error information
   ISQLServerErrorInfo = interface(IUnknown)
     ['{5CF4CA12-EF21-11d0-97E7-00C04FC2AD98}']
     function GetErrorInfo(out ppErrorInfo: PSSERRORINFO;
@@ -3188,6 +3190,7 @@ initialization
   {$ifndef CPU64} // Jet is not available on Win64
   TOleDBJetConnectionProperties.RegisterClassNameForDefinition;
   {$endif}
+  TOleDBACEConnectionProperties.RegisterClassNameForDefinition;
   TOleDBAS400ConnectionProperties.RegisterClassNameForDefinition;
   TOleDBODBCSQLConnectionProperties.RegisterClassNameForDefinition;
 
