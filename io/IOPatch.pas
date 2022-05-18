@@ -206,11 +206,12 @@ begin
         SStream1.Free;
         SStream2.Free;
       end;
-      if B then
+      if not B then
         if InRange(FileSize(BaseDir2 + LList2[I]), Options.MinSize,
           Options.MaxSize) then
           continue;
     end;
+    ShowMessage(LFilename);
     LEntry.Op := TPatchOp.opMissing;
     LEntry.Filename := LList2[I];
     LEntry.Size := FileSize(BaseDir2 + LList2[I]);
@@ -269,7 +270,7 @@ begin
             try
               SS0.Size := Max(SS1.Size, SS2.Size);
               A := xd3_encode(SS2.Memory, SS2.Size, SS1.Memory, SS1.Size,
-                SS0.Memory, @Res, SS0.Size, 0) = 0;
+                SS0.Memory, @Res, SS0.Size, Integer(XD3_NOCOMPRESS)) = 0;
               if A then
                 SS0.Size := Res;
             finally
@@ -335,7 +336,7 @@ begin
       Tasks[I].Free;
     CS.Free;
     if DirectoryExists(TempDir) then
-      TDirectory.Delete(TempDir);
+      TDirectory.Delete(TempDir, True);
   end;
   FillChar(LEntry, SizeOf(TEntryStruct2), 0);
   LEntry.Op := TPatchOp.opNone;
@@ -404,7 +405,8 @@ begin
             try
               SStream2.Size := LEntry.Size;
               B := xd3_decode(SStream0.Memory, I64, SStream1.Memory,
-                SStream1.Size, SStream2.Memory, @Res, SStream2.Size, 0) = 0;
+                SStream1.Size, SStream2.Memory, @Res, SStream2.Size,
+                Integer(XD3_NOCOMPRESS)) = 0;
             finally
               SStream1.Free;
               SStream2.Free;

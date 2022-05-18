@@ -79,7 +79,9 @@ uses
   IOFind in 'io\IOFind.pas',
   IOErase in 'io\IOErase.pas',
   IOReplace in 'io\IOReplace.pas',
+  IOArchive in 'io\IOArchive.pas',
   IOPatch in 'io\IOPatch.pas',
+  IOExecute in 'io\IOExecute.pas',
   IODecode in 'io\IODecode.pas',
   IOUtils in 'io\IOUtils.pas';
 
@@ -93,6 +95,8 @@ const
   CommandReplace = 'replace';
   CommandExtract = 'extract';
   CommandPatch = 'patch';
+  CommandArchive = 'archive';
+  CommandExecute = 'execute';
   CommandDecode = 'decode';
 
 procedure ProgramInfo;
@@ -106,7 +110,9 @@ begin
   WriteLine('Available commands:');
   WriteLine('');
   WriteLine('  ' + CommandDecode);
+  WriteLine('  ' + CommandArchive);
   WriteLine('  ' + CommandErase);
+  WriteLine('  ' + CommandExecute);
   WriteLine('  ' + CommandExtract);
   WriteLine('  ' + CommandFind);
   WriteLine('  ' + CommandGenerate);
@@ -149,6 +155,11 @@ begin
 end;
 
 { changelog
+  ES_R33 (0.5.2)
+  - added IO functions (archive, execute)
+  - fixed issue in patch io function
+  - removed compression on patch diff files
+
   ES_R32 (0.5.1)
   - added IO functions (find, extract, patch)
   - generate database feature and IO functions now can search for streams larger than chunk size
@@ -387,6 +398,7 @@ const
 var
   I, J: Integer;
   ParamArg: array [0 .. 1] of TArray<String>;
+  StrArray: TArray<String>;
   IsParam: Boolean;
   Input, Output: TStream;
   PrecompEnc: PrecompMain.TEncodeOptions;
@@ -397,6 +409,10 @@ var
   ReplaceEnc: IOReplace.TEncodeOptions;
   PatchEnc: IOPatch.TEncodeOptions;
   PatchDec: IOPatch.TDecodeOptions;
+  ArchiveEnc: IOArchive.TEncodeOptions;
+  ArchiveDec: IOArchive.TDecodeOptions;
+  ExecuteEnc: IOExecute.TEncodeOptions;
+  ExecuteDec: IOExecute.TDecodeOptions;
   IODec: IODecode.TDecodeOptions;
   IOExt: IODecode.TExtractOptions;
 
@@ -438,14 +454,17 @@ begin
       begin
         while Length(ParamArg[1]) < 2 do
           Insert('-', ParamArg[1], Length(ParamArg[1]));
-        Input := TBufferedStream.Create(GetInStream(ParamArg[1][0]), True,
+        Input := TBufferedStream.Create(GetInStream(ParamArg[1, 0]), True,
           BufferSize);
-        Output := TBufferedStream.Create(GetOutStream(ParamArg[1][1]), False,
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1, 1]), False,
           BufferSize);
-        PrecompMain.Parse(ParamArg[0], PrecompEnc);
-        PrecompMain.Encode(Input, Output, PrecompEnc);
-        Input.Free;
-        Output.Free;
+        try
+          PrecompMain.Parse(ParamArg[0], PrecompEnc);
+          PrecompMain.Encode(Input, Output, PrecompEnc);
+        finally
+          Input.Free;
+          Output.Free;
+        end;
       end;
     if ParamStr(1).StartsWith(CommandGenerate, True) then
       if Length(ParamArg[1]) < 3 then
@@ -453,7 +472,7 @@ begin
       else
       begin
         DbgMain.Parse(ParamArg[0], GenerateEnc);
-        DbgMain.Encode(ParamArg[1][0], ParamArg[1][1], ParamArg[1][2],
+        DbgMain.Encode(ParamArg[1, 0], ParamArg[1, 1], ParamArg[1, 2],
           GenerateEnc);
       end;
     if ParamStr(1).StartsWith(CommandFind, True) then
@@ -462,7 +481,7 @@ begin
       else
       begin
         IOFind.Parse(ParamArg[0], FindEnc);
-        IOFind.Encode(ParamArg[1][0], ParamArg[1][1],
+        IOFind.Encode(ParamArg[1, 0], ParamArg[1, 1],
           ParamArgSafe(1, 2), FindEnc);
       end;
     if ParamStr(1).StartsWith(CommandErase, True) then
@@ -471,7 +490,7 @@ begin
       else
       begin
         IOErase.Parse(ParamArg[0], EraseEnc);
-        IOErase.Encode(ParamArg[1][0], ParamArg[1][1], ParamArgSafe(1, 2),
+        IOErase.Encode(ParamArg[1, 0], ParamArg[1, 1], ParamArgSafe(1, 2),
           EraseEnc);
       end;
     if ParamStr(1).StartsWith(CommandReplace, True) then
@@ -480,7 +499,7 @@ begin
       else
       begin
         IOReplace.Parse(ParamArg[0], ReplaceEnc);
-        IOReplace.Encode(ParamArg[1][0], ParamArg[1][1], ParamArg[1][2],
+        IOReplace.Encode(ParamArg[1, 0], ParamArg[1, 1], ParamArg[1, 2],
           ParamArgSafe(1, 3), ReplaceEnc);
       end;
     if ParamStr(1).StartsWith(CommandExtract, True) then
@@ -490,28 +509,74 @@ begin
       begin
         Input := TBufferedStream.Create(GetInStream(ParamArgSafe(1, 0)), True,
           BufferSize);
-        Input.ReadBuffer(I, I.Size);
-        case I of
-          XTOOL_IODEC:
-            begin
-              IODecode.ParseExtract(ParamArg[0], IOExt);
-              IODecode.Extract(Input, ParamArgSafe(1, 1),
-                ParamArgSafe(1, 2), IOExt);
-            end;
+        try
+          Input.ReadBuffer(I, I.Size);
+          case I of
+            XTOOL_IODEC:
+              begin
+                IODecode.ParseExtract(ParamArg[0], IOExt);
+                IODecode.Extract(Input, ParamArgSafe(1, 1),
+                  ParamArgSafe(1, 2), IOExt);
+              end;
+          end;
+        finally
+          Input.Free;
         end;
-        Input.Free;
       end;
     if ParamStr(1).StartsWith(CommandPatch, True) then
       if Length(ParamArg[1]) < 3 then
         IOPatch.PrintHelp
       else
       begin
-        Output := TBufferedStream.Create(GetOutStream(ParamArg[1][2]), False,
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1, 2]), False,
           BufferSize);
-        IOPatch.Parse(ParamArg[0], PatchEnc);
-        IOPatch.Encode(ParamArg[1][0], ParamArg[1][1], Output, PatchEnc);
-        Input.Free;
-        Output.Free;
+        try
+          IOPatch.Parse(ParamArg[0], PatchEnc);
+          IOPatch.Encode(ParamArg[1, 0], ParamArg[1, 1], Output, PatchEnc);
+        finally
+          Output.Free;
+        end;
+      end;
+    if ParamStr(1).StartsWith(CommandArchive, True) then
+      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
+        IOArchive.PrintHelp
+      else
+      begin
+        while Length(ParamArg[1]) < 2 do
+          Insert('-', ParamArg[1], Length(ParamArg[1]));
+        SetLength(StrArray, 0);
+        for I := 0 to High(ParamArg[1]) - 1 do
+          Insert(ParamArg[1, I], StrArray, Length(StrArray));
+        Output := TBufferedStream.Create
+          (GetOutStream(ParamArg[1, High(ParamArg[1])]), False, BufferSize);
+        try
+          IOArchive.Parse(ParamArg[0], ArchiveEnc);
+          IOArchive.Encode(StrArray, Output, ArchiveEnc);
+        finally
+          Input.Free;
+        end;
+      end;
+    if ParamStr(1).StartsWith(CommandExecute, True) then
+      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
+        IOExecute.PrintHelp
+      else
+      begin
+        while Length(ParamArg[1]) < 2 do
+          Insert('-', ParamArg[1], Length(ParamArg[1]));
+        SetLength(StrArray, 0);
+        for I := 2 to High(ParamArg[1]) do
+          Insert(ParamArg[1, I], StrArray, Length(StrArray));
+        Input := TBufferedStream.Create(GetInStream(ParamArg[1, 0]), True,
+          BufferSize);
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1, 1]), False,
+          BufferSize);
+        try
+          IOExecute.Parse(ParamArg[0], ExecuteEnc);
+          IOExecute.Encode(Input, Output, StrArray, ExecuteEnc);
+        finally
+          Input.Free;
+          Output.Free;
+        end;
       end;
     if ParamStr(1).StartsWith(CommandDecode, True) then
       if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
@@ -520,28 +585,53 @@ begin
       begin
         Input := TBufferedStream.Create(GetInStream(ParamArgSafe(1, 0)), True,
           BufferSize);
-        Input.ReadBuffer(I, I.Size);
-        case I of
-          XTOOL_PRECOMP:
-            begin
-              Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)),
-                False, BufferSize);
-              PrecompMain.Parse(ParamArg[0], PrecompDec);
-              PrecompMain.Decode(Input, Output, PrecompDec);
-              Output.Free;
-            end;
-          XTOOL_IODEC:
-            begin
-              IODecode.ParseDecode(ParamArg[0], IODec);
-              IODecode.Decode(Input, ParamArg[1][1], ParamArg[1][2], IODec);
-            end;
-          XTOOL_PATCH:
-            begin
-              IOPatch.Parse(ParamArg[0], PatchDec);
-              IOPatch.Decode(Input, ParamArg[1][1], PatchDec);
-            end;
+        try
+          Input.ReadBuffer(I, I.Size);
+          case I of
+            XTOOL_PRECOMP:
+              begin
+                Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)
+                  ), False, BufferSize);
+                try
+                  PrecompMain.Parse(ParamArg[0], PrecompDec);
+                  PrecompMain.Decode(Input, Output, PrecompDec);
+                finally
+                  Output.Free;
+                end;
+              end;
+            XTOOL_IODEC:
+              begin
+                IODecode.ParseDecode(ParamArg[0], IODec);
+                IODecode.Decode(Input, ParamArg[1, 1], ParamArg[1, 2], IODec);
+              end;
+            XTOOL_PATCH:
+              begin
+                IOPatch.Parse(ParamArg[0], PatchDec);
+                IOPatch.Decode(Input, ParamArg[1, 1], PatchDec);
+              end;
+            XTOOL_ARCH:
+              begin
+                IOArchive.Parse(ParamArg[0], ArchiveDec);
+                IOArchive.Decode(Input, ParamArg[1, 1], ArchiveDec);
+              end;
+            XTOOL_EXEC:
+              begin
+                SetLength(StrArray, 0);
+                for I := 2 to High(ParamArg[1]) do
+                  Insert(ParamArg[1, I], StrArray, Length(StrArray));
+                Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)
+                  ), False, BufferSize);
+                try
+                  IOExecute.Parse(ParamArg[0], ExecuteDec);
+                  IOExecute.Decode(Input, Output, StrArray, ExecuteDec);
+                finally
+                  Output.Free;
+                end;
+              end;
+          end;
+        finally
+          Input.Free;
         end;
-        Input.Free;
       end;
   except
     on E: Exception do

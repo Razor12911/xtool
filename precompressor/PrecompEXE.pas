@@ -725,12 +725,14 @@ begin
               ExeStruct^.IsLib[X] := True;
               continue;
             end
-            else if ContainsText(S2, '<stdin>') then
+            else if ContainsText(S2, '<stdin>') or ContainsText(S2, '[stdin]')
+            then
             begin
               SetBits(ExeStruct^.Mode[X], 1, 0, 1);
               continue;
             end
-            else if ContainsText(S2, '<stdout>') then
+            else if ContainsText(S2, '<stdout>') or ContainsText(S2, '[stdout]')
+            then
             begin
               SetBits(ExeStruct^.Mode[X], 1, 1, 1);
               continue;
@@ -741,19 +743,14 @@ begin
               S3 := IfThen(X = 0, FILE_IN, FILE_OUT);
               SetBits(ExeStruct^.Mode[X], 0, 0, 1);
               if ContainsText(S2, '<filein>') then
-              begin
-                ExeStruct^.InFile[X] := ExtractStr('<filein>', S2);
-                S2 := ReplaceText(S2, ExeStruct^.InFile[X], S3);
-                ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
-                  '<filein>', S3);
-              end
+                ExeStruct^.InFile[X] := ExtractStr('<filein>', S2)
               else
-              begin
                 ExeStruct^.InFile[X] := ExtractStr('[filein]', S2);
-                S2 := ReplaceText(S2, ExeStruct^.InFile[X], '');
-                ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
-                  '[filein]', S3);
-              end;
+              S2 := ReplaceText(S2, ExeStruct^.InFile[X], S3);
+              ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+                '<filein>', S3);
+              ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+                '[filein]', S3);
             end
             else if ContainsText(S2, '<fileout>') or
               ContainsText(S2, '[fileout]') then
@@ -761,19 +758,14 @@ begin
               S3 := IfThen(X = 0, FILE_OUT, FILE_IN);
               SetBits(ExeStruct^.Mode[X], 0, 1, 1);
               if ContainsText(S2, '<fileout>') then
-              begin
-                ExeStruct^.OutFile[X] := ExtractStr('<fileout>', S2);
-                S2 := ReplaceText(S2, ExeStruct^.OutFile[X], S3);
-                ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
-                  '<fileout>', S3);
-              end
+                ExeStruct^.OutFile[X] := ExtractStr('<fileout>', S2)
               else
-              begin
                 ExeStruct^.OutFile[X] := ExtractStr('[fileout]', S2);
-                S2 := ReplaceText(S2, ExeStruct^.OutFile[X], '');
-                ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
-                  '[fileout]', S3);
-              end;
+              S2 := ReplaceText(S2, ExeStruct^.OutFile[X], S3);
+              ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+                '<fileout>', S3);
+              ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+                '[fileout]', S3);
             end;
             S2 := IfThen((Pos(' ', S2) > 0) or (S2 = ''), '"' + S2 + '"', S2);
             ExeStruct^.Param[X] := ExeStruct^.Param[X] + ' ' + S2;

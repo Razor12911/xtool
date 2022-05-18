@@ -10,6 +10,8 @@ uses
 const
   XTOOL_IODEC = $314C5458;
   XTOOL_PATCH = $324C5458;
+  XTOOL_ARCH = $334C5458;
+  XTOOL_EXEC = $344C5458;
   XTOOL_MAPSUF1 = '-tmp';
   XTOOL_MAPSUF2 = '_mapped.io';
   XTOOL_MAPSUF3 = '.tmp';

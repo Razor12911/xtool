@@ -138,7 +138,9 @@
         <DCCReference Include="io\IOFind.pas"/>
         <DCCReference Include="io\IOErase.pas"/>
         <DCCReference Include="io\IOReplace.pas"/>
+        <DCCReference Include="io\IOArchive.pas"/>
         <DCCReference Include="io\IOPatch.pas"/>
+        <DCCReference Include="io\IOExecute.pas"/>
         <DCCReference Include="io\IODecode.pas"/>
         <DCCReference Include="io\IOUtils.pas"/>
         <RcItem Include="resources\Win32\xdelta3_dll.dll">
