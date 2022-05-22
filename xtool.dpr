@@ -52,7 +52,6 @@ uses
   oObjects in 'contrib\ParseExpression\oObjects.pas',
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
-  GrittibanzliDLL in 'imports\GrittibanzliDLL.pas',
   LZ4DLL in 'imports\LZ4DLL.pas',
   LZODLL in 'imports\LZODLL.pas',
   OodleDLL in 'imports\OodleDLL.pas',
@@ -155,6 +154,10 @@ begin
 end;
 
 { changelog
+  ES_R34 (0.5.3)
+  - added png stream preprocessor
+  - removed grittibanzli codec (since nobody uses it)
+
   ES_R33 (0.5.2)
   - added IO functions (archive, execute)
   - fixed issue in patch io function
@@ -391,6 +394,11 @@ end;
   - initial release
 
   changelog }
+
+procedure EncodePNG(Input: PByte; Output: PByte);
+begin
+
+end;
 
 const
   BufferSize = 1048576;

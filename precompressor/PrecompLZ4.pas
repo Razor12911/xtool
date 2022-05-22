@@ -124,13 +124,13 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, LZ4Codecs[LZ4_CODEC]) = 0) and LZ4DLL.DLLLoaded then
     begin
-      SetBits(Option^, 0, 0, 5);
+      SetBits(Option^, LZ4_CODEC, 0, 5);
       Result := True;
     end
     else if (CompareText(S, LZ4Codecs[LZ4HC_CODEC]) = 0) and LZ4DLL.DLLLoaded
     then
     begin
-      SetBits(Option^, 1, 0, 5);
+      SetBits(Option^, LZ4HC_CODEC, 0, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       Result := True;
@@ -138,7 +138,7 @@ begin
     else if (CompareText(S, LZ4Codecs[LZ4F_CODEC]) = 0) and LZ4DLL.DLLLoaded
     then
     begin
-      SetBits(Option^, 2, 0, 5);
+      SetBits(Option^, LZ4F_CODEC, 0, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       if Funcs^.GetParam(Command, I, 'b') <> '' then

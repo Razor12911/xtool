@@ -111,7 +111,6 @@
         <DCCReference Include="contrib\ParseExpression\oObjects.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseClass.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
-        <DCCReference Include="imports\GrittibanzliDLL.pas"/>
         <DCCReference Include="imports\LZ4DLL.pas"/>
         <DCCReference Include="imports\LZODLL.pas"/>
         <DCCReference Include="imports\OodleDLL.pas"/>

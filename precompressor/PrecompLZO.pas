@@ -163,7 +163,7 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, LZOCodecs[LZO1X_CODEC]) = 0) and LZODLL.DLLLoaded then
     begin
-      SetBits(Option^, 0, 0, 5);
+      SetBits(Option^, LZO1X_CODEC, 0, 5);
       SetBits(Option^, LZO1XVariant, 12, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);

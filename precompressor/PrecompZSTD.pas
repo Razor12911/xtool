@@ -112,7 +112,7 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, ZSTDCodecs[ZSTD_CODEC]) = 0) and ZSTDDLL.DLLLoaded then
     begin
-      SetBits(Option^, 0, 0, 5);
+      SetBits(Option^, ZSTD_CODEC, 0, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       Result := True;

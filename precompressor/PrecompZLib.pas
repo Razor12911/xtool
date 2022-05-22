@@ -3,7 +3,7 @@ unit PrecompZLib;
 interface
 
 uses
-  ZLibDLL, ReflateDLL, PreflateDLL, GrittibanzliDLL,
+  ZLibDLL, ReflateDLL, PreflateDLL,
   Utils,
   PrecompUtils,
   System.SysUtils, System.StrUtils, System.Classes, System.Math;
@@ -14,12 +14,12 @@ var
 implementation
 
 const
-  ZlibCodecs: array of PChar = ['zlib', 'reflate', 'preflate', 'grittibanzli'];
+  ZlibCodecs: array of PChar = ['zlib', 'reflate', 'preflate', 'png'];
   CODEC_COUNT = 4;
   ZLIB_CODEC = 0;
   REFLATE_CODEC = 1;
   PREFLATE_CODEC = 2;
-  GRITTIBANZLI_CODEC = 3;
+  PNG_CODEC = 3;
 
 const
   Z_WINBITS = 7;
@@ -30,7 +30,6 @@ const
   R_LEVEL = 6;
   R_WORKMEM = 65536;
   P_HIFSIZE = 1048576;
-  G_HIFSIZE = 8338608;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
@@ -42,6 +41,196 @@ var
   CodecAvailable, CodecEnabled: TArray<Boolean>;
   Scan2Pos: TArray<Integer>;
   Scan2SI: TArray<PStrInfo2>;
+
+function EncodePNG(Instance: Integer; Input: PByte; Pos, Size: NativeInt;
+  Output: _PrecompOutput; Add: _PrecompAdd; Funcs: PPrecompFuncs): Integer;
+const
+  PNG_SIG = $A1A0A0D474E5089;
+  PNG_HDR = $52444849;
+  PNG_DAT = $54414449;
+  PNG_END = $444E4549;
+type
+  PPNGStruct = ^TPNGStruct;
+
+  TPNGStruct = packed record
+    Size, Header: Integer;
+  end;
+var
+  I, J: Integer;
+  I64: Int64;
+  CurPos: NativeInt;
+  LStr: TPNGStruct;
+  CRC: Cardinal;
+  SI: _StrInfo1;
+  DI1, DI2: TDepthInfo;
+  DS: TPrecompStr;
+begin
+  DI1 := Funcs^.GetDepthInfo(Instance);
+  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  Result := 0;
+  if Pos + 16 < Size then
+  begin
+    I64 := PNG_SIG;
+    if (PInt64(Input + Pos)^ = I64) and (PInteger(Input + Pos + 12)^ = PNG_HDR)
+    then
+    begin
+      Output(Instance, nil, 0);
+      Inc(I64);
+      Output(Instance, @I64, I64.Size);
+      for I := 1 to 2 do
+      begin
+        CurPos := 8;
+        LStr := PPNGStruct(Input + Pos + CurPos)^;
+        LStr.Size := EndianSwap(LStr.Size);
+        while (Pos + CurPos < Size) and (LStr.Header <> PNG_END) do
+        begin
+          CRC := EndianSwap(CRC32(0, Input + Pos + CurPos + LStr.Size.Size,
+            LStr.Size + LStr.Header.Size));
+          if CRC = PCardinal(Input + Pos + CurPos + SizeOf(TPNGStruct) +
+            LStr.Size)^ then
+          begin
+            J := SizeOf(TPNGStruct) + LStr.Size + CRC.Size;
+            if (LStr.Header = PNG_DAT) then
+            begin
+              if I = 1 then
+              begin
+                Output(Instance, Input + Pos + CurPos, SizeOf(TPNGStruct));
+                Output(Instance, Input + Pos + CurPos + SizeOf(TPNGStruct) +
+                  LStr.Size, CRC.Size);
+              end
+              else
+                Output(Instance, Input + Pos + CurPos + SizeOf(TPNGStruct),
+                  LStr.Size);
+            end
+            else if I = 1 then
+              Output(Instance, Input + Pos + CurPos, J);
+            Inc(CurPos, J);
+          end
+          else
+            break;
+          LStr := PPNGStruct(Input + Pos + CurPos)^;
+          LStr.Size := EndianSwap(LStr.Size);
+        end;
+        if LStr.Header = PNG_END then
+        begin
+          J := SizeOf(TPNGStruct) + LStr.Size + CRC.Size;
+          if I = 1 then
+            Output(Instance, Input + Pos + CurPos, J);
+          Inc(CurPos, J);
+          if I = 2 then
+          begin
+            SI.Position := Pos;
+            SI.OldSize := CurPos;
+            SI.NewSize := CurPos;
+            SI.Status := TStreamStatus.None;
+            SI.Option := 0;
+            SetBits(SI.Option, PNG_CODEC, 0, 5);
+            DS := Funcs^.GetDepthCodec(DI1.Codec);
+            Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
+            DI2.OldSize := SI.NewSize;
+            DI2.NewSize := SI.NewSize;
+            if Assigned(Add) then
+            begin
+              Funcs^.LogScan1(ZlibCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+                SI.OldSize, SI.NewSize);
+              Add(Instance, @SI, DI1.Codec, @DI2);
+            end
+            else
+            begin
+              Scan2Pos[Instance] := SI.Position;
+              Scan2SI[Instance]^.OldSize := SI.OldSize;
+              Scan2SI[Instance]^.NewSize := SI.NewSize;
+              Scan2SI[Instance]^.Resource := SI.Resource;
+              Scan2SI[Instance]^.Status := SI.Status;
+              Scan2SI[Instance]^.Option := SI.Option;
+              exit;
+            end;
+            Result := CurPos;
+          end;
+        end
+        else
+          break;
+      end;
+    end;
+  end;
+end;
+
+function DecodePNG(InBuff, OutBuff: PByte; Size: NativeInt): Boolean;
+const
+  PNG_SIG = $A1A0A0D474E5089;
+  PNG_HDR = $52444849;
+  PNG_DAT = $54414449;
+  PNG_END = $444E4549;
+type
+  PPNGStruct = ^TPNGStruct;
+
+  TPNGStruct = packed record
+    Size, Header: Integer;
+  end;
+var
+  I, J, K: Integer;
+  I64: Int64;
+  CurPos1, CurPos2, ReadPos: NativeInt;
+  LStr: TPNGStruct;
+  CRC: Cardinal;
+begin
+  CurPos1 := 0;
+  CurPos2 := 0;
+  Result := False;
+  I64 := Succ(PNG_SIG);
+  if (PInt64(InBuff)^ = I64) and (PInteger(InBuff + 12)^ = PNG_HDR) then
+  begin
+    Dec(I64);
+    Move(I64, (OutBuff + CurPos2)^, I64.Size);
+    for I := 1 to 2 do
+    begin
+      CurPos1 := 8;
+      CurPos2 := 8;
+      LStr := PPNGStruct(InBuff + CurPos1)^;
+      LStr.Size := EndianSwap(LStr.Size);
+      while LStr.Header <> PNG_END do
+      begin
+        if (LStr.Header = PNG_DAT) then
+          J := SizeOf(TPNGStruct) + CRC.Size
+        else
+          J := SizeOf(TPNGStruct) + LStr.Size + CRC.Size;
+        K := SizeOf(TPNGStruct) + LStr.Size + CRC.Size;
+        if I = 2 then
+        begin
+          if (LStr.Header = PNG_DAT) then
+          begin
+            Move((InBuff + CurPos1)^, (OutBuff + CurPos2)^, SizeOf(TPNGStruct));
+            Move((InBuff + ReadPos)^, (OutBuff + CurPos2 + SizeOf(TPNGStruct))^,
+              LStr.Size);
+            Inc(ReadPos, LStr.Size);
+            Move((InBuff + CurPos1 + SizeOf(TPNGStruct))^,
+              (OutBuff + CurPos2 + SizeOf(TPNGStruct) + LStr.Size)^, CRC.Size);
+          end
+          else
+            Move((InBuff + CurPos1)^, (OutBuff + CurPos2)^, J);
+        end;
+        Inc(CurPos1, J);
+        Inc(CurPos2, K);
+        LStr := PPNGStruct(InBuff + CurPos1)^;
+        LStr.Size := EndianSwap(LStr.Size);
+      end;
+      if LStr.Header = PNG_END then
+      begin
+        J := SizeOf(TPNGStruct) + LStr.Size + CRC.Size;
+        if I = 2 then
+          Move((InBuff + CurPos1)^, (OutBuff + CurPos2)^, J);
+        Inc(CurPos1, J);
+        Inc(CurPos2, J);
+        if I = 1 then
+          ReadPos := CurPos1
+        else
+          Result := True;
+      end
+      else
+        break;
+    end;
+  end;
+end;
 
 function ZlibInit(Command: PChar; Count: Integer; Funcs: PPrecompFuncs)
   : Boolean;
@@ -66,7 +255,7 @@ begin
   CodecAvailable[ZLIB_CODEC] := ZLibDLL.DLLLoaded;
   CodecAvailable[REFLATE_CODEC] := ReflateDLL.DLLLoaded;
   CodecAvailable[PREFLATE_CODEC] := PreflateDLL.DLLLoaded;
-  CodecAvailable[GRITTIBANZLI_CODEC] := GrittibanzliDLL.DLLLoaded;
+  CodecAvailable[PNG_CODEC] := True;
   X := 0;
   while Funcs^.GetCodec(Command, X, False) <> '' do
   begin
@@ -92,9 +281,8 @@ begin
     else if (CompareText(S, ZlibCodecs[PREFLATE_CODEC]) = 0) and PreflateDLL.DLLLoaded
     then
       CodecEnabled[PREFLATE_CODEC] := True
-    else if (CompareText(S, ZlibCodecs[GRITTIBANZLI_CODEC]) = 0) and
-      GrittibanzliDLL.DLLLoaded then
-      CodecEnabled[GRITTIBANZLI_CODEC] := True;
+    else if (CompareText(S, ZlibCodecs[PNG_CODEC]) = 0) then
+      CodecEnabled[PNG_CODEC] := True;
     Inc(X);
   end;
   if CodecAvailable[ZLIB_CODEC] then
@@ -193,7 +381,7 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, ZlibCodecs[ZLIB_CODEC]) = 0) and ZLibDLL.DLLLoaded then
     begin
-      SetBits(Option^, 0, 0, 5);
+      SetBits(Option^, ZLIB_CODEC, 0, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       if Funcs^.GetParam(Command, I, 'w') <> '' then
@@ -204,7 +392,7 @@ begin
     else if (CompareText(S, ZlibCodecs[REFLATE_CODEC]) = 0) and ReflateDLL.DLLLoaded
     then
     begin
-      SetBits(Option^, 1, 0, 5);
+      SetBits(Option^, REFLATE_CODEC, 0, 5);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
         SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
       Result := True;
@@ -212,13 +400,12 @@ begin
     else if (CompareText(S, ZlibCodecs[PREFLATE_CODEC]) = 0) and PreflateDLL.DLLLoaded
     then
     begin
-      SetBits(Option^, 2, 0, 5);
+      SetBits(Option^, PREFLATE_CODEC, 0, 5);
       Result := True;
     end
-    else if (CompareText(S, ZlibCodecs[GRITTIBANZLI_CODEC]) = 0) and
-      GrittibanzliDLL.DLLLoaded then
+    else if (CompareText(S, ZlibCodecs[PNG_CODEC]) = 0) then
     begin
-      SetBits(Option^, 3, 0, 5);
+      SetBits(Option^, PNG_CODEC, 0, 5);
       Result := True;
     end;
     Inc(I);
@@ -242,7 +429,7 @@ var
   SI: _StrInfo1;
   DI1, DI2: TDepthInfo;
   DS: TPrecompStr;
-  LastIn, LastOut: cardinal;
+  LastIn, LastOut: Cardinal;
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
   DS := Funcs^.GetCodec(DI1.Codec, 0, False);
@@ -251,7 +438,7 @@ begin
     X := IndexTextW(@DS[0], ZlibCodecs);
     if (X < 0) or (DI1.OldSize <> SizeEx) then
       exit;
-    if not CodecAvailable[X] then
+    if CodecAvailable[X] then
       exit;
   end
   else if BoolArray(CodecEnabled, False) then
@@ -261,6 +448,27 @@ begin
   IsZlib := False;
   while Pos < Size do
   begin
+    if CodecEnabled[PNG_CODEC] then
+    begin
+      if PInt64(Input + Pos)^ = $A1A0A0D474E5089 then
+      begin
+        Res := EncodePNG(Instance, Input, Pos, SizeEx, Output, Add, Funcs);
+        if Res > 0 then
+        begin
+          if not Assigned(Add) then
+            exit;
+          Inc(Pos, Res);
+          continue;
+        end;
+      end;
+      if (CodecEnabled[ZLIB_CODEC] = False) and
+        (CodecEnabled[REFLATE_CODEC] = False) and
+        (CodecEnabled[PREFLATE_CODEC] = False) then
+      begin
+        Inc(Pos);
+        continue;
+      end;
+    end;
     Res := PInteger(Input + Pos)^;
     for I := 1 to 3 do
     begin
@@ -403,7 +611,7 @@ var
   Res: Integer;
   I: Integer;
   ZStream: z_streamp;
-  LastIn, LastOut: cardinal;
+  LastIn, LastOut: Cardinal;
 begin
   Result := False;
   Scan2Pos[Instance] := 0;
@@ -449,12 +657,13 @@ var
   ZStream: z_streamp;
   HR: Pointer;
   Verified: Boolean;
-  CRC: cardinal;
+  CRC: Cardinal;
 begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
-  if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
-    exit;
+  if not X in [PNG_CODEC] then
+    if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
+      exit;
   case X of
     ZLIB_CODEC:
       begin
@@ -514,15 +723,12 @@ begin
         end;
         if Result = False then
         begin
-          if CodecEnabled[REFLATE_CODEC] or CodecEnabled[PREFLATE_CODEC] or
-            CodecEnabled[GRITTIBANZLI_CODEC] then
+          if CodecEnabled[REFLATE_CODEC] or CodecEnabled[PREFLATE_CODEC] then
           begin
             if CodecEnabled[REFLATE_CODEC] then
               SetBits(StreamInfo^.Option, REFLATE_CODEC, 0, 5)
             else if CodecEnabled[PREFLATE_CODEC] then
-              SetBits(StreamInfo^.Option, PREFLATE_CODEC, 0, 5)
-            else
-              SetBits(StreamInfo^.Option, GRITTIBANZLI_CODEC, 0, 5);
+              SetBits(StreamInfo^.Option, PREFLATE_CODEC, 0, 5);
             Result := ZlibProcess(Instance, Depth, OldInput, NewInput,
               StreamInfo, Output, Funcs);
           end;
@@ -595,20 +801,14 @@ begin
           PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize + Res2,
           StreamInfo^.OldSize, Result);
       end;
-    GRITTIBANZLI_CODEC:
+    PNG_CODEC:
       begin
-        Res1 := StreamInfo^.NewSize;
-        Res2 := G_HIFSIZE;
-        Buffer := Funcs^.Allocator(Instance, Res2);
-        Params := 'w' + (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
-        if Grittibanzli(OldInput, StreamInfo^.OldSize, NewInput, @Res1, Buffer,
-          @Res2) then
-        begin
-          Output(Instance, Buffer, Res2);
-          Result := True;
-        end;
+        Buffer := Funcs^.Allocator(Instance, StreamInfo^.OldSize);
+        Params := '';
+        if DecodePNG(NewInput, Buffer, StreamInfo^.OldSize) then
+          Result := CompareMem(OldInput, Buffer, StreamInfo^.OldSize);
         Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
-          PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize + Res2,
+          PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize,
           StreamInfo^.OldSize, Result);
       end;
   end;
@@ -628,8 +828,9 @@ var
 begin
   Result := False;
   X := GetBits(StreamInfo.Option, 0, 5);
-  if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
-    exit;
+  if not X in [PNG_CODEC] then
+    if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
+      exit;
   case X of
     ZLIB_CODEC:
       begin
@@ -711,20 +912,18 @@ begin
           PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize +
           StreamInfo.ExtSize, Res1, Result);
       end;
-    GRITTIBANZLI_CODEC:
+    PNG_CODEC:
       begin
-        Res1 := StreamInfo.OldSize;
-        Buffer := Funcs^.Allocator(Instance, Res1);
-        Params := 'w' + (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
-        if Ungrittibanzli(Input, StreamInfo.NewSize, InputExt,
-          StreamInfo.ExtSize, Buffer, @Res1) then
+        Buffer := Funcs^.Allocator(Instance, StreamInfo.OldSize);
+        Params := '';
+        if DecodePNG(Input, Buffer, StreamInfo.OldSize) then
         begin
-          Output(Instance, Buffer, Res1);
+          Output(Instance, Buffer, StreamInfo.OldSize);
           Result := True;
         end;
         Funcs^.LogRestore(ZlibCodecs[GetBits(StreamInfo.Option, 0, 5)],
-          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize +
-          StreamInfo.ExtSize, Res1, Result);
+          PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize,
+          StreamInfo.OldSize, Result);
       end;
   end;
 end;
