@@ -7,7 +7,7 @@ uses
   WinAPI.Windows, WinAPI.PsAPI,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.AnsiStrings, System.StrUtils, System.IniFiles, System.IOUtils,
-  System.RTLConsts, System.TypInfo, System.Net.HttpClientComponent,
+  System.RTLConsts, System.TypInfo, System.ZLib, System.Net.HttpClientComponent,
   System.Generics.Defaults, System.Generics.Collections;
 
 procedure ShowMessage(Msg: string; Caption: string = '');
@@ -355,6 +355,7 @@ type
   PExecOutput = ^TExecOutput;
   TExecOutput = reference to procedure(const Buffer: Pointer; Size: Integer);
 
+function CRC32(CRC: longword; buf: PByte; len: cardinal): longword;
 function Hash32(CRC: longword; buf: PByte; len: cardinal): longword;
 
 procedure XORBuffer(InBuff: PByte; InSize: Integer; KeyBuff: PByte;
@@ -2080,6 +2081,11 @@ var
 begin
   for I := 0 to Size - 1 do
     AddByte((PByte(AData) + I)^);
+end;
+
+function CRC32(CRC: longword; buf: PByte; len: cardinal): longword;
+begin
+  Result := System.ZLib.CRC32(CRC, buf, len);
 end;
 
 function Hash32(CRC: longword; buf: PByte; len: cardinal): longword;
