@@ -272,8 +272,8 @@ begin
   end;
   if Res > StreamInfo^.OldSize then
   begin
-    Output(Instance, Buffer, Res);
     StreamInfo^.NewSize := Res;
+    Output(Instance, Buffer, Res);
     Funcs^.LogScan2(LZOCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
@@ -301,7 +301,6 @@ begin
     if StreamInfo^.Status = TStreamStatus.Predicted then
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
-    Params := '';
     Res1 := StreamInfo^.NewSize;
     case X of
       LZO1X_CODEC:
@@ -327,7 +326,7 @@ begin
       break;
   end;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
+    (SOList[Instance][X].Count = 1)) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
@@ -362,7 +361,6 @@ begin
   X := GetBits(StreamInfo.Option, 0, 5);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
-  Params := '';
   Buffer := Funcs^.Allocator(Instance, StreamInfo.NewSize);
   Res1 := StreamInfo.NewSize;
   case X of

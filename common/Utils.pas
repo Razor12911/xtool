@@ -44,16 +44,6 @@ procedure SetBits(var Data: UInt64; Value: Int64; Index: TInt64_BitIndex;
   Count: TInt64_BitCount); overload;
 
 type
-  PDynArrayRec = ^TDynArrayRec;
-
-  TDynArrayRec = packed record
-{$IFDEF CPUX64}
-    _Padding: LongInt;
-{$ENDIF}
-    RefCnt: LongInt;
-    Length: NativeInt;
-  end;
-
   TListEx<T> = class(TList<T>)
   private
     FIndex: Integer;
@@ -95,13 +85,6 @@ type
     property Method: TSOMethod read FSOMethod write FSOMethod;
   end;
 
-  TNullStream = class(TStream)
-  public
-    constructor Create;
-    destructor Destroy; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
-  end;
-
   TArrayStream = class(TStream)
   private type
     _Stream = ^IStream;
@@ -114,7 +97,7 @@ type
     FMaxStreamSize = $FFFFFFFFFF;
   protected
     function GetSize: Int64; override;
-    procedure SetSize(NewSize: LongInt); override;
+    procedure SetSize(NewSize: Longint); override;
     procedure SetSize(const NewSize: Int64); override;
   private
     FStreams: TArray<IStream>;
@@ -127,8 +110,8 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     procedure Clear;
     function Add(AStreamType: Pointer; MaxSize: Int64 = FMaxStreamSize)
@@ -139,7 +122,7 @@ type
   TPointersStream = class(TStream)
   protected
     function GetSize: Int64; override;
-    procedure SetSize(NewSize: LongInt); override;
+    procedure SetSize(NewSize: Longint); override;
     procedure SetSize(const NewSize: Int64); override;
   private
     FPointers: TArray<Pointer>;
@@ -152,8 +135,8 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     function Add(Ptr: Pointer; Size: NativeInt): Integer;
     procedure Delete(Index: Integer);
@@ -174,46 +157,11 @@ type
       AMaxSize: NativeInt = 0); overload;
     destructor Destroy; override;
     procedure SetSize(const NewSize: Int64); override;
-    procedure SetSize(NewSize: LongInt); override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
+    procedure SetSize(NewSize: Longint); override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     procedure Update(const AMemory: Pointer = nil; AMaxSize: NativeInt = 0);
-  end;
-
-  TDirInputStream = class(TStream)
-  protected type
-    TState = (iNone, iLength, iFilename, iSize, iData);
-  private
-    FState: TState;
-    FPath: String;
-    FBaseDir: String;
-    FList: TArray<String>;
-    FIndex, FCount: Integer;
-    FLength: Word;
-    FBytes: TBytes;
-    FStream: TFileStream;
-    FPosition, FSize: Int64;
-  public
-    constructor Create(const APath: String);
-    destructor Destroy; override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
-  end;
-
-  TDirOutputStream = class(TStream)
-  protected type
-    TState = (oNone, oLength, oFilename, oSize, oData);
-  private
-    FState: TState;
-    FPath: String;
-    FLength: Word;
-    FBytes: TBytes;
-    FStream: TFileStream;
-    FPosition, FSize: Int64;
-  public
-    constructor Create(const APath: String);
-    destructor Destroy; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
   end;
 
   TSharedMemoryStream = class(TMemoryStreamEx)
@@ -231,7 +179,7 @@ type
     constructor Create(const AMapName: String; ASize: NativeInt); overload;
     destructor Destroy; override;
     procedure SetSize(const NewSize: Int64); override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
   end;
 
   TDownloadStream = class(TStream)
@@ -247,7 +195,7 @@ type
   public
     constructor Create(Url: string);
     destructor Destroy; override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
   end;
 
@@ -349,23 +297,23 @@ type
     PBlockInfo = ^TBlockInfo;
 
     TBlockInfo = record
-      ID: Integer;
       Position, CurrSize, FullSize: Int64;
       Count: Integer;
     end;
+
+    TBlockInfoDynArray = TArray<TBlockInfo>;
   private
-    FSearchList: TArray<TBlockInfo>;
+    FSync: TSynLocker;
+    FDictionary: TSynDictionary;
     FStream: TStream;
-    FStreamPos, FStreamSize: Int64;
+    FStreamPos: Int64;
   public
-    constructor Create(AStream: TStream);
+    constructor Create(AStream: TStream; ACapacity: Integer = 0);
     destructor Destroy; override;
     procedure Add(ID: Integer; Size: Int64; Count: Integer = Integer.MaxValue);
-    procedure Write(ID: Integer; Buffer: Pointer; Size: Integer);
+    procedure Write(ID: Integer; const Buffer; Size: Integer);
     procedure CopyData(ID: Integer; Stream: TStream); overload;
-    function CopyData(ID: Integer; Data: Pointer): Integer; overload;
-    procedure Update(ID: Integer; Count: Integer);
-    procedure Reset(ID: Integer);
+    function CopyData(ID: Integer): Pointer; overload;
   end;
 
   TArgParser = class(TObject)
@@ -731,21 +679,6 @@ begin
   Result := FList.Count;
 end;
 
-constructor TNullStream.Create;
-begin
-  inherited Create;
-end;
-
-destructor TNullStream.Destroy;
-begin
-  inherited Destroy;
-end;
-
-function TNullStream.Write(const Buffer; Count: LongInt): LongInt;
-begin
-  Result := Count;
-end;
-
 constructor TArrayStream.Create;
 begin
   inherited Create;
@@ -848,7 +781,7 @@ begin
   Result := FSize;
 end;
 
-procedure TArrayStream.SetSize(NewSize: LongInt);
+procedure TArrayStream.SetSize(NewSize: Longint);
 begin
   SetSize(Int64(NewSize));
 end;
@@ -861,7 +794,7 @@ begin
     Seek(0, soEnd);
 end;
 
-function TArrayStream.Read(var Buffer; Count: LongInt): LongInt;
+function TArrayStream.Read(var Buffer; Count: Longint): Longint;
 var
   LCount: Int64;
 begin
@@ -875,7 +808,7 @@ begin
   Inc(FPosition, Result);
 end;
 
-function TArrayStream.Write(const Buffer; Count: LongInt): LongInt;
+function TArrayStream.Write(const Buffer; Count: Longint): Longint;
 var
   LCount: Int64;
 begin
@@ -955,7 +888,7 @@ begin
   Result := FSize;
 end;
 
-procedure TPointersStream.SetSize(NewSize: LongInt);
+procedure TPointersStream.SetSize(NewSize: Longint);
 begin
   SetSize(Int64(NewSize));
 end;
@@ -984,12 +917,12 @@ begin
     FSize := FMaxSize;
 end;
 
-function TPointersStream.Read(var Buffer; Count: LongInt): LongInt;
+function TPointersStream.Read(var Buffer; Count: Longint): Longint;
 begin
   // 2121212
 end;
 
-function TPointersStream.Write(const Buffer; Count: LongInt): LongInt;
+function TPointersStream.Write(const Buffer; Count: Longint): Longint;
 begin
 
 end;
@@ -1053,7 +986,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TMemoryStreamEx.SetSize(NewSize: LongInt);
+procedure TMemoryStreamEx.SetSize(NewSize: Longint);
 begin
   SetSize(Int64(NewSize));
 end;
@@ -1069,7 +1002,7 @@ begin
     Seek(0, soEnd);
 end;
 
-function TMemoryStreamEx.Read(var Buffer; Count: LongInt): LongInt;
+function TMemoryStreamEx.Read(var Buffer; Count: Longint): Longint;
 begin
   Result := 0;
   if (FPosition >= 0) and (Count >= 0) then
@@ -1086,9 +1019,9 @@ begin
   end;
 end;
 
-function TMemoryStreamEx.Write(const Buffer; Count: LongInt): LongInt;
+function TMemoryStreamEx.Write(const Buffer; Count: Longint): Longint;
 var
-  FCount: LongInt;
+  FCount: Longint;
 begin
   Result := 0;
   FCount := Count;
@@ -1142,210 +1075,6 @@ begin
   SetPointer(AMemory, LSize);
   FMaxSize := AMaxSize;
   SetSize(LSize);
-end;
-
-constructor TDirInputStream.Create(const APath: String);
-begin
-  inherited Create;
-  FState := TState.iNone;
-  FPath := TPath.GetFullPath(APath);
-  if FileExists(FPath) then
-    FBaseDir := ExtractFilePath(TPath.GetFullPath(FPath))
-  else if DirectoryExists(FPath) then
-    FBaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(FPath))
-  else
-    FBaseDir := ExtractFilePath(TPath.GetFullPath(FPath));
-  FList := GetFileList([FPath], True);
-  FCount := Length(FList);
-  if FCount = 0 then
-    raise EFOpenError.CreateRes(@SEmptyPath);
-  FIndex := -1;
-  FStream := nil;
-end;
-
-destructor TDirInputStream.Destroy;
-begin
-  if Assigned(FStream) then
-    FStream.Free;
-  FStream := nil;
-  inherited Destroy;
-end;
-
-function TDirInputStream.Read(var Buffer; Count: LongInt): LongInt;
-var
-  LCount: Integer;
-begin
-  Result := 0;
-  if Count <= 0 then
-    exit;
-  if FState = TState.iNone then
-  begin
-    if Succ(FIndex) >= FCount then
-      exit;
-    Inc(FIndex);
-    FBytes := BytesOf(ReplaceText(FList[FIndex], FBaseDir, ''));
-    FLength := Length(FBytes);
-    FPosition := 0;
-    FSize := FileSize(FList[FIndex]);
-    FState := TState.iLength;
-  end;
-  if FState = TState.iLength then
-    if FPosition < FLength.Size then
-    begin
-      LCount := Min(FLength.Size - FPosition, Count);
-      Move(WordRec(FLength).Bytes[FPosition], Buffer, LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FLength.Size then
-      begin
-        FState := TState.iFilename;
-        FPosition := 0;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.iFilename then
-    if FPosition < FLength then
-    begin
-      LCount := Min(FLength - FPosition, Count);
-      Move(FBytes[FPosition], Buffer, LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FLength then
-      begin
-        FState := TState.iSize;
-        FPosition := 0;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.iSize then
-    if FPosition < FSize.Size then
-    begin
-      LCount := Min(FSize.Size - FPosition, Count);
-      Move(Int64Rec(FSize).Bytes[FPosition], Buffer, LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FSize.Size then
-      begin
-        if FSize = 0 then
-          FState := TState.iNone
-        else
-        begin
-          FState := TState.iData;
-          FPosition := 0;
-          FStream := TFileStream.Create(FList[FIndex], fmShareDenyNone);
-        end;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.iData then
-    if FPosition < FSize then
-    begin
-      LCount := Min(FSize - FPosition, Count);
-      LCount := FStream.Read(Buffer, LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FSize then
-      begin
-        FState := TState.iNone;
-        FStream.Free;
-        FStream := nil;
-      end;
-      exit(LCount);
-    end;
-end;
-
-constructor TDirOutputStream.Create(const APath: String);
-begin
-  inherited Create;
-  FState := TState.oNone;
-  FPath := IncludeTrailingBackSlash(TPath.GetFullPath(APath));
-  FStream := nil;
-end;
-
-destructor TDirOutputStream.Destroy;
-begin
-  if Assigned(FStream) then
-    FStream.Free;
-  FStream := nil;
-  inherited Destroy;
-end;
-
-function TDirOutputStream.Write(const Buffer; Count: LongInt): LongInt;
-var
-  LCount: Integer;
-  LStr: String;
-begin
-  Result := 0;
-  if Count <= 0 then
-    exit;
-  if FState = TState.oNone then
-  begin
-    FPosition := 0;
-    FState := TState.oLength;
-  end;
-  if FState = TState.oLength then
-    if FPosition < FLength.Size then
-    begin
-      LCount := Min(FLength.Size - FPosition, Count);
-      Move(Buffer, WordRec(FLength).Bytes[FPosition], LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FLength.Size then
-      begin
-        SetLength(FBytes, FLength);
-        FState := TState.oFilename;
-        FPosition := 0;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.oFilename then
-    if FPosition < FLength then
-    begin
-      LCount := Min(FLength - FPosition, Count);
-      Move(Buffer, FBytes[FPosition], LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FLength then
-      begin
-        FState := TState.oSize;
-        FPosition := 0;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.oSize then
-    if FPosition < FSize.Size then
-    begin
-      LCount := Min(FSize.Size - FPosition, Count);
-      Move(Buffer, Int64Rec(FSize).Bytes[FPosition], LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FSize.Size then
-      begin
-        LStr := FPath + StringOf(FBytes);
-        if not DirectoryExists(ExtractFilePath(LStr)) then
-          ForceDirectories(ExtractFilePath(LStr));
-        FStream := TFileStream.Create(LStr, fmCreate);
-        if FSize = 0 then
-        begin
-          FState := TState.oNone;
-          FStream.Free;
-          FStream := nil;
-        end
-        else
-        begin
-          FState := TState.oData;
-          FPosition := 0;
-        end;
-      end;
-      exit(LCount);
-    end;
-  if FState = TState.oData then
-    if FPosition < FSize then
-    begin
-      LCount := Min(FSize - FPosition, Count);
-      LCount := FStream.Write(Buffer, LCount);
-      Inc(FPosition, LCount);
-      if FPosition = FSize then
-      begin
-        FState := TState.oNone;
-        FStream.Free;
-        FStream := nil;
-      end;
-      exit(LCount);
-    end;
 end;
 
 constructor TSharedMemoryStream.Create(const AMapName: String;
@@ -1462,7 +1191,7 @@ begin
   inherited SetSize(NewSize);
 end;
 
-function TSharedMemoryStream.Write(const Buffer; Count: LongInt): LongInt;
+function TSharedMemoryStream.Write(const Buffer; Count: Longint): Longint;
 begin
   if FPosition + Count > FMaxSize then
     IncMemory(FPosition + Count);
@@ -1498,7 +1227,7 @@ begin
   Abort := True;
 end;
 
-function TDownloadStream.Read(var Buffer; Count: LongInt): LongInt;
+function TDownloadStream.Read(var Buffer; Count: Longint): Longint;
 begin
   if (FPosition >= 0) and (Count >= 0) then
   begin
@@ -2050,132 +1779,107 @@ begin
   FSizes[Index] := 0;
 end;
 
-constructor TDataManager.Create(AStream: TStream);
+constructor TDataManager.Create(AStream: TStream; ACapacity: Integer);
 begin
   inherited Create;
+  FSync.Init;
+  FDictionary := TSynDictionary.Create(TypeInfo(TIntegerDynArray),
+    TypeInfo(TBlockInfoDynArray));
+  FDictionary.Capacity := ACapacity;
   FStream := AStream;
   FStreamPos := FStream.Position;
-  FStreamSize := 0;
 end;
 
 destructor TDataManager.Destroy;
 begin
+  FDictionary.Free;
+  FSync.Done;
   inherited Destroy;
 end;
 
 procedure TDataManager.Add(ID: Integer; Size: Int64; Count: Integer);
 var
-  I: Integer;
   LBlockInfo: TBlockInfo;
+  _BlockInfo: PBlockInfo;
+  I: Integer;
 begin
   if Count <= 0 then
     exit;
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (FSearchList[I].Count <= 0) and (Size <= FSearchList[I].FullSize) then
+  FSync.Lock;
+  try
+    LBlockInfo.Position := 0;
+    for I := 0 to FDictionary.Count - 1 do
     begin
-      FSearchList[I].ID := ID;
-      FSearchList[I].CurrSize := 0;
-      FSearchList[I].Count := Count;
-      exit;
+      _BlockInfo := PBlockInfo(FDictionary.Values.ElemPtr(I));
+      LBlockInfo.Position := Max(LBlockInfo.Position, _BlockInfo^.Position +
+        _BlockInfo^.FullSize);
     end;
+    LBlockInfo.CurrSize := 0;
+    LBlockInfo.FullSize := Size;
+    LBlockInfo.Count := Count;
+    FStream.Size := Max(FStream.Size, FStreamPos + LBlockInfo.Position +
+      LBlockInfo.FullSize);
+    FDictionary.Add(ID, LBlockInfo);
+  finally
+    FSync.UnLock;
   end;
-  LBlockInfo.ID := ID;
-  LBlockInfo.Position := FStreamPos + FStreamSize;
-  LBlockInfo.CurrSize := 0;
-  LBlockInfo.FullSize := Size;
-  LBlockInfo.Count := Count;
-  Insert(LBlockInfo, FSearchList, Length(FSearchList));
-  Inc(FStreamSize, Size);
+  // once reads reaches 0, add list of all available spaces
 end;
 
-procedure TDataManager.Write(ID: Integer; Buffer: Pointer; Size: Integer);
+procedure TDataManager.Write(ID: Integer; const Buffer; Size: Integer);
 var
-  I: Integer;
+  _BlockInfo: PBlockInfo;
 begin
   if Size <= 0 then
     exit;
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (ID = FSearchList[I].ID) and (FSearchList[I].Count > 0) then
-    begin
-      if FSearchList[I].CurrSize + Size > FSearchList[I].FullSize then
-        raise EWriteError.CreateRes(@SWriteError);
-      FStream.Position := FSearchList[I].Position + FSearchList[I].CurrSize;
-      FStream.WriteBuffer(Buffer^, Size);
-      Inc(FSearchList[I].CurrSize, Size);
-      exit;
-    end;
+  FSync.Lock;
+  try
+    _BlockInfo := FDictionary.FindValue(ID);
+    if (_BlockInfo^.Position + _BlockInfo^.CurrSize + Size) >
+      (_BlockInfo^.Position + _BlockInfo^.FullSize) then
+      raise EWriteError.CreateRes(@SWriteError);
+    FStream.Position := FStreamPos + _BlockInfo^.Position +
+      _BlockInfo^.CurrSize;
+    FStream.WriteBuffer(Buffer, Size);
+    Inc(_BlockInfo^.CurrSize, Size);
+  finally
+    FSync.UnLock;
   end;
-  raise Exception.CreateRes(@SGenericItemNotFound);
 end;
 
 procedure TDataManager.CopyData(ID: Integer; Stream: TStream);
 var
-  I: Integer;
+  _BlockInfo: PBlockInfo;
 begin
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (ID = FSearchList[I].ID) and (FSearchList[I].Count > 0) then
-    begin
-      FStream.Position := FSearchList[I].Position;
-      CopyStreamEx(FStream, Stream, FSearchList[I].CurrSize);
-      Dec(FSearchList[I].Count);
-      exit;
-    end;
+  FSync.Lock;
+  try
+    _BlockInfo := FDictionary.FindValue(ID);
+    if _BlockInfo^.CurrSize <> _BlockInfo^.FullSize then
+      raise EReadError.CreateRes(@SReadError);
+    FStream.Position := FStreamPos + _BlockInfo^.Position;
+    CopyStreamEx(FStream, Stream, _BlockInfo^.FullSize);
+    Dec(_BlockInfo^.Count);
+  finally
+    FSync.UnLock;
   end;
-  raise Exception.CreateRes(@SGenericItemNotFound);
 end;
 
-function TDataManager.CopyData(ID: Integer; Data: Pointer): Integer;
+function TDataManager.CopyData(ID: Integer): Pointer;
 var
-  I: Integer;
+  _BlockInfo: PBlockInfo;
 begin
-  Result := 0;
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (ID = FSearchList[I].ID) and (FSearchList[I].Count > 0) then
-    begin
-      FStream.Position := FSearchList[I].Position;
-      FStream.ReadBuffer(Data^, FSearchList[I].CurrSize);
-      Result := FSearchList[I].CurrSize;
-      Dec(FSearchList[I].Count);
-      if FSearchList[I].Count = 0 then
-        FSearchList[I].ID := -1;
-      exit;
-    end;
+  FSync.Lock;
+  try
+    _BlockInfo := FDictionary.FindValue(ID);
+    if _BlockInfo^.CurrSize <> _BlockInfo^.FullSize then
+      raise EReadError.CreateRes(@SReadError);
+    FStream.Position := FStreamPos + _BlockInfo^.Position +
+      _BlockInfo^.CurrSize;
+    FStream.ReadBuffer(Result^, _BlockInfo^.FullSize);
+    Dec(_BlockInfo^.Count);
+  finally
+    FSync.UnLock;
   end;
-  raise Exception.CreateRes(@SGenericItemNotFound);
-end;
-
-procedure TDataManager.Update(ID: Integer; Count: Integer);
-var
-  I: Integer;
-begin
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (ID = FSearchList[I].ID) then
-    begin
-      FSearchList[I].Count := Count;
-      exit;
-    end;
-  end;
-  raise Exception.CreateRes(@SGenericItemNotFound);
-end;
-
-procedure TDataManager.Reset(ID: Integer);
-var
-  I: Integer;
-begin
-  for I := Low(FSearchList) to High(FSearchList) do
-  begin
-    if (ID = FSearchList[I].ID) and (FSearchList[I].Count > 0) then
-    begin
-      FSearchList[I].CurrSize := 0;
-      exit;
-    end;
-  end;
-  raise Exception.CreateRes(@SGenericItemNotFound);
 end;
 
 constructor TArgParser.Create(Arguments: TStringDynArray);

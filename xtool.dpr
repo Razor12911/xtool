@@ -52,13 +52,9 @@ uses
   oObjects in 'contrib\ParseExpression\oObjects.pas',
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
-  BrunsliDLL in 'imports\BrunsliDLL.pas',
-  FLACDLL in 'imports\FLACDLL.pas',
-  JoJpegDLL in 'imports\JoJpegDLL.pas',
   LZ4DLL in 'imports\LZ4DLL.pas',
   LZODLL in 'imports\LZODLL.pas',
   OodleDLL in 'imports\OodleDLL.pas',
-  PackJPGDLL in 'imports\PackJPGDLL.pas',
   PreflateDLL in 'imports\PreflateDLL.pas',
   ReflateDLL in 'imports\ReflateDLL.pas',
   XDeltaDLL in 'imports\XDeltaDLL.pas',
@@ -72,7 +68,6 @@ uses
   PrecompLZ4 in 'precompressor\PrecompLZ4.pas',
   PrecompLZO in 'precompressor\PrecompLZO.pas',
   PrecompZSTD in 'precompressor\PrecompZSTD.pas',
-  PrecompMedia in 'precompressor\PrecompMedia.pas',
   PrecompOodle in 'precompressor\PrecompOodle.pas',
   PrecompINI in 'precompressor\PrecompINI.pas',
   PrecompSearch in 'precompressor\PrecompSearch.pas',
@@ -87,8 +82,7 @@ uses
   IOPatch in 'io\IOPatch.pas',
   IOExecute in 'io\IOExecute.pas',
   IODecode in 'io\IODecode.pas',
-  IOUtils in 'io\IOUtils.pas',
-  LZMADLL in 'imports\LZMADLL.pas';
+  IOUtils in 'io\IOUtils.pas';
 
 {$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE or IMAGE_FILE_RELOCS_STRIPPED}
 
@@ -147,22 +141,263 @@ begin
     Result := THandleStream.Create(GetStdHandle(STD_INPUT_HANDLE))
   else if Pos('://', Input) > 0 then
     Result := TDownloadStream.Create(Input)
-  else if FileExists(Input) then
-    Result := TFileStream.Create(Input, fmShareDenyNone)
   else
-    Result := TDirInputStream.Create(Input);
+    Result := TFileStream.Create(Input, fmShareDenyNone);
 end;
 
-function GetOutStream(Output: string; MultiInput: Boolean = False): TStream;
+function GetOutStream(Output: string): TStream;
 begin
-  if (Output = '') then
-    Result := TNullStream.Create
-  else if DirectoryExists(Output) then
-    Result := TDirOutputStream.Create(Output)
-  else if (Output = '-') then
+  if (Output = '-') or (Output = '') then
     Result := THandleStream.Create(GetStdHandle(STD_OUTPUT_HANDLE))
   else
     Result := TFileStream.Create(Output, fmCreate);
+end;
+
+{ changelog
+  ES_R34 (0.5.3)
+  - added png stream preprocessor
+  - removed grittibanzli codec (since nobody uses it)
+
+  ES_R33 (0.5.2)
+  - added IO functions (archive, execute)
+  - fixed issue in patch io function
+  - removed compression on patch diff files
+
+  ES_R32 (0.5.1)
+  - added IO functions (find, extract, patch)
+  - generate database feature and IO functions now can search for streams larger than chunk size
+
+  ES_R31 (0.5.0)
+  - added IO functions (erase, replace)
+  - fixed external executable support bugs
+
+  ES_R30 (0.4.8)
+  - fixed issue with storing incorrect recompression information when stream patching is performed
+
+  ES_R29 (0.4.7)
+  - updated oodle scanner
+  - updated external executable support
+  - updated configuration based plugin support to add depth information
+  - updated verbose mode
+
+  ES_R28 (0.4.6)
+  - generate database feature fixed
+  - fixed external executable support issues
+  - fixed lz4f level setting bug
+
+  ES_R28 (0.4.5)
+  - removed leviathan codec restriction
+
+  ES_R27 (0.4.4)
+  - fixed issue of lz4 codec loading incorrect library
+  - fixed issue with handling endianess via configuration based plugins
+  - updated framework of library based plugins
+
+  ES_R26 (0.4.3)
+  - added verbose mode
+  - added feature that allows you to enforce a different library to be loaded
+  - fixed issues related to imperfect stream patching
+  - fixed issues with old libraries with missing functions that cause xtool to crash on startup
+  - updated oodle codec
+  - updated reflate codec
+  - updated zstd codec
+
+  ES_R25 (0.4.2)
+  - removed debugging code from encryption and executable codec
+  - fixed issue with depth when using search codec
+  - fixed external executable support issues
+
+  ES_R24 (0.4.1)
+  - fixed issue of status not reporting when encoding
+  - added depth method support for search support
+  - fixed zlib encoding issues for different window bits
+  - fixed zlib memory leak issue
+  - updated all internal codecs to support information relayed by external codecs
+  - updated lz4f codec and removed temporarily removed support for universal scanning
+  - added option to change recompression level to be used by reflate
+  - updated external executable support
+  - generate database feature currently bugged, wait for next update
+  - search database structure changed, older database files will no longer work with newer releases
+
+  ES_R23 (0.4.0)
+  - project made open source
+  - added external executable support
+  - added generate database feature
+  - fixed search support bug
+
+  ES_R22 (0.3.22)
+  - updated search support (speed improvements)
+  - updated command line parser
+  - added partial universal scanner for lzo1x streams
+  - added universal scanner for lz4f streams
+  - fixed issue with configuration files failing to execute without conditions
+
+  ES_R21 (0.3.21)
+  - updated search support
+
+  ES_R20 (0.3.20)
+  - fixed library support bug
+  - x86 build discontinued (has bugs from nowhere)
+
+  ES_R19 (0.3.19)
+  - updated lzo codec
+
+  ES_R18 (0.3.18)
+  - fixed depth bug
+  - fixed library plugin bugs
+
+  ES_R17 (0.3.17)
+  - fixed multi-threading bug
+
+  ES_R16 (0.3.16)
+  - minor bug fixes
+
+  ES_R15 (0.3.15)
+  - converted library support to unicode (don't know why I used ansi in the first place)
+  - added library support functions
+  - added rc4 encryption support
+
+  ES_R14 (0.3.14)
+  - fixed library support bug
+  - updated library structure
+
+  ES_R13 (0.3.13)
+  - updated lz4 codec
+  - updated library structure
+  - updated depth info functions
+  - updated depth feature
+
+  ES_R12 (0.3.12)
+  - added depth info functions
+  - added support for oodle 2.9.0+ functions
+  - fixed data patching bug
+  - updated oodle codec
+  - updated command line parser
+
+  ES_R11 (0.3.11)
+  - fixed x86 build bugs
+  - fixed config multi-threading bug
+  - fixed resource management bug
+  - fixed deduplication bug
+
+  ES_R10 (0.3.10)
+  - minor bug fixes
+  - added diff tolerance parameter (--diff=)
+  - fixed plugin database bug
+  - fixed lz4 codec bug
+  - updated oodle codec
+  - updated library structure
+  - added resource management
+  - added direct use encryption codecs
+  - added embedded deduplication feature (--dedup) [makes temps during encoding]
+
+  ES_R9 (0.3.9)
+  - fixed future stream bug
+
+  ES_R8 (0.3.8)
+  - fixed command line parser bug
+  - updated library support
+
+  ES_R7 (0.3.7)
+  - updated library structure
+
+  ES_R6 (0.3.6)
+  - updated oodle codec (fixed more lzna bugs)
+
+  ES_R5 (0.3.5)
+  - updated oodle codec (fixed lzna bug)
+  - added custom method configuration
+
+  ES_R4 (0.3.4)
+  - fixed bug depthing
+
+  ES_R3 (0.3.3)
+  - updated lz4 codec
+  - updated library support
+
+  ES_R2 (0.3.2)
+  - improved depthing
+  - updated library support
+  - fixed zstd codec issues
+  - removed fast memory
+
+  ES_R1 (0.3.1)
+  - updated library support
+  - updated command line parser
+  - included x86 build
+  - fixed depthing issues
+
+  2012_R2 (0.2.14)
+  - added library support
+  - added compress, decompress, encrypt, decrypt, hash, delta functions (used by library)
+  - added lzo codec placeholders
+  - fixed oodle bug
+  - fixed lz4 bug
+  - removed libdunia codec
+
+  2012_R1 (0.2.13)
+  - added oo2ext* dll support
+  - updated search support
+
+  2011_R1 (0.2.12)
+  - added temporary libdunia codec
+
+  2010_R5 (0.2.11)
+  - fixed search/config support bug
+
+  2010_R4 (0.2.10)
+  - updated search/config support
+
+  2010_R3 (0.2.9)
+  - added database search
+  - updated zlib scanner
+  - fixed reflate bug
+  - fixed 2GB memory limit
+
+  2010_R2 (0.2.8)
+  - fixed zstd codec
+
+  2010_R1 (0.2.7)
+  - added zstd codec
+  - added lz4, lz4hc, lzna, mermaid, selkie, hydra, leviathan codec placeholders
+  - added configuration support
+  - added xdelta support to handle crc mismatch streams
+
+  2009_R3 (0.2.6)
+  - documentation added
+
+  2009_R2 (0.2.5)
+  - added kraken codec
+  - fixed depthing issues
+
+  2009_R1 (0.2.4)
+  - added reflate forced verification
+  - updated deflate scanner
+  - fixed depthing issues
+  - fixed low memory mode issues
+  - fixed hanging issues when encoding
+
+  2008_R3 (0.2.3)
+  - fixed deduplication memory calculation error
+  - added virtual memory support for deduplication
+  - added --mem=# parameter to control deduplication memory usage
+
+  2008_R2 (0.2.2)
+  - fixed command line parser
+  - updated deflate scanner
+  - added stream deduplication
+  - added stream database
+  - added decompression memory limiter
+  - added grittibanzli (also handles deflate stream but slow af)
+
+  2008_R1 (0.2.1)
+  - initial release
+
+  changelog }
+
+procedure EncodePNG(Input: PByte; Output: PByte);
+begin
+
 end;
 
 const
@@ -225,10 +460,12 @@ begin
         PrecompMain.PrintHelp
       else
       begin
-        Input := TBufferedStream.Create(GetInStream(ParamArgSafe(1, 0)), True,
+        while Length(ParamArg[1]) < 2 do
+          Insert('-', ParamArg[1], Length(ParamArg[1]));
+        Input := TBufferedStream.Create(GetInStream(ParamArg[1, 0]), True,
           BufferSize);
-        Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)),
-          False, BufferSize);
+        Output := TBufferedStream.Create(GetOutStream(ParamArg[1, 1]), False,
+          BufferSize);
         try
           PrecompMain.Parse(ParamArg[0], PrecompEnc);
           PrecompMain.Encode(Input, Output, PrecompEnc);
@@ -313,6 +550,8 @@ begin
         IOArchive.PrintHelp
       else
       begin
+        while Length(ParamArg[1]) < 2 do
+          Insert('-', ParamArg[1], Length(ParamArg[1]));
         SetLength(StrArray, 0);
         for I := 0 to High(ParamArg[1]) - 1 do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));
@@ -330,6 +569,8 @@ begin
         IOExecute.PrintHelp
       else
       begin
+        while Length(ParamArg[1]) < 2 do
+          Insert('-', ParamArg[1], Length(ParamArg[1]));
         SetLength(StrArray, 0);
         for I := 2 to High(ParamArg[1]) do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));

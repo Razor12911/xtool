@@ -69,8 +69,6 @@ var
   LZ4F_compressFrame: function(dstBuffer: Pointer; dstCapacity: size_t;
     srcBuffer: Pointer; srcSize: size_t; preferencesPtr: PLZ4F_preferences_t)
     : size_t cdecl;
-  LZ4_compressHC2: function(const src: Pointer; dst: Pointer; srcSize: Integer;
-    compressionLevel: Integer): Integer cdecl;
   LZ4F_compressFrameBound: function(srcSize: size_t;
     preferencesPtr: PLZ4F_preferences_t): size_t cdecl;
   LZ4F_createDecompressionContext: function(out dctxPtr: LZ4F_dctx;
@@ -106,7 +104,6 @@ begin
     @LZ4_compress_default := GetProcAddress(DLLHandle, 'LZ4_compress_default');
     @LZ4_compress_fast := GetProcAddress(DLLHandle, 'LZ4_compress_fast');
     @LZ4_compress_HC := GetProcAddress(DLLHandle, 'LZ4_compress_HC');
-    @LZ4_compressHC2 := GetProcAddress(DLLHandle, 'LZ4_compressHC2');
     @LZ4F_compressFrame := GetProcAddress(DLLHandle, 'LZ4F_compressFrame');
     @LZ4F_compressFrameBound := GetProcAddress(DLLHandle,
       'LZ4F_compressFrameBound');

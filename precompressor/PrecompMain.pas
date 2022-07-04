@@ -7,7 +7,7 @@ interface
 uses
   Threading, Utils, SynCommons, ParseClass, ParseExpr,
   PrecompUtils, PrecompCrypto, PrecompZLib, PrecompLZ4, PrecompLZO, PrecompZSTD,
-  PrecompOodle, PrecompMedia, PrecompINI, PrecompSearch, PrecompDLL, PrecompEXE,
+  PrecompOodle, PrecompINI, PrecompSearch, PrecompDLL, PrecompEXE,
   WinAPI.Windows, WinAPI.ShlObj,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.StrUtils, System.RTLConsts, System.TimeSpan, System.Diagnostics,
@@ -24,7 +24,8 @@ type
     ChunkSize, Threads: Integer;
     Depth: Integer;
     LowMem: Boolean;
-    DBaseFile, ExtractDir: String;
+    DBaseFile: String;
+    DedupFile: String;
   end;
 
   PDecodeOptions = ^TDecodeOptions;
@@ -33,6 +34,7 @@ type
     Method: String;
     ChunkCount, Threads: Integer;
     Depth: Integer;
+    DedupFile: String;
     DedupSysMem, DedupGPUMem: Int64;
   end;
 
@@ -51,10 +53,10 @@ function PrecompReadFuture(Index: Integer; Position: NativeInt; Buffer: Pointer;
 procedure PrecompLogScan1(Codec: PChar; Position: Int64;
   InSize, OutSize: Integer)cdecl;
 procedure PrecompLogScan2(Codec: PChar; InSize, OutSize: Integer)cdecl;
-procedure PrecompLogProcess(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-  Status: Boolean)cdecl;
-procedure PrecompLogRestore(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-  Status: Boolean)cdecl;
+procedure PrecompLogProcess(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+procedure PrecompLogRestore(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
 procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
   Status: Boolean)cdecl;
 procedure PrecompLogPatch2(OldSize, NewSize, PatchSize: Integer;
@@ -99,11 +101,10 @@ var
   IntArray: array [0 .. 1] of Int64;
   Codecs: array of TPrecompressor;
   DBFile: String = '';
-  ExtDir: String = '';
   UseDB: Boolean = False;
+  DupFile: String = '';
   StoreDD: Boolean = False;
-  VERBOSE: Boolean = False;
-  EXTRACT: Boolean = False;
+  DupGUID: TGUID;
   DupSysMem: Int64 = 0;
   EncInfo: TEncInfo;
   ConTask: TTask;
@@ -130,14 +131,11 @@ begin
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Advanced parameters:');
   WriteLn(ErrOutput,
-    '  --dbase=#   - use database (#=filename to save db, optional)');
+    '  --dbase=#  - use database (#=filename to save db, optional)');
   WriteLn(ErrOutput,
-    '  --dedup=#   - use stream deduplication (#=filename to save db, optional)');
+    '  --dedup=#  - use stream deduplication (#=filename to save db, optional)');
   WriteLn(ErrOutput,
-    '  --mem=#     - deduplication ram usage limit (#=size) [75p]');
-  WriteLn(ErrOutput,
-    '  --diff=#    - set xdelta threshold to accept streams [5p]');
-  WriteLn(ErrOutput, '  --extract=# - extract streams to directory path');
+    '  --mem=#    - deduplication ram usage limit (#=size) [75p]');
   WriteLn(ErrOutput, '');
 end;
 
@@ -184,18 +182,16 @@ begin
     if Options.DBaseFile <> '' then
       UseDB := True;
     StoreDD := ArgParse.AsBoolean('--dedup');
+    Options.DedupFile := ArgParse.AsString('--dedup=');
     S := ArgParse.AsString('--diff=', 0, '5p');
     S := ReplaceText(S, 'p', '%');
     DIFF_TOLERANCE := Max(0.00, ExpParse.Evaluate(S));
     VERBOSE := ArgParse.AsBoolean('--verbose');
-    Options.ExtractDir := ArgParse.AsString('--extract=');
-    if Options.ExtractDir <> '' then
-      EXTRACT := DirectoryExists(Options.ExtractDir);
   finally
     ArgParse.Free;
     ExpParse.Free;
   end;
-  if VERBOSE or EXTRACT then
+  if VERBOSE then
     Options.Threads := 1;
 end;
 
@@ -214,6 +210,7 @@ begin
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
     Options.Threads := Max(1, Round(ExpParse.Evaluate(S)));
+    Options.DedupFile := ArgParse.AsString('--dedup=');
     S := ArgParse.AsString('--mem=', 0, '75p');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
@@ -270,13 +267,14 @@ type
     StrIdx: TArray<Integer>;
   end;
 
+  TDupRec = record
+    Dict: TSynDictionary;
+    Index: Integer;
+  end;
+
 var
-  DBInfo: TArray<TArray<TDatabase>>;
-  DBCount: TArray<Integer>;
-  DDInfo: TArray<TArray<TDuplicate1>>;
-  DDCount1: TArray<Integer>;
-  DDList1: TArray<Int64>;
-  DDIndex: Integer;
+  Database: TSynDictionary;
+  Duplicates1: array [0 .. 1] of TDupRec;
   ComVars1: TArray<TCommonVarsEnc>;
   Tasks: TArray<TTask>;
   CurCodec: TArray<Byte>;
@@ -287,7 +285,6 @@ var
   Scanned1, Scanned2, Processed: TArray<Boolean>;
   LogInt: Integer;
   LogInt64: Int64;
-  LogPtr: Pointer;
 
 procedure CodecInit(Count: Integer; Method: String);
 var
@@ -306,7 +303,6 @@ begin
   Insert(PrecompLZO.Codec, Codecs, Length(Codecs));
   Insert(PrecompZSTD.Codec, Codecs, Length(Codecs));
   Insert(PrecompOodle.Codec, Codecs, Length(Codecs));
-  Insert(PrecompMedia.Codec, Codecs, Length(Codecs));
   for X := Low(Codecs) to High(Codecs) do
     for Y := Low(Codecs[X].Names) to High(Codecs[X].Names) do
       Insert(Codecs[X].Names[Y], List, Length(List));
@@ -398,101 +394,64 @@ end;
 
 procedure PrecompLogScan1(Codec: PChar; Position: Int64;
   InSize, OutSize: Integer);
-var
-  S: String;
 begin
   if not VERBOSE then
     exit;
   with ComVars1[CurDepth[0]] do
   begin
-    if OutSize < 0 then
-      S := '(%d)'
-    else
-      S := '(%d >> %d)';
     if (OutSize > 0) and (Position < DataStore.Size(0)) and
       (MemOutput1[0].Position - CurPos1[0] = OutSize) then
-      WriteLn(ErrOutput, Format('[%d] Actual %s stream found at %s ' + S,
+      WriteLn(ErrOutput, Format('[%d] Actual %s stream found at %s (%d >> %d)',
         [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
         InSize, OutSize]))
     else
-      WriteLn(ErrOutput, Format('[%d] Possible %s stream located at %s ' + S,
+      WriteLn(ErrOutput,
+        Format('[%d] Possible %s stream located at %s (%d >> %d)',
         [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
         InSize, OutSize]));
   end;
 end;
 
 procedure PrecompLogScan2(Codec: PChar; InSize, OutSize: Integer);
+begin
+  if not VERBOSE then
+    exit;
+  WriteLn(ErrOutput, Format('[%d] Confirmed %s stream at %s (%d >> %d)',
+    [CurDepth[0], Codec, LogInt64.ToHexString, InSize, OutSize]));
+end;
+
+procedure PrecompLogProcess(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean);
 var
   S: String;
 begin
   if not VERBOSE then
     exit;
-  if OutSize < 0 then
-    S := '(%d)'
+  if Status then
+    S := '[%d] Processed %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' successfully'
   else
-    S := '(%d >> %d)';
-  WriteLn(ErrOutput, Format('[%d] Confirmed %s stream at %s ' + S,
-    [CurDepth[0], Codec, LogInt64.ToHexString, InSize, OutSize]));
+    S := '[%d] Processing %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], Codec, LogInt64.ToHexString,
+    OriginalSize, InSize, OutSize, Method]));
 end;
 
-procedure PrecompLogProcess(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-  Status: Boolean);
+procedure PrecompLogRestore(Codec, Method: PChar;
+  OriginalSize, InSize, OutSize: Integer; Status: Boolean);
 var
-  S1, S2: String;
-begin
-  if VERBOSE then
-  begin
-    if Size2 < 0 then
-      S1 := '(%d)'
-    else if Size3 < 0 then
-      S1 := '(%d >> %d)'
-    else
-      S1 := '(%d >> %d >> %d)';
-    if Status then
-      S2 := '[%d] Processed %s stream at %s ' + S1 +
-        IfThen(String(Method) <> '', ' using ' + String(Method), '') +
-        ' successfully'
-    else
-      S2 := '[%d] Processing %s stream at %s ' + S1 +
-        IfThen(String(Method) <> '', ' using ' + String(Method), '') +
-        ' has failed';
-    WriteLn(ErrOutput, Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString,
-      Size1, Size2, Size3]));
-  end;
-  if EXTRACT and (CurDepth[0] = 0) then
-  begin
-    S1 := '%s_%s.raw';
-    with TFileStream.Create(ExtDir + Format(S1, [LogInt64.ToHexString, Codec]),
-      fmCreate) do
-      try
-        WriteBuffer(LogPtr^, Size1);
-      finally
-        Free;
-      end;
-  end;
-end;
-
-procedure PrecompLogRestore(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-  Status: Boolean);
-var
-  S1, S2: String;
+  S: String;
 begin
   if not VERBOSE then
     exit;
-  if Size2 < 0 then
-    S1 := '(%d)'
-  else if Size3 < 0 then
-    S1 := '(%d >> %d)'
-  else
-    S1 := '(%d >> %d >> %d)';
   if Status then
-    S2 := '[%d] Restored %s stream at %s ' + S1 + IfThen(String(Method) <> '',
-      ' using ' + String(Method), '') + ' successfully'
+    S := '[%d] Restored %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' successfully'
   else
-    S2 := '[%d] Restoring %s stream at %s ' + S1 + IfThen(String(Method) <> '',
-      ' using ' + String(Method), '') + ' has failed';
-  WriteLn(ErrOutput, Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString,
-    Size1, Size2, Size3]));
+    S := '[%d] Restoring %s stream at %s (%d >> %d >> %d)' +
+      IfThen(String(Method) <> '', ' using %s', '') + ' has failed';
+  WriteLn(ErrOutput, Format(S, [CurDepth[0], Codec, LogInt64.ToHexString,
+    OriginalSize, InSize, OutSize, Method]));
 end;
 
 procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
@@ -594,9 +553,7 @@ begin
       begin
         MemOutput1[Instance].Position := CurPos1[Instance];
         exit;
-      end
-      else if LCodec = CurCodec[Instance] then
-        LOption := Info^.Option;
+      end;
     end
     else
     begin
@@ -659,130 +616,53 @@ begin
     CurTransfer[Instance] := String(Codec);
 end;
 
-function CheckDB(StreamInfo: TEncodeSI; Database: PDatabase): Boolean;
+function CheckDB(Dictionary: TSynDictionary; const StreamInfo: TEncodeSI;
+  var Database: TDatabase): Boolean;
 var
-  A: Word;
-  I: Integer;
-  LCount: Integer;
-  DB: PDatabase;
+  DBKey: Int64;
 begin
   Result := False;
-  A := LongRec(StreamInfo.Checksum).Lo;
-  AtomicExchange(LCount, DBCount[A]);
-  for I := 0 to LCount - 1 do
-  begin
-    DB := @DBInfo[A, I];
-    if (DB^.Size = StreamInfo.OldSize) and (DB^.Checksum = StreamInfo.Checksum)
-    then
-    begin
-      if Assigned(Database) then
-        Move(DB^, Database^, SizeOf(TDatabase));
-      Result := True;
-      break;
-    end;
-  end;
+  Int64Rec(DBKey).Lo := StreamInfo.Checksum;
+  Int64Rec(DBKey).Hi := StreamInfo.OldSize;
+  Result := Dictionary.FindAndCopy(DBKey, Database);
 end;
 
-procedure AddDB(StreamInfo: TEncodeSI);
+procedure AddDB(Dictionary: TSynDictionary; const StreamInfo: TEncodeSI;
+  const Database: TDatabase);
 var
-  A: Word;
-  I: Integer;
-  DB: TDatabase;
+  DBKey: Int64;
 begin
-  A := LongRec(StreamInfo.Checksum).Lo;
-  if not CheckDB(StreamInfo, nil) then
-  begin
-    GlobalSync.Acquire;
-    try
-      DB.Size := StreamInfo.OldSize;
-      DB.Codec := StreamInfo.Codec;
-      DB.Option := StreamInfo.Option;
-      DB.Checksum := StreamInfo.Checksum;
-      DB.Status := StreamInfo.Status;
-      Insert(DB, DBInfo[A], Length(DBInfo[A]));
-      Inc(DBCount[A]);
-    finally
-      GlobalSync.Release;
-    end;
-  end;
+  Int64Rec(DBKey).Lo := StreamInfo.Checksum;
+  Int64Rec(DBKey).Hi := StreamInfo.OldSize;
+  Dictionary.AddOrUpdate(DBKey, Database);
 end;
 
-function CheckDD(StreamInfo: TEncodeSI; Database: PDuplicate1;
-  Index: PInteger): Boolean;
+function CheckDup(var DupRec: TDupRec; const StreamInfo: TEncodeSI;
+  var StreamKey, DupCount: Integer): Boolean;
 var
-  A: Word;
-  I: Integer;
-  LCount: Integer;
-  DD: PDuplicate1;
+  DupKey: Int64;
+  DupInfo: PDuplicate;
+  DupAdded: Boolean;
 begin
   Result := False;
-  A := LongRec(StreamInfo.Checksum).Lo;
-  LCount := DDCount1[A];
-  for I := 0 to LCount - 1 do
+  Inc(DupRec.Index);
+  Int64Rec(DupKey).Lo := StreamInfo.Checksum;
+  Int64Rec(DupKey).Hi := StreamInfo.OldSize;
+  DupInfo := DupRec.Dict.FindValueOrAdd(DupKey, DupAdded);
+  if not DupAdded then
   begin
-    DD := @DDInfo[A, I];
-    if (DD^.Size = StreamInfo.OldSize) and (DD^.Checksum = StreamInfo.Checksum)
-    then
-    begin
-      if Assigned(Database) then
-        Move(DD^, Database^, SizeOf(TDuplicate1));
-      if Assigned(Index) then
-        Index^ := I;
-      Result := True;
-      break;
-    end;
-  end;
-end;
-
-function FindDD(StreamInfo: TEncodeSI; Index, Count: PInteger): Boolean;
-var
-  A: Word;
-  I: Integer;
-  DD: PDuplicate1;
-begin
-  Result := False;
-  if CheckDD(StreamInfo, nil, @I) then
-  begin
-    A := LongRec(StreamInfo.Checksum).Lo;
-    DD := @DDInfo[A, I];
-    if Assigned(Index) then
-      Index^ := DD^.Index;
-    if Assigned(Count) then
-      Count^ := DD^.Count;
     Result := True;
-  end;
-end;
-
-function FindOrAddDD(StreamInfo: TEncodeSI; Index, Count: PInteger): Boolean;
-var
-  A: Word;
-  I: Integer;
-  DD: TDuplicate1;
-  I64: Int64;
-begin
-  Result := False;
-  Inc(DDIndex);
-  A := LongRec(StreamInfo.Checksum).Lo;
-  if not CheckDD(StreamInfo, nil, @I) then
-  begin
-    DD.Size := StreamInfo.OldSize;
-    DD.Checksum := StreamInfo.Checksum;
-    DD.Index := DDIndex;
-    DD.Count := 0;
-    I := Length(DDInfo[A]);
-    Insert(DD, DDInfo[A], I);
-    Int64Rec(I64).Words[0] := A;
-    Int64Rec(I64).Hi := DDCount1[A];
-    Insert(I64, DDList1, Length(DDList1));
-    Inc(DDCount1[A]);
-    Result := True;
+    Inc(DupInfo^.Count);
+    StreamKey := DupInfo^.Index;
+    DupCount := DupInfo^.Count;
   end
   else
-    Inc(DDInfo[A, I].Count);
-  if Assigned(Index) then
-    Index^ := DDInfo[A, I].Index;
-  if Assigned(Count) then
-    Count^ := DDInfo[A, I].Count;
+  begin
+    DupInfo^.Count := 0;
+    DupInfo^.Index := DupRec.Index;
+    StreamKey := -1;
+    DupCount := 0;
+  end;
 end;
 
 procedure Scan1(Index, Depth: Integer);
@@ -849,8 +729,6 @@ begin
           X := DataStore.ActualSize(Index) -
             NativeInt(SI2.Position - DataStore.Position(Index));
           LogInt64 := SI2.Position;
-          LogPtr := PByte(DataStore.Slot(Index).Memory) +
-            NativeInt(SI2.Position - DataStore.Position(Index));
           if (SI1.OldSize <= X) and Codecs[SI2.Codec].Scan2(Index, Depth,
             PByte(DataStore.Slot(Index).Memory) +
             NativeInt(SI2.Position - DataStore.Position(Index)), X, @SI1, @J,
@@ -952,11 +830,10 @@ begin
     SI1.Resource := SI2.Resource;
     SI1.Option := SI2.Option;
     SI1.Status := SI2.Status;
-    LogInt64 := DataStore.Position(ThreadIndex) + SI2.ActualPosition;
-    LogPtr := PByte(DataStore.Slot(ThreadIndex).Memory) + SI2.ActualPosition;
+    LogInt64 := DataStore.Position(0) + SI2.ActualPosition;
     if UseDB and (SI2.Codec > 2) then
     begin
-      DBBool := CheckDB(SI2, @DBTyp);
+      DBBool := CheckDB(Database, SI2, DBTyp);
       if DBBool and (SI2.Codec = DBTyp.Codec) then
       begin
         if DBTyp.Status = TStreamStatus.Invalid then
@@ -964,7 +841,7 @@ begin
         else
         begin
           SI1.Option := DBTyp.Option;
-          SI1.Status := TStreamStatus.Database;
+          SI1.Status := TStreamStatus.Predicted;
         end;
       end;
     end;
@@ -1005,14 +882,13 @@ begin
     if UseDB then
       if not DBBool then
       begin
+        DBTyp.Codec := SI2.Codec;
+        DBTyp.Option := SI1.Option;
         if Result then
-        begin
-          SI2.Option := SI1.Option;
-          SI2.Status := TStreamStatus.Predicted
-        end
+          DBTyp.Status := TStreamStatus.Predicted
         else
-          SI2.Status := TStreamStatus.Invalid;
-        AddDB(SI2);
+          DBTyp.Status := TStreamStatus.Invalid;
+        AddDB(Database, SI2, DBTyp);
       end;
     if Result then
     begin
@@ -1157,9 +1033,10 @@ procedure EncInit(Input, Output: TStream; Options: PEncodeOptions);
 var
   UI32: UInt32;
   I, J, K: Integer;
-  W: Word;
   Bytes: TBytes;
   NI: NativeInt;
+  DBKey: Int64;
+  DBTyp: TDatabase;
   S: String;
   DupMethod: Boolean;
 begin
@@ -1169,21 +1046,15 @@ begin
     ThreadSync[I] := TCriticalSection.Create;
   I := XTOOL_PRECOMP;
   Output.WriteBuffer(I, I.Size);
-  if UseDB then
+  CreateGUID(DupGUID);
+  Output.WriteBuffer(DupGUID, SizeOf(TGUID));
+  Database := TSynDictionary.Create(TypeInfo(TInt64DynArray),
+    TypeInfo(TDatabaseDynArray));
+  for I := Low(Duplicates1) to High(Duplicates1) do
   begin
-    SetLength(DBInfo, $10000);
-    SetLength(DBCount, $10000);
-    for I := Low(DBInfo) to High(DBInfo) do
-      DBCount[I] := 0;
-  end;
-  if StoreDD then
-  begin
-    SetLength(DDInfo, $10000);
-    SetLength(DDCount1, $10000);
-    SetLength(DDList1, 0);
-    for I := Low(DDInfo) to High(DDInfo) do
-      DDCount1[I] := 0;
-    DDIndex := -1;
+    Duplicates1[I].Dict := TSynDictionary.Create(TypeInfo(TInt64DynArray),
+      TypeInfo(TDuplicateDynArray));
+    Duplicates1[I].Index := -1;
   end;
   SetLength(Tasks, Options^.Threads);
   SetLength(CurCodec, Options^.Threads);
@@ -1255,6 +1126,7 @@ begin
     end;
   CodecInit(Options^.Threads, Options^.Method);
   DBFile := Options^.DBaseFile;
+  DupFile := Options^.DedupFile;
   if FileExists(ExtractFilePath(Utils.GetModuleName) + DBFile) then
   begin
     with TFileStream.Create(ExtractFilePath(Utils.GetModuleName) + DBFile,
@@ -1268,19 +1140,16 @@ begin
     end;
     with WorkStream[0] do
     begin
-      Position := 0;
-      while Position < Size do
+      J := PInteger(Memory)^;
+      for I := 0 to J - 1 do
       begin
-        ReadBuffer(W, W.Size);
-        ReadBuffer(J, J.Size);
-        DBCount[W] := J;
-        SetLength(DBInfo[W], J);
-        for K := 0 to J - 1 do
-          ReadBuffer(DBInfo[W, K], SizeOf(TDatabase));
+        NI := Integer.Size + (I * (SizeOf(Int64) + SizeOf(TDatabase)));
+        DBKey := PInt64(PByte(Memory) + NI)^;
+        DBTyp := PDatabase(PByte(Memory) + NI + SizeOf(Int64))^;
+        Database.Add(DBKey, DBTyp);
       end;
     end;
   end;
-  ExtDir := IncludeTrailingBackSlash(Options^.ExtractDir);
   Output.WriteBuffer(Options^.Depth, Options^.Depth.Size);
   S := '';
   I := 0;
@@ -1368,6 +1237,9 @@ begin
       Tasks[I].Free;
     WorkStream[I].Free;
   end;
+  Database.Free;
+  for I := Low(Duplicates1) to High(Duplicates1) do
+    Duplicates1[I].Dict.Free;
   FreeResources;
   GlobalSync.Free;
   for I := Low(ThreadSync) to High(ThreadSync) do
@@ -1393,19 +1265,19 @@ var
   StreamCount: Integer;
   BlockSize: Int64;
   UI32: UInt32;
-  I, J, K, X: Integer;
-  W: Word;
-  I64: Int64;
+  I, J, X: Integer;
   LastStream, LastPos: Int64;
   LastIndex: Integer;
   CurrSize: Cardinal;
   DupBool: Boolean;
-  DupIdx1, DupIdx2, DupCount: Integer;
-  DupTyp: TDuplicate2;
+  DupKey, DupCount: Integer;
+  DBKey: Int64;
+  DBTyp: TDatabase;
+  DupTyp: TDuplicate;
 begin
   if (Depth = 0) then
   begin
-    if StoreDD then
+    if (DupFile = '') and StoreDD then
       TempOutput := TPrecompVMStream.Create
     else
       TempOutput := Output;
@@ -1413,7 +1285,6 @@ begin
   else
     TempOutput := Output;
   Result := False;
-  DupIdx1 := 0;
   with ComVars1[Depth] do
   begin
     LastStream := 0;
@@ -1510,15 +1381,16 @@ begin
             begin
               Inc(StreamCount);
               DupBool := False;
-              if (Depth = 0) and StoreDD then
-                DupBool := not FindOrAddDD(StreamInfo, @DupIdx2, @DupCount);
+              if (Depth = 0) and ((DupFile <> '') or StoreDD) then
+                DupBool := CheckDup(Duplicates1[0], StreamInfo, DupKey,
+                  DupCount);
               if DupBool then
               begin
-                if DupCount = 1 then
+                if DupCount = 2 then
                   Inc(EncInfo.DecMem2, StreamInfo.OldSize);
                 FillChar(StreamHeader, SizeOf(TStreamHeader), 0);
                 StreamHeader.Kind := DUPLICATED_STREAM;
-                StreamHeader.Option := DupIdx2;
+                StreamHeader.Option := DupKey;
               end
               else
               begin
@@ -1555,19 +1427,19 @@ begin
             Result := True
           else if Depth > 0 then
             exit;
-          I64 := MemStream[I].Position;
           MemStream[I].Position := 0;
           MemStream[I].WriteBuffer(StreamCount, StreamCount.Size);
           MemStream[I].WriteBuffer(BlockSize, BlockSize.Size);
-          TempOutput.WriteBuffer(MemStream[I].Memory^, I64);
+          TempOutput.WriteBuffer(MemStream[I].Memory^, MemStream[I].Position +
+            StreamCount * SizeOf(TStreamHeader));
           InfoStore1[I].Index := LastIndex;
           J := InfoStore1[I].Get(StreamInfo);
           while J >= 0 do
           begin
             DupBool := False;
-            if (Depth = 0) and StoreDD then
-              DupBool := FindDD(StreamInfo, @DupIdx2, @DupCount);
-            if (DupBool = False) or (DupIdx1 = DupIdx2) then
+            if (Depth = 0) and ((DupFile <> '') or StoreDD) then
+              DupBool := CheckDup(Duplicates1[1], StreamInfo, DupKey, DupCount);
+            if not DupBool then
             begin
               if StreamInfo.ExtSize < 0 then
               begin
@@ -1593,7 +1465,6 @@ begin
                   StreamInfo.ExtSize.Size);
               end;
             end;
-            Inc(DupIdx1);
             if Succ(J - LastIndex) = StreamCount then
               break;
             J := InfoStore1[I].Get(StreamInfo);
@@ -1648,16 +1519,14 @@ begin
       with WorkStream[0] do
       begin
         Position := 0;
-        for W := 0 to $10000 - 1 do
+        J := Database.Count;
+        WriteBuffer(J, J.Size);
+        for I := 0 to J - 1 do
         begin
-          J := DBCount[I];
-          if J > 0 then
-          begin
-            WriteBuffer(W, W.Size);
-            WriteBuffer(J, J.Size);
-            for K := 0 to J - 1 do
-              WriteBuffer(DBInfo[W, K], SizeOf(TDatabase));
-          end;
+          DBKey := PInt64(Database.Keys.ElemPtr(I))^;
+          WriteBuffer(DBKey, SizeOf(Int64));
+          DBTyp := PDatabase(Database.Values.ElemPtr(I))^;
+          WriteBuffer(DBTyp, SizeOf(TDatabase));
         end;
       end;
       with TFileStream.Create(ExtractFilePath(Utils.GetModuleName) + DBFile,
@@ -1667,27 +1536,40 @@ begin
         Free;
       end;
     end;
-    if StoreDD then
+    if (DupFile <> '') or StoreDD then
     begin
+      for I := Duplicates1[0].Dict.Count - 1 downto 0 do
+      begin
+        if PDuplicate(Duplicates1[0].Dict.Values.ElemPtr(I))^.Count < 1 then
+          Duplicates1[0].Dict.DeleteAt(I);
+      end;
       with WorkStream[0] do
       begin
         Position := 0;
-        UI32 := 0;
-        for I := Low(DDList1) to High(DDList1) do
+        WriteBuffer(DupGUID, SizeOf(TGUID));
+        Duplicates1[0].Dict.Values.Sort(DuplicateSortCompare);
+        J := Duplicates1[0].Dict.Count;
+        WriteBuffer(J, J.Size);
+        for I := 0 to J - 1 do
         begin
-          J := Int64Rec(DDList1[I]).Words[0];
-          X := Int64Rec(DDList1[I]).Hi;
-          if DDInfo[J, X].Count > 0 then
-          begin
-            DupTyp.Index := DDInfo[J, X].Index;
-            DupTyp.Count := DDInfo[J, X].Count;
-            WriteBuffer(DupTyp, SizeOf(TDuplicate2));
-            Inc(UI32);
-          end;
+          DupTyp := PDuplicate(Duplicates1[0].Dict.Values.ElemPtr(I))^;
+          WriteBuffer(DupTyp, SizeOf(TDuplicate));
         end;
       end;
-      Output.WriteBuffer(UI32, UI32.Size);
-      Output.WriteBuffer(WorkStream[0].Memory^, WorkStream[0].Position);
+      if DupFile <> '' then
+      begin
+        with TFileStream.Create(ExtractFilePath(Utils.GetModuleName) + DupFile,
+          FSMode(FileExists(ExtractFilePath(Utils.GetModuleName) + DupFile))) do
+        begin
+          Position := Size;
+          WriteBuffer(WorkStream[0].Memory^, WorkStream[0].Position);
+        end;
+      end
+      else
+        Output.WriteBuffer(WorkStream[0].Memory^, WorkStream[0].Position);
+    end;
+    if (DupFile = '') and StoreDD then
+    begin
       Output.CopyFrom(TempOutput, 0);
       TempOutput.Free;
     end;
@@ -1751,9 +1633,10 @@ var
   NStream: TArrayStream;
   DataMgr: TDataManager;
   ComVars2: TArray<TCommonVarsDec>;
-  DDList2: TArray<TDuplicate2>;
-  DDCount2: Integer;
-  DDIndex1, DDIndex2: Integer;
+  Duplicates2: TSynDictionary;
+  DupIdx1: Integer;
+  DupIdx2: TArray<Integer>;
+  DupBool: TArray<Boolean>;
   BlockPos: Int64;
 
 procedure PrecompOutput2(Instance: Integer; const Buffer: Pointer;
@@ -1761,9 +1644,8 @@ procedure PrecompOutput2(Instance: Integer; const Buffer: Pointer;
 begin
   with ComVars2[CurDepth[Instance]] do
     DecOutput[Instance].WriteBuffer(Buffer^, Size);
-  if StoreDD and (CurDepth[Instance] = 0) then
-    if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index)) then
-      DataMgr.Write(DDIndex1, Buffer, Size);
+  if (CurDepth[Instance] = 0) and (DupBool[Instance]) then
+    DataMgr.Write(DupIdx2[Instance], Buffer^, Size);
 end;
 
 procedure PrecompOutput3(Instance: Integer; const Buffer: Pointer;
@@ -1771,6 +1653,8 @@ procedure PrecompOutput3(Instance: Integer; const Buffer: Pointer;
 begin
   with ComVars2[CurDepth[Instance]] do
     MemOutput1[Instance].WriteBuffer(Buffer^, Size);
+  if (CurDepth[Instance] = 0) and (DupBool[Instance]) then
+    DataMgr.Write(DupIdx2[Instance], Buffer^, Size);
 end;
 
 procedure Restore(MT: Boolean; Index, Depth: Integer);
@@ -1791,11 +1675,18 @@ begin
     while X < StreamCount[Index]^ do
     begin
       SH := PStreamHeader(MemStream1[Index].Memory) + X;
+      if (Depth = 0) then
+      begin
+        DupIdx2[Index] := DupIdx1 + X;
+        DupBool[Index] := Duplicates2.FindAndCopy(DupIdx2[Index], Y);
+        if DupBool[Index] then
+          DataMgr.Add(DupIdx2[Index], SH^.OldSize, Y);
+      end;
       if MT then
       begin
         LOutput := @PrecompOutput3;
         Pos := StreamInfo[Index]^.Pos[X];
-        X64 := Pos + Max(SH^.OldSize, SH^.NewSize);
+        X64 := Pos + SH^.NewSize;
         while (BlockPos < X64) do
         begin
           if IsErrored(Tasks) or (BlockPos < 0) then
@@ -1806,13 +1697,6 @@ begin
       end
       else
       begin
-        if StoreDD and (Depth = 0) then
-        begin
-          Inc(DDIndex1);
-          if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
-          then
-            DataMgr.Add(DDIndex1, SH^.OldSize, DDList2[DDIndex2].Count);
-        end;
         LOutput := @PrecompOutput2;
         DecInput[Index].ReadBuffer(UI32, UI32.Size);
         if UI32 > 0 then
@@ -1856,12 +1740,9 @@ begin
       end;
       CurCodec[Index] := SH^.Codec;
       CurDepth[Index] := Depth;
-      Y := GetBits(SI.Option, 0, 5);
-      if not InRange(Y, 0, Pred(Length(Codecs[SH^.Codec].Names))) then
-        Y := 0;
       if (Codecs[SH^.Codec].Restore(Index, Depth, Ptr1, Ptr2, SI, LOutput,
         @PrecompFunctions) = False) then
-        raise Exception.CreateFmt(SPrecompError3, [Codecs[SH^.Codec].Names[Y]]);
+        raise Exception.CreateFmt(SPrecompError3, [Codecs[SH^.Codec].Names[0]]);
       NStream.Update(0, CalcSysMem);
       if MT then
       begin
@@ -1870,13 +1751,7 @@ begin
         StreamInfo[Index]^.Completed[X] := True;
       end
       else
-      begin
-        if StoreDD and (Depth = 0) then
-          if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
-          then
-            Inc(DDIndex2);
         Inc(Pos, SH^.NewSize);
-      end;
       X := AtomicIncrement(StreamIdx[Index]^);
     end;
   end;
@@ -1897,16 +1772,24 @@ var
   I, J: Integer;
   Bytes: TBytes;
   UI32: UInt32;
-  DupTyp: TDuplicate1;
-  LResData: TResData;
+  DupTyp: TDuplicate;
+  LStream: TStream;
+  LGUID: TGUID;
+  LResData: PResData;
 begin
   GlobalSync := TCriticalSection.Create;
   SetLength(ThreadSync, Options^.Threads);
   for I := Low(ThreadSync) to High(ThreadSync) do
     ThreadSync[I] := TCriticalSection.Create;
   DupSysMem := Options^.DedupSysMem;
-  NStream.Add(TypeInfo(TMemoryStream) { , CalcSysMem } );
-  // NStream.Add(TypeInfo(TPrecompVMStream));
+  NStream.Add(TypeInfo(TMemoryStream), CalcSysMem);
+  NStream.Add(TypeInfo(TPrecompVMStream));
+  Duplicates2 := TSynDictionary.Create(TypeInfo(TIntegerDynArray),
+    TypeInfo(TIntegerDynArray));
+  DupIdx1 := 0;
+  SetLength(DupIdx2, Options^.Threads);
+  SetLength(DupBool, Options^.Threads);
+  Input.ReadBuffer(DupGUID, SizeOf(TGUID));
   Input.ReadBuffer(Options^.Depth, Options^.Depth.Size);
   Input.ReadBuffer(LongRec(I).Bytes[0], LongRec(I).Bytes[0].Size);
   SetLength(Bytes, LongRec(I).Bytes[0]);
@@ -1915,14 +1798,15 @@ begin
   Input.ReadBuffer(I, I.Size);
   for J := 0 to I - 1 do
   begin
+    New(LResData);
     Input.ReadBuffer(LongRec(I).Bytes[0], LongRec(I).Bytes[0].Size);
     SetLength(Bytes, LongRec(I).Bytes[0]);
     Input.ReadBuffer(Bytes[0], LongRec(I).Bytes[0]);
-    LResData.Name := StringOf(Bytes);
-    Input.ReadBuffer(LResData.Size, LResData.Size.Size);
-    GetMem(LResData.Data, LResData.Size);
-    Input.ReadBuffer(LResData.Data^, LResData.Size);
-    Insert(LResData, Resources, Length(Resources));
+    LResData^.Name := StringOf(Bytes);
+    Input.ReadBuffer(LResData^.Size, LResData^.Size.Size);
+    GetMem(LResData^.Data, LResData^.Size);
+    Input.ReadBuffer(LResData^.Data^, LResData^.Size);
+    Insert(LResData^, Resources, Length(Resources));
   end;
   SetLength(Tasks, Options^.Threads);
   SetLength(CurCodec, Options^.Threads);
@@ -1976,18 +1860,45 @@ begin
       end;
     end;
   Input.ReadBuffer(StoreDD, StoreDD.Size);
-  UI32 := 0;
-  if StoreDD then
+  if StoreDD or FileExists(ExtractFilePath(Utils.GetModuleName) +
+    Options^.DedupFile) then
   begin
-    Input.ReadBuffer(UI32, UI32.Size);
-    SetLength(DDList2, UI32);
-    DDCount2 := UI32;
-    for I := Low(DDList2) to High(DDList2) do
-      Input.ReadBuffer(DDList2[I], SizeOf(TDuplicate2));
-    DDIndex1 := -1;
-    DDIndex2 := 0;
+    if StoreDD then
+      LStream := Input
+    else
+    begin
+      LStream := TFileStream.Create(ExtractFilePath(Utils.GetModuleName) +
+        Options^.DedupFile, fmShareDenyNone);
+      LStream.Position := 0;
+    end;
+    while True do
+    begin
+      LStream.ReadBuffer(LGUID, SizeOf(TGUID));
+      LStream.ReadBuffer(J, J.Size);
+      I := J * SizeOf(TDuplicate);
+      if CompareMem(@DupGUID, @LGUID, SizeOf(TGUID)) then
+      begin
+        if WorkStream[0].Size < I then
+          WorkStream[0].Size := I;
+        LStream.ReadBuffer(WorkStream[0].Memory^, I);
+        for I := 0 to J - 1 do
+        begin
+          DupTyp := (PDuplicate(WorkStream[0].Memory) + I)^;
+          Duplicates2.Add(DupTyp.Index, DupTyp.Count);
+        end;
+        break;
+      end
+      else if StoreDD then
+        raise EReadError.CreateRes(@SInvalidProperty)
+      else
+        LStream.Seek(I, TSeekOrigin.soCurrent);
+      if StoreDD or (LStream.Position >= LStream.Size) then
+        break;
+    end;
+    if not StoreDD then
+      LStream.Free;
   end;
-  DataMgr := TDataManager.Create(NStream);
+  DataMgr := TDataManager.Create(NStream, Duplicates2.Count);
 end;
 
 procedure DecFree;
@@ -2022,6 +1933,7 @@ begin
     WorkStream[I].Free;
   end;
   DataMgr.Free;
+  Duplicates2.Free;
   FreeResources;
   GlobalSync.Free;
   for I := Low(ThreadSync) to High(ThreadSync) do
@@ -2069,17 +1981,8 @@ begin
             Inc(CurrPos, Max(StreamHeader^.OldSize, StreamHeader^.NewSize));
           end;
         end;
-        if (Depth = 0) and (Length(Tasks) > 1) and (StreamCount[Index]^ > 1)
-        then
-        begin
-          if MemInput[Index].Size < CurrPos then
-            MemInput[Index].Size := CurrPos;
-        end
-        else
-        begin
-          if MemInput[Index].Size < BlockSize then
-            MemInput[Index].Size := BlockSize;
-        end;
+        if MemInput[Index].Size < BlockSize then
+          MemInput[Index].Size := BlockSize;
         MemInput[Index].Position := 0;
         StreamIdx[Index]^ := -1;
         if (Depth = 0) and (Length(Tasks) > 1) and (StreamCount[Index]^ > 1)
@@ -2093,6 +1996,9 @@ begin
           for J := 0 to StreamCount[Index]^ - 1 do
           begin
             StreamHeader := PStreamHeader(MemStream1[Index].Memory) + J;
+            MemInput[Index].Size := Max(MemInput[Index].Size,
+              StreamInfo[Index]^.Pos[J] + Max(StreamHeader^.OldSize,
+              StreamHeader^.NewSize));
             MemInput[Index].Position := StreamInfo[Index]^.Pos[J];
             if CopyStream(DecInput[Index], MemInput[Index],
               StreamHeader^.NewSize) <> StreamHeader^.NewSize then
@@ -2120,26 +2026,12 @@ begin
             if IsErrored(Tasks) then
               for I := Low(Tasks) to High(Tasks) do
                 Tasks[I].RaiseLastError;
-            if StoreDD and (Depth = 0) then
-            begin
-              Inc(DDIndex1);
-              if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
-              then
-              begin
-                DataMgr.Add(DDIndex1, StreamHeader^.OldSize,
-                  DDList2[DDIndex2].Count);
-                DataMgr.Write(DDIndex1,
-                  (PByte(MemInput[Index].Memory) + StreamInfo[Index]^.Pos[J]),
-                  StreamHeader^.OldSize);
-                Inc(DDIndex2);
-              end;
-            end;
             if StreamHeader^.Kind and DUPLICATED_STREAM = DUPLICATED_STREAM then
               DataMgr.CopyData(StreamHeader^.Option, DecOutput[Index])
             else
               DecOutput[Index].WriteBuffer
                 ((PByte(MemInput[Index].Memory) + StreamInfo[Index]^.Pos[J])^,
-                StreamHeader^.OldSize);
+                (PStreamHeader(MemStream1[Index].Memory) + J)^.OldSize);
           end;
           WaitForAll(Tasks);
         end
@@ -2149,6 +2041,8 @@ begin
       DecInput[Index].ReadBuffer(UI32, UI32.Size);
       if UI32 > 0 then
         CopyStreamEx(DecInput[Index], DecOutput[Index], UI32);
+      if Depth = 0 then
+        Inc(DupIdx1, StreamCount[Index]^);
       DecInput[Index].ReadBuffer(StreamCount[Index]^, StreamCount[Index]^.Size);
     end;
   end;

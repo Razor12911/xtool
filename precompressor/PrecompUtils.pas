@@ -18,7 +18,7 @@ resourcestring
   SPrecompSep4 = '/';
 
 const
-  SuccessStatus = 4;
+  SuccessStatus = 3;
 
   DEFAULT_STREAM = 0;
   EXTENDED_STREAM = 1;
@@ -32,7 +32,7 @@ type
 
   TPrecompStr = array [0 .. 255] of Char;
 
-  TStreamStatus = (None, Invalid, Predicted, Database);
+  TStreamStatus = (None, Invalid, Predicted);
 
   PDepthInfo = ^TDepthInfo;
 
@@ -182,10 +182,10 @@ type
     LogScan1: procedure(Codec: PChar; Position: Int64;
       InSize, OutSize: Integer)cdecl;
     LogScan2: procedure(Codec: PChar; InSize, OutSize: Integer)cdecl; // 35
-    LogProcess: procedure(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-      Status: Boolean)cdecl;
-    LogRestore: procedure(Codec, Method: PChar; Size1, Size2, Size3: Integer;
-      Status: Boolean)cdecl;
+    LogProcess: procedure(Codec, Method: PChar;
+      OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
+    LogRestore: procedure(Codec, Method: PChar;
+      OriginalSize, InSize, OutSize: Integer; Status: Boolean)cdecl;
     LogPatch1: procedure(OldSize, NewSize, PatchSize: Integer;
       Status: Boolean)cdecl;
     LogPatch2: procedure(OldSize, NewSize, PatchSize: Integer;
@@ -243,29 +243,22 @@ type
 
   PDatabase = ^TDatabase;
 
-  TDatabase = packed record
-    Size: Integer;
+  TDatabase = record
     Codec: Byte;
-    Option: Integer;
-    Checksum: Cardinal;
     Status: TStreamStatus;
+    Option: Integer;
   end;
 
-  PDuplicate1 = ^TDuplicate1;
+  TDatabaseDynArray = TArray<TDatabase>;
 
-  TDuplicate1 = packed record
-    Size: Integer;
-    Checksum: Cardinal;
+  PDuplicate = ^TDuplicate;
+
+  TDuplicate = record
     Index: Integer;
     Count: Integer;
   end;
 
-  PDuplicate2 = ^TDuplicate2;
-
-  TDuplicate2 = packed record
-    Index: Integer;
-    Count: Integer;
-  end;
+  TDuplicateDynArray = TArray<TDuplicate>;
 
   TPrecompVMStream = class(TStream)
   private const
@@ -294,6 +287,8 @@ type
     Data: Pointer;
     Size: Integer;
   end;
+
+function DuplicateSortCompare(const Left, Right): Integer;
 
 procedure AddMethod(Method: String);
 procedure ClearMethods;
@@ -363,6 +358,7 @@ function PrecompAcceptPatch(OldSize, NewSize, PatchSize: Integer)
 var
   PrecompFunctions: _PrecompFuncs;
   DIFF_TOLERANCE: Single = 0.05;
+  VERBOSE: Boolean = False;
   EncodeSICmp: TEncodeSIComparer;
   FutureSICmp: TFutureSIComparer;
   StockMethods, ExternalMethods: TStringList;
@@ -382,6 +378,11 @@ end;
 function TFutureSIComparer.Compare(const Left, Right: TFutureSI): Integer;
 begin
   Result := Integer(CompareValue(Left.Position, Right.Position));
+end;
+
+function DuplicateSortCompare(const Left, Right): Integer;
+begin
+  Result := TDuplicate(Left).Index - TDuplicate(Right).Index;
 end;
 
 procedure AddMethod(Method: String);
@@ -855,7 +856,7 @@ var
 begin
   Result := 0;
   if xd3_encode(OldBuff, OldSize, NewBuff, NewSize, PatchBuff, @Res, PatchSize,
-    Integer(XD3_NOCOMPRESS)) = 0 then
+    0) = 0 then
     Result := Res;
   // MakeDiff(OldBuff, NewBuff, PatchBuff, OldSize, NewSize, Result);
 end;
@@ -868,7 +869,7 @@ var
 begin
   Result := 0;
   if xd3_decode(PatchBuff, PatchSize, OldBuff, OldSize, NewBuff, @Res, NewSize,
-    Integer(XD3_NOCOMPRESS)) = 0 then
+    0) = 0 then
     Result := Res;
   // MakePatch(OldBuff, PatchBuff, NewBuff, OldSize, PatchSize, Result);
 end;
