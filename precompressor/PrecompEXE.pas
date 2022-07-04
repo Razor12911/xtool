@@ -589,7 +589,7 @@ begin
       StreamInfo^.OldSize);
     Funcs^.LogProcess(PChar(Codec.Names[X]), nil, StreamInfo^.OldSize,
       StreamInfo^.NewSize, Res1, Result);
-    if Result = False then
+    if (Result = False) and (DIFF_TOLERANCE > 0) then
     begin
       Buffer := Funcs^.Allocator(Instance,
         Res1 + Max(StreamInfo^.OldSize, Res1));

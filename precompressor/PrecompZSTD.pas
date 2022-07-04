@@ -233,8 +233,8 @@ begin
   end;
   if Res > StreamInfo^.OldSize then
   begin
-    StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
+    StreamInfo^.NewSize := Res;
     Funcs^.LogScan2(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
@@ -265,6 +265,7 @@ begin
     if StreamInfo^.Status = TStreamStatus.Predicted then
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
+    Params := '';
     case X of
       ZSTD_CODEC:
         begin
@@ -307,7 +308,7 @@ begin
   if Res1 < 0 then
     exit;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) then
+    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,

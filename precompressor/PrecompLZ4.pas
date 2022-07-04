@@ -24,12 +24,14 @@ const
   L_MAXSIZE = 16 * 1024 * 1024;
   L_BLOCKSIZE = 0;
   L_BLOCKDEPENDENCY = 0;
+  L_ACCELERATION = 1;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
   LBlockSize: Integer = L_BLOCKSIZE;
   LBlockDependency: Integer = L_BLOCKDEPENDENCY;
+  LAcceleration: Integer = L_ACCELERATION;
 
 function LZ4Init(Command: PChar; Count: Integer; Funcs: PPrecompFuncs): Boolean;
 var
@@ -57,6 +59,8 @@ begin
     if (CompareText(S, LZ4Codecs[LZ4_CODEC]) = 0) and LZ4DLL.DLLLoaded then
     begin
       CodecEnabled[LZ4_CODEC] := True;
+      if Funcs^.GetParam(Command, X, 'a') <> '' then
+        LAcceleration := StrToInt(Funcs^.GetParam(Command, X, 'a'));
     end
     else if (CompareText(S, LZ4Codecs[LZ4HC_CODEC]) = 0) and LZ4DLL.DLLLoaded
     then
@@ -86,7 +90,7 @@ begin
     if SOList[X, LZ4_CODEC].Count = 0 then
       SOList[X, LZ4_CODEC].Update([1]);
   SetLength(Options, 0);
-  for I := 3 to 12 do
+  for I := 2 to 12 do
     Insert(I, Options, Length(Options));
   for X := Low(SOList) to High(SOList) do
     if SOList[X, LZ4HC_CODEC].Count = 0 then
@@ -118,6 +122,7 @@ begin
   Option^ := 0;
   SetBits(Option^, LBlockSize, 12, 2);
   SetBits(Option^, LBlockDependency, 14, 1);
+  SetBits(Option^, LAcceleration, 15, 7);
   I := 0;
   while Funcs^.GetCodec(Command, I, False) <> '' do
   begin
@@ -125,6 +130,8 @@ begin
     if (CompareText(S, LZ4Codecs[LZ4_CODEC]) = 0) and LZ4DLL.DLLLoaded then
     begin
       SetBits(Option^, LZ4_CODEC, 0, 5);
+      if Funcs^.GetParam(Command, I, 'a') <> '' then
+        SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'a')), 15, 7);
       Result := True;
     end
     else if (CompareText(S, LZ4Codecs[LZ4HC_CODEC]) = 0) and LZ4DLL.DLLLoaded
@@ -188,6 +195,7 @@ begin
       SetBits(SI.Option, X, 0, 5);
       SetBits(SI.Option, LBlockSize, 12, 2);
       SetBits(SI.Option, LBlockDependency, 14, 1);
+      SetBits(SI.Option, LAcceleration, 15, 7);
       if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
         SI.Status := TStreamStatus.Predicted
       else
@@ -230,8 +238,8 @@ begin
   end;
   if Res > StreamInfo^.OldSize then
   begin
-    StreamInfo^.NewSize := Res;
     Output(Instance, Buffer, Res);
+    StreamInfo^.NewSize := Res;
     Funcs^.LogScan2(LZ4Codecs[GetBits(StreamInfo^.Option, 0, 5)],
       StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
@@ -261,12 +269,13 @@ begin
     if StreamInfo^.Status = TStreamStatus.Predicted then
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
+    Params := '';
     case X of
       LZ4_CODEC:
         begin
-          Params := '';
-          Res1 := LZ4_compress_default(NewInput, Buffer,
-            StreamInfo^.NewSize, Y);
+          Params := 'a' + GetBits(StreamInfo^.Option, 15, 7).ToString;
+          Res1 := LZ4_compress_fast(NewInput, Buffer, StreamInfo^.NewSize, Y,
+            GetBits(StreamInfo^.Option, 15, 7));
         end;
       LZ4HC_CODEC:
         begin
@@ -296,7 +305,7 @@ begin
       break;
   end;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) then
+    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
@@ -332,14 +341,16 @@ begin
   X := GetBits(StreamInfo.Option, 0, 5);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
+  Params := '';
   Buffer := Funcs^.Allocator(Instance,
     LZ4F_compressFrameBound(StreamInfo.NewSize, nil));
   case X of
     LZ4_CODEC:
       begin
-        Params := '';
-        Res1 := LZ4_compress_default(Input, Buffer, StreamInfo.NewSize,
-          LZ4F_compressFrameBound(StreamInfo.NewSize, nil));
+        Params := 'a' + GetBits(StreamInfo.Option, 15, 7).ToString;
+        Res1 := LZ4_compress_fast(Input, Buffer, StreamInfo.NewSize,
+          LZ4F_compressFrameBound(StreamInfo.NewSize, nil),
+          GetBits(StreamInfo.Option, 15, 7));
       end;
     LZ4HC_CODEC:
       begin

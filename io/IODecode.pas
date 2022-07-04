@@ -128,7 +128,7 @@ begin
             '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), LFilename);
           try
             Move(SS2.Memory^, (PByte(SS1.Memory) + LEntry.Position)^,
-              LEntry.Size);
+              Min(SS2.Size, LEntry.Size));
           finally
             SS2.Free;
           end;

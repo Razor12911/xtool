@@ -111,9 +111,13 @@
         <DCCReference Include="contrib\ParseExpression\oObjects.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseClass.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
+        <DCCReference Include="imports\BrunsliDLL.pas"/>
+        <DCCReference Include="imports\FLACDLL.pas"/>
+        <DCCReference Include="imports\JoJpegDLL.pas"/>
         <DCCReference Include="imports\LZ4DLL.pas"/>
         <DCCReference Include="imports\LZODLL.pas"/>
         <DCCReference Include="imports\OodleDLL.pas"/>
+        <DCCReference Include="imports\PackJPGDLL.pas"/>
         <DCCReference Include="imports\PreflateDLL.pas"/>
         <DCCReference Include="imports\ReflateDLL.pas"/>
         <DCCReference Include="imports\XDeltaDLL.pas"/>
@@ -127,6 +131,7 @@
         <DCCReference Include="precompressor\PrecompLZ4.pas"/>
         <DCCReference Include="precompressor\PrecompLZO.pas"/>
         <DCCReference Include="precompressor\PrecompZSTD.pas"/>
+        <DCCReference Include="precompressor\PrecompMedia.pas"/>
         <DCCReference Include="precompressor\PrecompOodle.pas"/>
         <DCCReference Include="precompressor\PrecompINI.pas"/>
         <DCCReference Include="precompressor\PrecompSearch.pas"/>
@@ -142,6 +147,7 @@
         <DCCReference Include="io\IOExecute.pas"/>
         <DCCReference Include="io\IODecode.pas"/>
         <DCCReference Include="io\IOUtils.pas"/>
+        <DCCReference Include="imports\LZMADLL.pas"/>
         <RcItem Include="resources\Win32\xdelta3_dll.dll">
             <ContainerId>ResourceItem</ContainerId>
             <ResourceType>RCDATA</ResourceType>
@@ -152,6 +158,7 @@
             <ResourceType>RCDATA</ResourceType>
             <ResourceId>XDELTA64_DLL</ResourceId>
         </RcItem>
+        <None Include="changes.txt"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -186,6 +193,12 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win64">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

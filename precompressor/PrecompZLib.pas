@@ -255,7 +255,8 @@ begin
   CodecAvailable[ZLIB_CODEC] := ZLibDLL.DLLLoaded;
   CodecAvailable[REFLATE_CODEC] := ReflateDLL.DLLLoaded;
   CodecAvailable[PREFLATE_CODEC] := PreflateDLL.DLLLoaded;
-  CodecAvailable[PNG_CODEC] := True;
+  CodecAvailable[PNG_CODEC] := ZLibDLL.DLLLoaded or ReflateDLL.DLLLoaded or
+    PreflateDLL.DLLLoaded;
   X := 0;
   while Funcs^.GetCodec(Command, X, False) <> '' do
   begin
@@ -433,12 +434,13 @@ var
 begin
   DI1 := Funcs^.GetDepthInfo(Instance);
   DS := Funcs^.GetCodec(DI1.Codec, 0, False);
+  X := -1;
   if DS <> '' then
   begin
     X := IndexTextW(@DS[0], ZlibCodecs);
     if (X < 0) or (DI1.OldSize <> SizeEx) then
       exit;
-    if CodecAvailable[X] then
+    if not CodecAvailable[X] then
       exit;
   end
   else if BoolArray(CodecEnabled, False) then
@@ -567,7 +569,7 @@ begin
             if (I = ZLIB_CODEC) and (WinBits = 0) then
               SetBits(SI.Option, 1, 12, 3);
             SetBits(SI.Option, I, 0, 5);
-            if CodecEnabled[I] then
+            if CodecEnabled[I] or (I = X) then
             begin
               DS := Funcs^.GetDepthCodec(DI1.Codec);
               Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
@@ -632,18 +634,14 @@ function ZlibProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
 
   function IsValidLevel(CLevel, ZLevel: Integer): Boolean;
   begin
+    Result := False;
     case CLevel of
       1, 6:
-        if CLevel = ZLevel then
-          Result := True;
+        Result := CLevel = ZLevel;
       2 .. 5:
-        if ZLevel = 5 then
-          Result := True;
+        Result := ZLevel = 5;
       7 .. 9:
-        if ZLevel = 9 then
-          Result := True;
-    else
-      Result := False;
+        Result := ZLevel = 9;
     end;
   end;
 
@@ -664,6 +662,7 @@ begin
   if not X in [PNG_CODEC] then
     if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
       exit;
+  Params := '';
   case X of
     ZLIB_CODEC:
       begin
@@ -673,7 +672,7 @@ begin
         begin
           L := I div 10;
           M := I mod 10;
-          if StreamInfo^.Status = TStreamStatus.Predicted then
+          if StreamInfo^.Status >= TStreamStatus.Predicted then
           begin
             if InRange(GetBits(StreamInfo^.Option, 5, 7), 1, 9) then
             begin
@@ -684,36 +683,40 @@ begin
             begin
               if GetBits(StreamInfo^.Option, 5, 7) <> I then
                 continue;
-              { I := GetBits(StreamInfo^.Option, 5, 7);
-                SOList[Instance][ZLIB_CODEC].Add(I);
+              if StreamInfo^.Status = TStreamStatus.Database then
                 Result := True;
-                break; }
             end;
           end;
           Params := 'l' + I.ToString + ':' + 'w' +
             (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
           ZStream := @ZStream1[Instance, L, M,
             GetBits(StreamInfo^.Option, 12, 3)];
-          ZStream^.next_in := NewInput;
-          ZStream^.avail_in := StreamInfo^.NewSize;
-          deflateReset(ZStream^);
-          repeat
-            ZStream^.next_out := Buffer;
-            ZStream^.avail_out := Z_BLKSIZE;
-            Res1 := deflate(ZStream^, Z_FINISH);
-            if Res1 < 0 then
-              raise EZCompressionError.Create(string(_z_errmsg[2 - Res1]))
-                at ReturnAddress;
-            Res2 := Z_BLKSIZE - ZStream^.avail_out;
-            Verified := CompareMem(PByte(OldInput) + ZStream^.total_out - Res2,
-              Buffer, Res2);
-            if not Verified then
-              break;
-          until (ZStream^.avail_in = 0) and (ZStream^.avail_out > 0);
+          if not Result then
+          begin
+            ZStream^.next_in := NewInput;
+            ZStream^.avail_in := StreamInfo^.NewSize;
+            deflateReset(ZStream^);
+            repeat
+              ZStream^.next_out := Buffer;
+              ZStream^.avail_out := Z_BLKSIZE;
+              Res1 := deflate(ZStream^, Z_FINISH);
+              if Res1 < 0 then
+                raise EZCompressionError.Create(string(_z_errmsg[2 - Res1]))
+                  at ReturnAddress;
+              Res2 := Z_BLKSIZE - ZStream^.avail_out;
+              Verified := CompareMem(PByte(OldInput) + ZStream^.total_out -
+                Res2, Buffer, Res2);
+              if not Verified then
+                break;
+            until (ZStream^.avail_in = 0) and (ZStream^.avail_out > 0);
+          end
+          else
+            ZStream.total_out := StreamInfo^.OldSize;
           Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
             PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize,
-            ZStream^.total_out, Verified and (Res1 = Z_STREAM_END));
-          if Verified and (Res1 = Z_STREAM_END) then
+            ZStream^.total_out, (Result = True) or
+            (Verified and (Res1 = Z_STREAM_END)));
+          if (Result = True) or (Verified and (Res1 = Z_STREAM_END)) then
           begin
             SetBits(StreamInfo^.Option, I, 5, 7);
             SOList[Instance][ZLIB_CODEC].Add(I);
@@ -739,7 +742,7 @@ begin
         Buffer := Funcs^.Allocator(Instance, R_WORKMEM * 2);
         J := 0;
         HR := RefInst1[Instance];
-        if StreamInfo^.Status = TStreamStatus.Predicted then
+        if StreamInfo^.Status >= TStreamStatus.Predicted then
           L := GetBits(StreamInfo^.Option, 5, 7)
         else
           L := RLevel;
@@ -804,7 +807,6 @@ begin
     PNG_CODEC:
       begin
         Buffer := Funcs^.Allocator(Instance, StreamInfo^.OldSize);
-        Params := '';
         if DecodePNG(NewInput, Buffer, StreamInfo^.OldSize) then
           Result := CompareMem(OldInput, Buffer, StreamInfo^.OldSize);
         Funcs^.LogProcess(ZlibCodecs[GetBits(StreamInfo^.Option, 0, 5)],
@@ -831,6 +833,7 @@ begin
   if not X in [PNG_CODEC] then
     if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
       exit;
+  Params := '';
   case X of
     ZLIB_CODEC:
       begin
@@ -915,7 +918,6 @@ begin
     PNG_CODEC:
       begin
         Buffer := Funcs^.Allocator(Instance, StreamInfo.OldSize);
-        Params := '';
         if DecodePNG(Input, Buffer, StreamInfo.OldSize) then
         begin
           Output(Instance, Buffer, StreamInfo.OldSize);
