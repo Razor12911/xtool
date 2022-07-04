@@ -91,7 +91,7 @@ begin
     DI2.OldSize := SI.NewSize;
     DI2.NewSize := SI.NewSize;
     Funcs^.LogScan1(CryptoCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-      SI.OldSize, SI.NewSize);
+      SI.OldSize, -1);
     Add(Instance, @SI, DI1.Codec, @DI2);
   end;
 end;
@@ -108,10 +108,10 @@ begin
     exit;
   if (Res > 0) and (StreamInfo^.OldSize > 0) then
   begin
-    StreamInfo^.NewSize := StreamInfo^.OldSize;
     Output(Instance, Input, StreamInfo^.OldSize);
+    StreamInfo^.NewSize := StreamInfo^.OldSize;
     Funcs^.LogScan2(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)],
-      StreamInfo^.OldSize, StreamInfo^.NewSize);
+      StreamInfo^.OldSize, -1);
     Result := True;
   end;
 end;
@@ -143,7 +143,7 @@ begin
     end;
     Result := True;
     Funcs^.LogProcess(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)], nil,
-      StreamInfo^.OldSize, StreamInfo^.NewSize, StreamInfo^.OldSize, Result);
+      StreamInfo^.OldSize, -1, -1, Result);
   end;
 end;
 
@@ -175,7 +175,7 @@ begin
     Output(Instance, Input, StreamInfo.OldSize);
     Result := True;
     Funcs^.LogRestore(CryptoCodecs[GetBits(StreamInfo.Option, 0, 5)], nil,
-      StreamInfo.OldSize, StreamInfo.NewSize, StreamInfo.OldSize, Result);
+      StreamInfo.OldSize, -1, -1, Result);
   end;
 end;
 

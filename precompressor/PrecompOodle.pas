@@ -681,8 +681,8 @@ begin
     if CustomLZ_Decompress0(Input, Buffer, StreamInfo^.OldSize,
       OodleSI.DSize, Res) then
     begin
-      StreamInfo^.NewSize := Res;
       Output(Instance, Buffer, Res);
+      StreamInfo^.NewSize := Res;
       Funcs^.LogScan2(OodleCodecs[GetBits(StreamInfo^.Option, 0, 5)],
         StreamInfo^.OldSize, StreamInfo^.NewSize);
       Result := True;
@@ -730,7 +730,7 @@ begin
       break;
   end;
   if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) then
+    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
