@@ -46,11 +46,7 @@ var
 
 procedure Init;
 begin
-{$IFDEF WIN32}
-  DLLStream := TResourceStream.Create(HInstance, 'XDELTA86_DLL', RT_RCDATA);
-{$ELSE}
-  DLLStream := TResourceStream.Create(HInstance, 'XDELTA64_DLL', RT_RCDATA);
-{$ENDIF}
+  DLLStream := TResourceStream.Create(HInstance, 'xdelta3_dll', RT_RCDATA);
   DLLHandle := MemoryLoadLibary(DLLStream.Memory);
   if Assigned(DLLHandle) then
   begin

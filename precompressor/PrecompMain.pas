@@ -5,7 +5,7 @@ unit PrecompMain;
 interface
 
 uses
-  Threading, Utils, SynCommons, ParseClass, ParseExpr,
+  Threading, Utils, SynCommons, ParseClass, ParseExpr, FLZMA2DLL,
   PrecompUtils, PrecompCrypto, PrecompZLib, PrecompLZ4, PrecompLZO, PrecompZSTD,
   PrecompOodle, PrecompMedia, PrecompINI, PrecompSearch, PrecompDLL, PrecompEXE,
   WinAPI.Windows, WinAPI.ShlObj,
@@ -25,6 +25,8 @@ type
     Depth: Integer;
     LowMem: Boolean;
     DBaseFile, ExtractDir: String;
+    DoCompress: Boolean;
+    CompressCfg: String;
   end;
 
   PDecodeOptions = ^TDecodeOptions;
@@ -34,6 +36,7 @@ type
     ChunkCount, Threads: Integer;
     Depth: Integer;
     DedupSysMem, DedupGPUMem: Int64;
+    CompressCfg: String;
   end;
 
 procedure PrintHelp;
@@ -122,7 +125,7 @@ begin
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Parameters:');
   WriteLn(ErrOutput,
-    '  -m#  - codecs to use for precompression (separate by "+" if more than one)');
+    '  -m#  - codecs to use for precompression (separate with "+" if more than one)');
   WriteLn(ErrOutput, '  -c#  - scanning range of precompressor [16mb]');
   WriteLn(ErrOutput, '  -t#  - number of working threads [50p]');
   WriteLn(ErrOutput, '  -lm  - low memory mode');
@@ -131,13 +134,16 @@ begin
   WriteLn(ErrOutput, 'Advanced parameters:');
   WriteLn(ErrOutput,
     '  --dbase=#   - use database (#=filename to save db, optional)');
-  WriteLn(ErrOutput,
-    '  --dedup=#   - use stream deduplication (#=filename to save db, optional)');
+  WriteLn(ErrOutput, '  --dedup   - use stream deduplication');
   WriteLn(ErrOutput,
     '  --mem=#     - deduplication ram usage limit (#=size) [75p]');
   WriteLn(ErrOutput,
     '  --diff=#    - set xdelta threshold to accept streams [5p]');
   WriteLn(ErrOutput, '  --extract=# - extract streams to directory path');
+  WriteLn(ErrOutput,
+    '  --compress=# - compress data using fast lzma2 (separate params with ":"');
+  WriteLn(ErrOutput, '               l# - compression level [5]');
+  WriteLn(ErrOutput, '               t# - number of threads [50p]');
   WriteLn(ErrOutput, '');
 end;
 
@@ -191,6 +197,12 @@ begin
     Options.ExtractDir := ArgParse.AsString('--extract=');
     if Options.ExtractDir <> '' then
       EXTRACT := DirectoryExists(Options.ExtractDir);
+    Options.DoCompress := ArgParse.AsBoolean('--compress');
+    S := ArgParse.AsString('--compress=');
+    S := ReplaceText(S, SPrecompSep3, SPrecompSep2);
+    Options.CompressCfg := S;
+    if Options.CompressCfg <> '' then
+      Options.DoCompress := True;
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -228,6 +240,9 @@ begin
     if B then
       Options.DedupSysMem := -Options.DedupSysMem;
     VERBOSE := ArgParse.AsBoolean('--verbose');
+    S := ArgParse.AsString('--compress=', 0, 't50p');
+    S := ReplaceText(S, SPrecompSep3, SPrecompSep2);
+    Options.CompressCfg := S;
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -1905,8 +1920,8 @@ begin
   for I := Low(ThreadSync) to High(ThreadSync) do
     ThreadSync[I] := TCriticalSection.Create;
   DupSysMem := Options^.DedupSysMem;
-  NStream.Add(TypeInfo(TMemoryStream) { , CalcSysMem } );
-  // NStream.Add(TypeInfo(TPrecompVMStream));
+  NStream.Add(TypeInfo(TMemoryStream), CalcSysMem);
+  NStream.Add(TypeInfo(TPrecompVMStream));
   Input.ReadBuffer(Options^.Depth, Options^.Depth.Size);
   Input.ReadBuffer(LongRec(I).Bytes[0], LongRec(I).Bytes[0].Size);
   SetLength(Bytes, LongRec(I).Bytes[0]);
@@ -1975,19 +1990,8 @@ begin
         MemOutput2[I] := TMemoryStream.Create;
       end;
     end;
-  Input.ReadBuffer(StoreDD, StoreDD.Size);
-  UI32 := 0;
-  if StoreDD then
-  begin
-    Input.ReadBuffer(UI32, UI32.Size);
-    SetLength(DDList2, UI32);
-    DDCount2 := UI32;
-    for I := Low(DDList2) to High(DDList2) do
-      Input.ReadBuffer(DDList2[I], SizeOf(TDuplicate2));
-    DDIndex1 := -1;
-    DDIndex2 := 0;
-  end;
   DataMgr := TDataManager.Create(NStream);
+  Input.ReadBuffer(StoreDD, StoreDD.Size);
 end;
 
 procedure DecFree;
@@ -2037,7 +2041,20 @@ var
   I, J: Integer;
 begin
   if Depth = 0 then
+  begin
+    UI32 := 0;
+    if StoreDD then
+    begin
+      Input.ReadBuffer(UI32, UI32.Size);
+      SetLength(DDList2, UI32);
+      DDCount2 := UI32;
+      for I := Low(DDList2) to High(DDList2) do
+        Input.ReadBuffer(DDList2[I], SizeOf(TDuplicate2));
+      DDIndex1 := -1;
+      DDIndex2 := 0;
+    end;
     LogInt64 := 0;
+  end;
   with ComVars2[Depth] do
   begin
     DecInput[Index] := Input;
@@ -2252,6 +2269,9 @@ begin
 end;
 
 procedure Encode(Input, Output: TStream; Options: TEncodeOptions);
+var
+  Compressed: Boolean;
+  LOutput: TStream;
 begin
   InternalSync.Enter;
   FillChar(EncInfo, SizeOf(EncInfo), 0);
@@ -2263,8 +2283,16 @@ begin
     ConTask.Start;
   try
     EncInit(Input, Output, @Options);
-    EncData(Input, Output, 0, 0);
+    Compressed := Options.DoCompress;
+    Output.WriteBuffer(Compressed, Compressed.Size);
+    if Options.DoCompress then
+      LOutput := TLZMACompressStream.Create(Output, Options.CompressCfg)
+    else
+      LOutput := Output;
+    EncData(Input, LOutput, 0, 0);
   finally
+    if Options.DoCompress then
+      LOutput.Free;
     try
       EncFree;
     finally
@@ -2279,6 +2307,9 @@ begin
 end;
 
 procedure Decode(Input, Output: TStream; Options: TDecodeOptions);
+var
+  Compressed: Boolean;
+  LInput: TStream;
 begin
   InternalSync.Enter;
   FillChar(EncInfo, SizeOf(EncInfo), 0);
@@ -2291,8 +2322,15 @@ begin
   NStream := TArrayStream.Create;
   try
     DecInit(Input, Output, @Options);
-    DecChunk(Input, Output, 0, 0);
+    Input.ReadBuffer(Compressed, Compressed.Size);
+    if Compressed then
+      LInput := TLZMADecompressStream.Create(Input, Options.CompressCfg)
+    else
+      LInput := Input;
+    DecChunk(LInput, Output, 0, 0);
   finally
+    if Compressed then
+      LInput.Free;
     try
       NStream.Free;
       DecFree;

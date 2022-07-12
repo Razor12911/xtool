@@ -140,9 +140,10 @@ begin
     end
     else if subchunk_hdr.subchunk_id = data_SIGN then
     begin
-      Result := True;
-      chunk_size^ := subchunk_hdr.subchunk_size;
+      chunk_size^ := Min(subchunk_hdr.subchunk_size,
+        (riffhdr.chunk_size + 8 - Pos));
       header_size^ := Pos;
+      Result := chunk_size^ + header_size^ <= InSize;
       exit;
     end
     else
@@ -750,7 +751,6 @@ begin
           StreamInfo^.NewSize := Res;
           Result := True;
         end;
-        ShowMessage('');
       end;
     BRUNSLI_CODEC:
       begin

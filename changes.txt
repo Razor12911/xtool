@@ -1,11 +1,16 @@
+  ES_R37 (0.6.2)
+  - added feature to inject libraries to main executable
+
+  ES_R36 (0.6.1)
+  - added fast lzma2 compression for portable mode
+  - fixed minor issue with stream deduplication feature
+
   ES_R35 (0.6.0)
   - added wav stream detector
   - added flac codec
   - added jpg stream detector
   - added packjpg, brunsli, jojpeg codec
-  - added fast lzma2 compression for portable mode
   - added feature that allows input to be a directory
-  - added feature to inject libraries to main executable
   - added feature to extract detected streams
   - updated database feature
   - updated deduplication feature

@@ -9,10 +9,11 @@ uses
 type
   ZSTD_strategy = (ZSTD_fast = 1, ZSTD_dfast = 2, ZSTD_greedy = 3,
     ZSTD_lazy = 4, ZSTD_lazy2 = 5, ZSTD_btlazy2 = 6, ZSTD_btopt = 7,
-    ZSTD_btultra = 8, ZSTD_btultra2 = 9);
+    ZSTD_btultra = 8, ZSTD_btultra2 = 9, ZSTD_strategy_Force32 = $40000000);
 
   ZSTD_ResetDirective = (ZSTD_reset_session_only = 1, ZSTD_reset_parameters = 2,
-    ZSTD_reset_session_and_parameters = 3);
+    ZSTD_reset_session_and_parameters = 3,
+    ZSTD_ResetDirective_Force32 = $40000000);
 
   PZSTD_inBuffer = ^ZSTD_inBuffer;
 
@@ -47,7 +48,7 @@ type
     ZSTD_c_experimentalParam9 = 1006, ZSTD_c_experimentalParam10 = 1007,
     ZSTD_c_experimentalParam11 = 1008, ZSTD_c_experimentalParam12 = 1009,
     ZSTD_c_experimentalParam13 = 1010, ZSTD_c_experimentalParam14 = 1011,
-    ZSTD_c_experimentalParam15 = 1012);
+    ZSTD_c_experimentalParam15 = 1012, ZSTD_cParameter_Force32 = $40000000);
 
   ZSTD_compressionParameters = record
     windowLog: Cardinal;
@@ -73,6 +74,8 @@ type
 var
   ZSTD_compress: function(dst: Pointer; dstCapacity: size_t; const src: Pointer;
     srcSize: size_t; compressionLevel: Integer): size_t cdecl;
+  ZSTD_compress2: function(cctx: Pointer; dst: Pointer; dstCapacity: size_t;
+    const src: Pointer; srcSize: size_t): size_t cdecl;
   ZSTD_decompress: function(dst: Pointer; dstCapacity: size_t;
     const src: Pointer; srcSize: size_t): SSIZE_T cdecl;
   ZSTD_findFrameCompressedSize: function(const src: Pointer; srcSize: size_t)
@@ -81,6 +84,10 @@ var
     : int64 cdecl;
   ZSTD_createCCtx: function: Pointer cdecl;
   ZSTD_freeCCtx: function(cctx: Pointer): size_t cdecl;
+  ZSTD_CCtx_reset: function(cctx: Pointer; reset: ZSTD_ResetDirective)
+    : size_t cdecl;
+  ZSTD_CCtx_setParameter: function(cctx: Pointer; param: ZSTD_cParameter;
+    value: Integer): size_t cdecl;
   ZSTD_compressCCtx: function(cctx: Pointer; dst: Pointer; dstCapacity: size_t;
     src: Pointer; srcSize: size_t; compressionLevel: Integer): size_t cdecl;
   ZSTD_createDCtx: function: Pointer cdecl;
@@ -99,6 +106,13 @@ var
   ZSTD_decompress_usingDDict: function(dctx: Pointer; dst: Pointer;
     dstCapacity: size_t; const src: Pointer; srcSize: size_t;
     const ddict: Pointer): size_t cdecl;
+  ZSTD_initCStream: function(zcs: Pointer; compressionLevel: Integer)
+    : size_t cdecl;
+  ZSTD_compressStream: function(zcs: Pointer; output: PZSTD_outBuffer;
+    input: PZSTD_inBuffer): size_t cdecl;
+  ZSTD_flushStream: function(zcs: Pointer; output: PZSTD_outBuffer)
+    : size_t cdecl;
+  ZSTD_endStream: function(zcs: Pointer; output: PZSTD_outBuffer): size_t cdecl;
 
   DLLLoaded: Boolean = False;
 
@@ -138,6 +152,7 @@ begin
   if DLLHandle >= 32 then
   begin
     @ZSTD_compress := GetProcAddress(DLLHandle, 'ZSTD_compress');
+    @ZSTD_compress2 := GetProcAddress(DLLHandle, 'ZSTD_compress2');
     @ZSTD_decompress := GetProcAddress(DLLHandle, 'ZSTD_decompress');
     @ZSTD_findFrameCompressedSize := GetProcAddress(DLLHandle,
       'ZSTD_findFrameCompressedSize');
@@ -145,6 +160,9 @@ begin
       'ZSTD_findDecompressedSize');
     @ZSTD_createCCtx := GetProcAddress(DLLHandle, 'ZSTD_createCCtx');
     @ZSTD_freeCCtx := GetProcAddress(DLLHandle, 'ZSTD_freeCCtx');
+    @ZSTD_CCtx_reset := GetProcAddress(DLLHandle, 'ZSTD_CCtx_reset');
+    @ZSTD_CCtx_setParameter := GetProcAddress(DLLHandle,
+      'ZSTD_CCtx_setParameter');
     @ZSTD_createDCtx := GetProcAddress(DLLHandle, 'ZSTD_createDCtx');
     @ZSTD_freeDCtx := GetProcAddress(DLLHandle, 'ZSTD_freeDCtx');
     @ZSTD_createCDict := GetProcAddress(DLLHandle, 'ZSTD_createCDict');
@@ -157,6 +175,10 @@ begin
       'ZSTD_compress_usingCDict');
     @ZSTD_decompress_usingDDict := GetProcAddress(DLLHandle,
       'ZSTD_decompress_usingDDict');
+    @ZSTD_initCStream := GetProcAddress(DLLHandle, 'ZSTD_initCStream');
+    @ZSTD_compressStream := GetProcAddress(DLLHandle, 'ZSTD_compressStream');
+    @ZSTD_flushStream := GetProcAddress(DLLHandle, 'ZSTD_flushStream');
+    @ZSTD_endStream := GetProcAddress(DLLHandle, 'ZSTD_endStream');
     DLLLoaded := Assigned(ZSTD_compress) and Assigned(ZSTD_decompress);
   end
   else

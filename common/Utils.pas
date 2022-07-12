@@ -490,6 +490,8 @@ function GetCmdStr(CommandLine: String; Index: Integer;
   KeepQuotes: Boolean = False): string;
 function GetCmdCount(CommandLine: String): Integer;
 
+procedure UpdateFileResource(Source, Dest, ResName: string);
+
 implementation
 
 function GetBits(Data: Int64; Index: TInt64_BitIndex;
@@ -3613,6 +3615,43 @@ begin
   Result := 0;
   while GetCmdStr(CommandLine, Result, True) <> '' do
     Inc(Result);
+end;
+
+procedure UpdateFileResource(Source, Dest, ResName: string);
+var
+  Stream: TFileStream;
+  hDestRes: THandle;
+  lpData: Pointer;
+  cbData: DWORD;
+begin
+  Stream := TFileStream.Create(Source, fmOpenRead or fmShareDenyNone);
+  try
+    Stream.Seek(0, soFromBeginning);
+    cbData := Stream.Size;
+    if cbData > 0 then
+    begin
+      GetMem(lpData, cbData);
+      try
+        Stream.Read(lpData^, cbData);
+        hDestRes := BeginUpdateResource(PChar(Dest), False);
+        if hDestRes <> 0 then
+          if UpdateResource(hDestRes, RT_RCDATA, PWideChar(ResName), 0, lpData,
+            cbData) then
+          begin
+            if not EndUpdateResource(hDestRes, False) then
+              RaiseLastOSError
+          end
+          else
+            RaiseLastOSError
+        else
+          RaiseLastOSError;
+      finally
+        FreeMem(lpData);
+      end;
+    end;
+  finally
+    Stream.Free;
+  end;
 end;
 
 end.

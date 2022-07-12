@@ -54,6 +54,7 @@ uses
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
   BrunsliDLL in 'imports\BrunsliDLL.pas',
   FLACDLL in 'imports\FLACDLL.pas',
+  FLZMA2DLL in 'imports\FLZMA2DLL.pas',
   JoJpegDLL in 'imports\JoJpegDLL.pas',
   LZ4DLL in 'imports\LZ4DLL.pas',
   LZODLL in 'imports\LZODLL.pas',
@@ -87,8 +88,7 @@ uses
   IOPatch in 'io\IOPatch.pas',
   IOExecute in 'io\IOExecute.pas',
   IODecode in 'io\IODecode.pas',
-  IOUtils in 'io\IOUtils.pas',
-  LZMADLL in 'imports\LZMADLL.pas';
+  IOUtils in 'io\IOUtils.pas';
 
 {$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE or IMAGE_FILE_RELOCS_STRIPPED}
 

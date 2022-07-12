@@ -16,6 +16,7 @@ resourcestring
   SPrecompSep2 = ':';
   SPrecompSep3 = ',';
   SPrecompSep4 = '/';
+  SPrecompSep5 = '/';
 
 const
   SuccessStatus = 4;

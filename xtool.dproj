@@ -113,6 +113,7 @@
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
         <DCCReference Include="imports\BrunsliDLL.pas"/>
         <DCCReference Include="imports\FLACDLL.pas"/>
+        <DCCReference Include="imports\FLZMA2DLL.pas"/>
         <DCCReference Include="imports\JoJpegDLL.pas"/>
         <DCCReference Include="imports\LZ4DLL.pas"/>
         <DCCReference Include="imports\LZODLL.pas"/>
@@ -147,18 +148,17 @@
         <DCCReference Include="io\IOExecute.pas"/>
         <DCCReference Include="io\IODecode.pas"/>
         <DCCReference Include="io\IOUtils.pas"/>
-        <DCCReference Include="imports\LZMADLL.pas"/>
-        <RcItem Include="resources\Win32\xdelta3_dll.dll">
-            <ContainerId>ResourceItem</ContainerId>
-            <ResourceType>RCDATA</ResourceType>
-            <ResourceId>XDELTA86_DLL</ResourceId>
-        </RcItem>
         <RcItem Include="resources\Win64\xdelta3_dll.dll">
             <ContainerId>ResourceItem</ContainerId>
             <ResourceType>RCDATA</ResourceType>
-            <ResourceId>XDELTA64_DLL</ResourceId>
+            <ResourceId>xdelta3_dll</ResourceId>
         </RcItem>
         <None Include="changes.txt"/>
+        <RcItem Include="resources\Win64\fast-lzma2.dll">
+            <ContainerId>ResourceItem</ContainerId>
+            <ResourceType>RCDATA</ResourceType>
+            <ResourceId>fast_lzma2</ResourceId>
+        </RcItem>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -208,7 +208,7 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="resources\Win32\xdelta3_dll.dll" Configuration="Release" Class="ProjectFile">
+                <DeployFile LocalName="resources\Win64\fast-lzma2.dll" Configuration="Release" Class="ProjectFile">
                     <Platform Name="Win64">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>

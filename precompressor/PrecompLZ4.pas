@@ -266,21 +266,32 @@ begin
   SOList[Instance][X].Index := 0;
   while SOList[Instance][X].Get(I) >= 0 do
   begin
-    if StreamInfo^.Status = TStreamStatus.Predicted then
+    if StreamInfo^.Status >= TStreamStatus.Predicted then
+    begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
+      if (StreamInfo^.Status = TStreamStatus.Database) and
+        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+      begin
+        Res1 := StreamInfo^.OldSize;
+        Result := True;
+      end;
+    end;
     Params := '';
     case X of
       LZ4_CODEC:
         begin
           Params := 'a' + GetBits(StreamInfo^.Option, 15, 7).ToString;
-          Res1 := LZ4_compress_fast(NewInput, Buffer, StreamInfo^.NewSize, Y,
-            GetBits(StreamInfo^.Option, 15, 7));
+          if not Result then
+            Res1 := LZ4_compress_fast(NewInput, Buffer, StreamInfo^.NewSize, Y,
+              GetBits(StreamInfo^.Option, 15, 7));
         end;
       LZ4HC_CODEC:
         begin
           Params := 'l' + I.ToString;
-          Res1 := LZ4_compress_HC(NewInput, Buffer, StreamInfo^.NewSize, Y, I);
+          if not Result then
+            Res1 := LZ4_compress_HC(NewInput, Buffer,
+              StreamInfo^.NewSize, Y, I);
         end;
       LZ4F_CODEC:
         begin
@@ -293,18 +304,20 @@ begin
           Params := 'l' + I.ToString + ':' + 'b' +
             (GetBits(StreamInfo^.Option, 12, 2) + 4).ToString + ':' + 'd' +
             GetBits(StreamInfo^.Option, 14, 1).ToString;
-          Res1 := LZ4F_compressFrame(Buffer, Y, NewInput,
-            StreamInfo^.NewSize, @LZ4FT);
+          if not Result then
+            Res1 := LZ4F_compressFrame(Buffer, Y, NewInput,
+              StreamInfo^.NewSize, @LZ4FT);
         end;
     end;
-    Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
-      StreamInfo^.OldSize);
+    if not Result then
+      Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
+        StreamInfo^.OldSize);
     Funcs^.LogProcess(LZ4Codecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
       break;
   end;
-  if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
+  if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));

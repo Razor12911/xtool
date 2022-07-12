@@ -711,25 +711,35 @@ begin
   SOList[Instance][X].Index := 0;
   while SOList[Instance][X].Get(I) >= 0 do
   begin
-    if StreamInfo^.Status = TStreamStatus.Predicted then
+    if StreamInfo^.Status >= TStreamStatus.Predicted then
+    begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
+      if (StreamInfo^.Status = TStreamStatus.Database) and
+        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+      begin
+        Res1 := StreamInfo^.OldSize;
+        Result := True;
+      end;
+    end;
     Move(OodleLZ_CompressOptions_GetDefault(Y, I)^, COptions,
       SizeOf(TOodleLZ_CompressOptions));
     COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 12, 1) = 1;
     COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 13, 11);
     Params := 'l' + I.ToString + ':' + 'c' + GetBits(StreamInfo^.Option, 12, 1)
       .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 13, 11).ToString;
-    Res1 := OodleLZ_Compress(Y, NewInput, StreamInfo^.NewSize, Buffer, I,
-      @COptions);
-    Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
-      StreamInfo^.OldSize);
+    if not Result then
+      Res1 := OodleLZ_Compress(Y, NewInput, StreamInfo^.NewSize, Buffer, I,
+        @COptions);
+    if not Result then
+      Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
+        StreamInfo^.OldSize);
     Funcs^.LogProcess(OodleCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
       break;
   end;
-  if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
+  if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));

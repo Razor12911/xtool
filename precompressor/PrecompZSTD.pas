@@ -250,9 +250,9 @@ var
   X: Integer;
   Res1: Integer;
   Res2: NativeUInt;
-  // Inp: ZSTD_inBuffer;
-  // Oup: ZSTD_outBuffer;
-  // Progress: NativeInt;
+  Inp: ZSTD_inBuffer;
+  Oup: ZSTD_outBuffer;
+  Progress: NativeInt;
 begin
   Result := False;
   X := GetBits(StreamInfo^.Option, 0, 5);
@@ -262,29 +262,43 @@ begin
   SOList[Instance][X].Index := 0;
   while SOList[Instance][X].Get(I) >= 0 do
   begin
-    if StreamInfo^.Status = TStreamStatus.Predicted then
+    if StreamInfo^.Status >= TStreamStatus.Predicted then
+    begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
+      if (StreamInfo^.Status = TStreamStatus.Database) and
+        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+      begin
+        Res1 := StreamInfo^.OldSize;
+        Result := True;
+      end;
+    end;
     Params := '';
     case X of
       ZSTD_CODEC:
         begin
           Params := 'l' + I.ToString;
-          Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo^.NewSize,
-            NewInput, StreamInfo^.NewSize, I);
+          { ZSTD_CCtx_reset(cctx[Instance], ZSTD_reset_session_and_parameters);
+            ZSTD_CCtx_setParameter(cctx[Instance], ZSTD_c_strategy, 5);
+            ZSTD_CCtx_setParameter(cctx[Instance], ZSTD_c_compressionLevel, I); }
+          if not Result then
+            Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer,
+              StreamInfo^.NewSize, NewInput, StreamInfo^.NewSize, I);
         end;
       { Res1 := ZSTD_compress_usingCDict(cctx[Instance], Buffer,
         StreamInfo^.NewSize, NewInput, StreamInfo^.NewSize, cdict); }
       { begin
+        Params := 'l' + I.ToString;
         Progress := 0;
         Oup.dst := Buffer;
         Oup.Size := StreamInfo^.NewSize;
         Oup.Pos := 0;
         ZSTD_initCStream(cctx[Instance], I);
+        ZSTD_CCtx_setParameter(cctx[Instance], ZSTD_c_strategy, 9);
         while Progress < StreamInfo^.NewSize do
         begin
         Inp.src := PByte(NewInput) + Progress;
-        Inp.Size := Min(StreamInfo^.NewSize - Progress, 32768);
+        Inp.Size := Min(StreamInfo^.NewSize - Progress, 64 * 1024);
         Inp.Pos := 0;
         if ZSTD_compressStream(cctx[Instance], @Oup, @Inp) > 0 then
         begin
@@ -298,8 +312,9 @@ begin
         Res1 := Oup.Pos;
         end; }
     end;
-    Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
-      StreamInfo^.OldSize);
+    if not Result then
+      Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
+        StreamInfo^.OldSize);
     Funcs^.LogProcess(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
@@ -307,7 +322,7 @@ begin
   end;
   if Res1 < 0 then
     exit;
-  if (Result = False) and ((StreamInfo^.Status = TStreamStatus.Predicted) or
+  if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
