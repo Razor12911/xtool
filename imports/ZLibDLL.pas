@@ -3,6 +3,7 @@ unit ZLibDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils, System.ZLib;
 
@@ -86,55 +87,8 @@ function inflateReset(var strm: z_stream): integer;
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
   WinAPIDLL: boolean;
-  DLLs: TStringDynArray;
-
-procedure Init(Filename: String);
-var
-  I: integer;
-begin
-  if DLLLoaded then
-    Exit;
-  DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'zlib*.dll',
-    TSearchOption.soTopDirectoryOnly);
-  Insert(ExtractFilePath(ParamStr(0)) + 'zlib.dll', DLLs, Length(DLLs));
-  Insert(ExtractFilePath(ParamStr(0)) + Filename, DLLs, 0);
-  for I := Low(DLLs) to High(DLLs) do
-  begin
-    DLLHandle := LoadLibrary(PChar(DLLs[I]));
-    if (DLLHandle >= 32) and Assigned(GetProcAddress(DLLHandle, 'zlibVersion'))
-    then
-      break;
-  end;
-  if DLLHandle >= 32 then
-  begin
-    DLLLoaded := True;
-    @_zlibVersion := GetProcAddress(DLLHandle, 'zlibVersion');
-    @_zlibCompileFlags := GetProcAddress(DLLHandle, 'zlibCompileFlags');
-    DLLLoaded := Assigned(_zlibVersion) and Assigned(_zlibCompileFlags);
-    if DLLLoaded then
-    begin
-      WinAPIDLL := _zlibCompileFlags and $400 = $400;
-      if WinAPIDLL then
-      begin
-        @s_deflateInit2_ := GetProcAddress(DLLHandle, 'deflateInit2_');
-        @s_deflate := GetProcAddress(DLLHandle, 'deflate');
-        @s_deflateEnd := GetProcAddress(DLLHandle, 'deflateEnd');
-        @s_deflateReset := GetProcAddress(DLLHandle, 'deflateReset');
-      end
-      else
-      begin
-        @c_deflateInit2_ := GetProcAddress(DLLHandle, 'deflateInit2_');
-        @c_deflate := GetProcAddress(DLLHandle, 'deflate');
-        @c_deflateEnd := GetProcAddress(DLLHandle, 'deflateEnd');
-        @c_deflateReset := GetProcAddress(DLLHandle, 'deflateReset');
-      end;
-    end;
-  end
-  else
-    DLLLoaded := False;
-end;
 
 function deflateInit2(var strm: z_stream; level, method, windowBits, memLevel,
   strategy: integer): integer;
@@ -192,11 +146,49 @@ begin
   Result := System.ZLib.inflateReset(strm);
 end;
 
+procedure Init(Filename: String);
+begin
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
+  begin
+    Lib.Free;
+    Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'zlibwapi.dll');
+  end;
+  if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
+  begin
+    Lib.Free;
+    Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'zlib1.dll');
+  end;
+  if Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion')) then
+  begin
+    DLLLoaded := True;
+    @_zlibVersion := Lib.GetProcAddr('zlibVersion');
+    @_zlibCompileFlags := Lib.GetProcAddr('zlibCompileFlags');
+    DLLLoaded := Assigned(_zlibVersion) and Assigned(_zlibCompileFlags);
+    if DLLLoaded then
+    begin
+      WinAPIDLL := _zlibCompileFlags and $400 = $400;
+      if WinAPIDLL then
+      begin
+        @s_deflateInit2_ := Lib.GetProcAddr('deflateInit2_');
+        @s_deflate := Lib.GetProcAddr('deflate');
+        @s_deflateEnd := Lib.GetProcAddr('deflateEnd');
+        @s_deflateReset := Lib.GetProcAddr('deflateReset');
+      end
+      else
+      begin
+        @c_deflateInit2_ := Lib.GetProcAddr('deflateInit2_');
+        @c_deflate := Lib.GetProcAddr('deflate');
+        @c_deflateEnd := Lib.GetProcAddr('deflateEnd');
+        @c_deflateReset := Lib.GetProcAddr('deflateReset');
+      end;
+    end;
+  end;
+end;
+
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    Exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 const

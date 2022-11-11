@@ -24,11 +24,8 @@ program xtool;
 
 {$APPTYPE CONSOLE}
 {$R *.res}
-{$SETPEOSVERSION 6.0}
-{$SETPESUBSYSVERSION 6.0}
 {$WEAKLINKRTTI ON}
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
-{$R *.dres}
 
 uses
   WinAPI.Windows,
@@ -38,6 +35,7 @@ uses
   System.Types,
   System.Math,
   System.IOUtils,
+  LibImport in 'common\LibImport.pas',
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
   FuncHook in 'contrib\Delphi_MemoryModule\FuncHook.pas',
@@ -47,8 +45,6 @@ uses
   SynCrypto in 'contrib\mORMot\SynCrypto.pas',
   SynLZ in 'contrib\mORMot\SynLZ.pas',
   SynTable in 'contrib\mORMot\SynTable.pas',
-  DelphiCL in 'contrib\opencl\DelphiCL.pas',
-  OpenCL in 'contrib\opencl\OpenCL.pas',
   oObjects in 'contrib\ParseExpression\oObjects.pas',
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
@@ -102,6 +98,7 @@ const
   CommandPatch = 'patch';
   CommandArchive = 'archive';
   CommandExecute = 'execute';
+  CommandInject = 'inject';
   CommandDecode = 'decode';
 
 procedure ProgramInfo;
@@ -121,6 +118,7 @@ begin
   WriteLine('  ' + CommandExtract);
   WriteLine('  ' + CommandFind);
   WriteLine('  ' + CommandGenerate);
+  WriteLine('  ' + CommandInject);
   WriteLine('  ' + CommandPatch);
   WriteLine('  ' + CommandPrecomp);
   WriteLine('  ' + CommandReplace);
@@ -141,6 +139,15 @@ begin
   WriteLine('');
 end;
 
+procedure InjectPrintHelp;
+begin
+  WriteLine('inject - embed libraries as part of xtool');
+  WriteLine('');
+  WriteLine('Usage:');
+  WriteLine('  xtool inject dll');
+  WriteLine('');
+end;
+
 function GetInStream(Input: string): TStream;
 begin
   if (Input = '-') or (Input = '') then
@@ -153,7 +160,7 @@ begin
     Result := TDirInputStream.Create(Input);
 end;
 
-function GetOutStream(Output: string; MultiInput: Boolean = False): TStream;
+function GetOutStream(Output: string): TStream;
 begin
   if (Output = '') then
     Result := TNullStream.Create
@@ -170,6 +177,7 @@ const
 
 var
   I, J: Integer;
+  S: String;
   ParamArg: array [0 .. 1] of TArray<String>;
   StrArray: TArray<String>;
   IsParam: Boolean;
@@ -344,6 +352,18 @@ begin
           Input.Free;
           Output.Free;
         end;
+      end;
+    if ParamStr(1).StartsWith(CommandInject, True) then
+      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
+        InjectPrintHelp
+      else
+      begin
+        S := ChangeFileExt(GetModuleName,
+          '_inj' + ExtractFileExt(GetModuleName));
+        if not FileExists(S) then
+          TFile.Copy(GetModuleName, S);
+        InjectLib(ParamArg[1, 0], S);
+        WriteLine('Successfully injected ' + ExtractFileName(ParamArg[1, 0]));
       end;
     if ParamStr(1).StartsWith(CommandDecode, True) then
       if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then

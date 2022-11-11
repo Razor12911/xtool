@@ -3,7 +3,7 @@ unit PrecompZSTD;
 interface
 
 uses
-  ZSTDDLL, XDeltaDLL,
+  ZSTDDLL,
   Utils,
   PrecompUtils,
   System.SysUtils, System.Classes, System.Math;
@@ -267,7 +267,7 @@ begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
       if (StreamInfo^.Status = TStreamStatus.Database) and
-        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+        (GetBits(StreamInfo^.Option, 31, 1) = 0) then
       begin
         Res1 := StreamInfo^.OldSize;
         Result := True;
@@ -317,7 +317,7 @@ begin
         StreamInfo^.OldSize);
     Funcs^.LogProcess(ZSTDCodecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
-    if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
+    if Result or (StreamInfo^.Status >= TStreamStatus.Predicted) then
       break;
   end;
   if Res1 < 0 then

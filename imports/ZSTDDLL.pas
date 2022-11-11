@@ -3,6 +3,7 @@ unit ZSTDDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils;
 
@@ -142,54 +143,45 @@ begin
 end;
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
 
 procedure Init(Filename: String);
 begin
-  if DLLLoaded then
-    Exit;
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + Filename));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  if Lib.Loaded then
   begin
-    @ZSTD_compress := GetProcAddress(DLLHandle, 'ZSTD_compress');
-    @ZSTD_compress2 := GetProcAddress(DLLHandle, 'ZSTD_compress2');
-    @ZSTD_decompress := GetProcAddress(DLLHandle, 'ZSTD_decompress');
-    @ZSTD_findFrameCompressedSize := GetProcAddress(DLLHandle,
-      'ZSTD_findFrameCompressedSize');
-    @ZSTD_findDecompressedSize := GetProcAddress(DLLHandle,
-      'ZSTD_findDecompressedSize');
-    @ZSTD_createCCtx := GetProcAddress(DLLHandle, 'ZSTD_createCCtx');
-    @ZSTD_freeCCtx := GetProcAddress(DLLHandle, 'ZSTD_freeCCtx');
-    @ZSTD_CCtx_reset := GetProcAddress(DLLHandle, 'ZSTD_CCtx_reset');
-    @ZSTD_CCtx_setParameter := GetProcAddress(DLLHandle,
-      'ZSTD_CCtx_setParameter');
-    @ZSTD_createDCtx := GetProcAddress(DLLHandle, 'ZSTD_createDCtx');
-    @ZSTD_freeDCtx := GetProcAddress(DLLHandle, 'ZSTD_freeDCtx');
-    @ZSTD_createCDict := GetProcAddress(DLLHandle, 'ZSTD_createCDict');
-    @ZSTD_freeCDict := GetProcAddress(DLLHandle, 'ZSTD_freeCDict');
-    @ZSTD_compressCCtx := GetProcAddress(DLLHandle, 'ZSTD_compressCCtx');
-    @ZSTD_createDDict := GetProcAddress(DLLHandle, 'ZSTD_createDDict');
-    @ZSTD_freeDDict := GetProcAddress(DLLHandle, 'ZSTD_freeDDict');
-    @ZSTD_decompressDCtx := GetProcAddress(DLLHandle, 'ZSTD_decompressDCtx');
-    @ZSTD_compress_usingCDict := GetProcAddress(DLLHandle,
-      'ZSTD_compress_usingCDict');
-    @ZSTD_decompress_usingDDict := GetProcAddress(DLLHandle,
-      'ZSTD_decompress_usingDDict');
-    @ZSTD_initCStream := GetProcAddress(DLLHandle, 'ZSTD_initCStream');
-    @ZSTD_compressStream := GetProcAddress(DLLHandle, 'ZSTD_compressStream');
-    @ZSTD_flushStream := GetProcAddress(DLLHandle, 'ZSTD_flushStream');
-    @ZSTD_endStream := GetProcAddress(DLLHandle, 'ZSTD_endStream');
+    @ZSTD_compress := Lib.GetProcAddr('ZSTD_compress');
+    @ZSTD_compress2 := Lib.GetProcAddr('ZSTD_compress2');
+    @ZSTD_decompress := Lib.GetProcAddr('ZSTD_decompress');
+    @ZSTD_findFrameCompressedSize :=
+      Lib.GetProcAddr('ZSTD_findFrameCompressedSize');
+    @ZSTD_findDecompressedSize := Lib.GetProcAddr('ZSTD_findDecompressedSize');
+    @ZSTD_createCCtx := Lib.GetProcAddr('ZSTD_createCCtx');
+    @ZSTD_freeCCtx := Lib.GetProcAddr('ZSTD_freeCCtx');
+    @ZSTD_CCtx_reset := Lib.GetProcAddr('ZSTD_CCtx_reset');
+    @ZSTD_CCtx_setParameter := Lib.GetProcAddr('ZSTD_CCtx_setParameter');
+    @ZSTD_createDCtx := Lib.GetProcAddr('ZSTD_createDCtx');
+    @ZSTD_freeDCtx := Lib.GetProcAddr('ZSTD_freeDCtx');
+    @ZSTD_createCDict := Lib.GetProcAddr('ZSTD_createCDict');
+    @ZSTD_freeCDict := Lib.GetProcAddr('ZSTD_freeCDict');
+    @ZSTD_compressCCtx := Lib.GetProcAddr('ZSTD_compressCCtx');
+    @ZSTD_createDDict := Lib.GetProcAddr('ZSTD_createDDict');
+    @ZSTD_freeDDict := Lib.GetProcAddr('ZSTD_freeDDict');
+    @ZSTD_decompressDCtx := Lib.GetProcAddr('ZSTD_decompressDCtx');
+    @ZSTD_compress_usingCDict := Lib.GetProcAddr('ZSTD_compress_usingCDict');
+    @ZSTD_decompress_usingDDict :=
+      Lib.GetProcAddr('ZSTD_decompress_usingDDict');
+    @ZSTD_initCStream := Lib.GetProcAddr('ZSTD_initCStream');
+    @ZSTD_compressStream := Lib.GetProcAddr('ZSTD_compressStream');
+    @ZSTD_flushStream := Lib.GetProcAddr('ZSTD_flushStream');
+    @ZSTD_endStream := Lib.GetProcAddr('ZSTD_endStream');
     DLLLoaded := Assigned(ZSTD_compress) and Assigned(ZSTD_decompress);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    Exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 const

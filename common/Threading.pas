@@ -220,6 +220,7 @@ function WaitForAny(const Tasks: array of TTask): Integer;
 var
   I: Integer;
 begin
+  Result := -1;
   while True do
   begin
     for I := Low(Tasks) to High(Tasks) do

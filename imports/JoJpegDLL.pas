@@ -3,6 +3,7 @@ unit JoJpegDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -32,30 +33,25 @@ var
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'jojpeg_dll.dll'));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'jojpeg_dll.dll');
+  if Lib.Loaded then
   begin
-    @jojpeg_Init := GetProcAddress(DLLHandle, 'jojpeg_Init');
-    @jojpeg_Quit := GetProcAddress(DLLHandle, 'jojpeg_Quit');
-    @jojpeg_Loop := GetProcAddress(DLLHandle, 'jojpeg_Loop');
-    @jojpeg_Getvalue := GetProcAddress(DLLHandle, 'jojpeg_Getvalue');
-    @jojpeg_Addbuf := GetProcAddress(DLLHandle, 'jojpeg_Addbuf');
+    @jojpeg_Init := Lib.GetProcAddr('jojpeg_Init');
+    @jojpeg_Quit := Lib.GetProcAddr('jojpeg_Quit');
+    @jojpeg_Loop := Lib.GetProcAddr('jojpeg_Loop');
+    @jojpeg_Getvalue := Lib.GetProcAddr('jojpeg_Getvalue');
+    @jojpeg_Addbuf := Lib.GetProcAddr('jojpeg_Addbuf');
     DLLLoaded := Assigned(jojpeg_Init);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

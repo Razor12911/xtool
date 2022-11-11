@@ -16,7 +16,7 @@ resourcestring
   SPrecompSep2 = ':';
   SPrecompSep3 = ',';
   SPrecompSep4 = '/';
-  SPrecompSep5 = '/';
+  SPrecompSep5 = '\';
 
 const
   SuccessStatus = 4;
@@ -276,7 +276,7 @@ type
     procedure SetSize(const NewSize: Int64); override;
     procedure SetSize(NewSize: Longint); override;
   private
-    FInitialised: Boolean;
+    FInitialised, FDone: Boolean;
     FStream: TStream;
     FFilename: String;
     procedure Initialise;
@@ -286,6 +286,8 @@ type
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    procedure Done;
+    property FileName: String read FFilename;
   end;
 
   PResData = ^TResData;
@@ -449,13 +451,15 @@ constructor TPrecompVMStream.Create;
 begin
   inherited Create;
   FInitialised := False;
+  FDone := False;
 end;
 
 destructor TPrecompVMStream.Destroy;
 begin
   if FInitialised then
   begin
-    FStream.Free;
+    if not FDone then
+      FStream.Free;
     DeleteFile(FFilename);
   end;
   inherited Destroy;
@@ -521,6 +525,12 @@ begin
     Result := 0;
 end;
 
+procedure TPrecompVMStream.Done;
+begin
+  FStream.Free;
+  FDone := True;
+end;
+
 function PrecompGetCodec(Cmd: PChar; Index: Integer; WithParams: Boolean)
   : TPrecompStr;
 var
@@ -567,14 +577,16 @@ begin
       List2 := DecodeStr(List1[Index], SPrecompSep2);
       if Param = '' then
       begin
-        if Length(List1) > 1 then
-        begin
-          S := '';
-          if not ResourceExists(List2[I]) then
-            S := S + List2[I] + SPrecompSep2;
-          if Length(S) > 0 then
-            S := S.Remove(Pred(Length(S)));
-        end;
+        S := '';
+        for I := Succ(Low(List2)) to High(List2) do
+          if ResourceExists(List2[I]) = False then
+          begin
+            if S <> '' then
+              S := S + SPrecompSep2;
+            S := S + List2[I];
+          end;
+        if S = '' then
+          S := ' ';
       end
       else
       begin
@@ -705,8 +717,9 @@ var
   S: String;
 begin
   Result := 0;
-  case IndexText(Codec, ['zlib', 'lz4', 'lz4hc', 'lzo1c', 'lzo1x', 'lzo2a',
-    'zstd', 'lzna', 'kraken', 'mermaid', 'selkie', 'hydra', 'leviathan']) of
+  case IndexText(Codec, ['zlib', 'lz4', 'lz4hc', 'lz4f', 'lzo1c', 'lzo1x',
+    'lzo2a', 'zstd', 'lzna', 'kraken', 'mermaid', 'selkie', 'hydra',
+    'leviathan']) of
     0:
       if ZLibDLL.DLLLoaded then
       begin
@@ -729,10 +742,13 @@ begin
     1, 2:
       if LZ4DLL.DLLLoaded then
         Result := LZ4_decompress_safe(InBuff, OutBuff, InSize, OutSize);
-    6:
+    3:
+      if LZ4DLL.DLLLoaded then
+        Result := LZ4F_decompress_safe(InBuff, OutBuff, InSize, OutSize);
+    7:
       if ZSTDDLL.DLLLoaded then
         Result := ZSTD_decompress(OutBuff, OutSize, InBuff, InSize);
-    7 .. 12:
+    8 .. 13:
       if OodleDLL.DLLLoaded then
         Result := OodleLZ_Decompress(InBuff, InSize, OutBuff, OutSize);
   end;
@@ -855,6 +871,8 @@ var
   Res: NativeUInt;
 begin
   Result := 0;
+  if not XDeltaDLL.DLLLoaded then
+    exit;
   if xd3_encode(OldBuff, OldSize, NewBuff, NewSize, PatchBuff, @Res, PatchSize,
     Integer(XD3_NOCOMPRESS)) = 0 then
     Result := Res;
@@ -868,6 +886,8 @@ var
   Res: NativeUInt;
 begin
   Result := 0;
+  if not XDeltaDLL.DLLLoaded then
+    exit;
   if xd3_decode(PatchBuff, PatchSize, OldBuff, OldSize, NewBuff, @Res, NewSize,
     Integer(XD3_NOCOMPRESS)) = 0 then
     Result := Res;
@@ -1234,5 +1254,7 @@ EncodeSICmp := TEncodeSIComparer.Create;
 FutureSICmp := TFutureSIComparer.Create;
 StockMethods := TStringList.Create;
 ExternalMethods := TStringList.Create;
+if not XDeltaDLL.DLLLoaded then
+  DIFF_TOLERANCE := 0;
 
 end.

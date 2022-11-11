@@ -3,25 +3,10 @@ unit PrecompOodle;
 interface
 
 uses
-  OodleDLL, XDeltaDLL,
+  OodleDLL,
   Utils,
   PrecompUtils,
   System.SysUtils, System.Classes, System.Types, System.Math;
-
-{ 8C 07 -  0:LZH
-  8C 00 -  1:LZHLW
-  8C 01 -  2:LZNIB
-  CC 07 -  3:None
-  8C 02 -  4:LZB16
-  8C 03 -  5:LZBLW
-  8C 04 -  6:LZA
-  8C 05 -  7:LZNA
-  8C 06 -  8:Kraken
-  8C 0A -  9:Mermaid
-  8C 0B - 10:BitKnit
-  8C 0A - 11:Selkie
-  8C 0A - 12:Hydra
-  8C 0C - 13:Leviathan }
 
 var
   Codec: TPrecompressor;
@@ -40,13 +25,13 @@ const
   LEVIATHAN_CODEC = 5;
 
 const
-  O_COUNT = 0;
+  O_LENGTH = 32;
   O_TRADEOFF = 256;
   O_MAXSIZE = 16 * 1024 * 1024;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
-  OCount: Integer = O_COUNT;
+  OLength: Integer = O_LENGTH;
   OTradeOff: Integer = O_TRADEOFF;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
 
@@ -247,135 +232,36 @@ begin
   Result := A;
 end;
 
-function CustomLZ_Decompress0(src, dst: PByte; srcSize, dstCapacity: Integer;
+function CustomLZ_Decompress(src, dst: PByte; srcSize, dstCapacity: Integer;
   var Res: Integer): Boolean;
-
-type
-  T3Res = array [0 .. 2] of Integer;
-
-  procedure AddRes(const I: Integer; var Res: T3Res);
-  begin
-    Res[0] := Res[1];
-    Res[1] := Res[2];
-    Res[2] := I;
-  end;
-
 const
-  MinSize = 64;
   BlkSize = 262144;
-  Range = 262144;
-
-  function ValidSize(Res: T3Res): Boolean;
-  const
-    ThresSize = 32;
-  begin
-    Result := (Res[0] > 0) and (Res[0] < Res[1]) and
-      InRange(Res[0], Res[0], Res[2] + 32);
-  end;
-
 var
-  LBuffer: array [0 .. BlkSize - 1] of Byte;
-  I, J, W, X, Y, Z: Integer;
-  LR1, LR2: T3Res;
+  W, X, Y, Z: Integer;
 begin
   Result := False;
-  Y := Max(LocalLZ_Decompress(src, dst, srcSize, dstCapacity, 0, Z),
-    LocalLZ_Decompress(src, dst, srcSize, dstCapacity, 1, Z));
-  if Y > MinSize then
+  Y := 0;
+  X := dstCapacity;
+  X := Min(Max(LocalLZ_Decompress(src, dst, srcSize, X, 0, Y),
+    LocalLZ_Decompress(src, dst, srcSize, X, 1, Z)), Pred(X));
+  W := X;
+  while (Y = 0) and (X > dstCapacity - BlkSize) and (W - X < OLength) do
   begin
-    W := IfThen(Y mod BlkSize = 0, Pred(Y div BlkSize), Y div BlkSize)
-      * BlkSize;
-    Move((dst + W)^, LBuffer[0], Y - W);
+    X := Min(Max(LocalLZ_Decompress(src, dst, srcSize, X, 0, Y),
+      LocalLZ_Decompress(src, dst, srcSize, X, 1, Y)), Pred(X));
   end;
-  if (Y = Z) and (Y = dstCapacity) then
+  X := Min(Succ(W), dstCapacity);
+  while (Z = 0) and (X < Min(W + OLength, dstCapacity)) do
+  begin
+    LocalLZ_Decompress(src, dst, srcSize, X, 0, Z);
+    Inc(X);
+  end;
+  Y := Max(Y, Z);
+  if (Y > 0) then
   begin
     Res := Y;
-    I := Max(LocalLZ_Decompress(src, dst, srcSize, dstCapacity - 1, 0, Z),
-      LocalLZ_Decompress(src, dst, srcSize, dstCapacity - 1, 1, Z));
-    if (Res <> I) and (Res <> Pred(I)) then
-    begin
-      Move(LBuffer[0], (dst + W)^, Res - W);
-      Result := True;
-      exit;
-    end;
+    Result := True;
   end;
-  FillChar(LR1, SizeOf(T3Res), 0);
-  FillChar(LR2, SizeOf(T3Res), 0);
-  I := Y;
-  J := Min(dstCapacity, Y + Range);
-  while I < J do
-  begin
-    Y := Max(LocalLZ_Decompress(src, dst, srcSize, I, 0, Z),
-      LocalLZ_Decompress(src, dst, srcSize, I, 1, Z));
-    AddRes(Y, LR1);
-    AddRes(Z, LR2);
-    if (LR1[1] = LR2[1]) and ValidSize(LR1) then
-    begin
-      Res := LR1[1];
-      Move(LBuffer[0], (dst + W)^, Res - W);
-      Result := True;
-      break;
-    end;
-    if Y > MinSize then
-    begin
-      W := IfThen(Y mod BlkSize = 0, Pred(Y div BlkSize), Y div BlkSize)
-        * BlkSize;
-      Move((dst + W)^, LBuffer[0], Y - W);
-    end;
-    Inc(I);
-  end;
-end;
-
-function CustomLZ_DecompressN(src, dst: PByte; srcSize, dstCapacity: Integer;
-  var Res: TIntegerDynArray): Boolean;
-
-const
-  BlkSize = 262144;
-  UpLen = 128;
-  DownLen = 16;
-var
-  I, J, X, Y, Z: Integer;
-  Sizes: array [0 .. UpLen + DownLen - 1] of Integer;
-begin
-  SetLength(Res, 0);
-  Y := Max(LocalLZ_Decompress(src, dst, srcSize, dstCapacity, 0, Z),
-    LocalLZ_Decompress(src, dst, srcSize, dstCapacity, 1, Z));
-  for I := Low(Sizes) to High(Sizes) do
-    Sizes[I] := -1;
-  J := Min(dstCapacity, Y + UpLen);
-  I := Max(IfThen(dstCapacity mod BlkSize = 0, Pred(dstCapacity div BlkSize),
-    dstCapacity div BlkSize) * BlkSize, Y - DownLen);
-  X := J - I;
-  while (J > I) do
-  begin
-    Y := Max(LocalLZ_Decompress(src, dst, srcSize, J, 0, Z),
-      LocalLZ_Decompress(src, dst, srcSize, J, 1, Z));
-    Sizes[Length(Sizes) - (J - I)] := Z;
-    Dec(J);
-  end;
-  for I := Low(Sizes) to High(Sizes) do
-  begin
-    X := Sizes[I];
-    for J := Low(Sizes) to High(Sizes) do
-    begin
-      Y := Sizes[J];
-      if I <> J then
-        if X = Y then
-        begin
-          Sizes[I] := -1;
-          Sizes[J] := -1;
-        end;
-    end;
-  end;
-  for I := Low(Sizes) to High(Sizes) do
-    if Sizes[I] > srcSize then
-      if OodleLZ_Decompress(src, srcSize, dst, Sizes[I]) = Sizes[I] then
-      begin
-        Insert(Sizes[I], Res, Length(Res));
-        if Length(Res) >= OCount then
-          break;
-      end;
-  Result := Length(Res) > 0;
 end;
 
 function GetOodleUS(Instance: Integer; Input: PByte; Pos: NativeInt;
@@ -386,25 +272,29 @@ const
 var
   Buffer: PByte;
   B: Boolean;
-  I: Integer;
-  ResultN: TIntegerDynArray;
   SI: _StrInfo1;
 begin
   Result := 0;
-  { if StreamInfo^.Codec = 3 then
-    exit; }
-  // StreamInfo^.DSize:=$8001;
-  Buffer := Funcs^.Allocator(Instance, StreamInfo^.DSize);
-  if OCount <= 0 then
-    B := CustomLZ_Decompress0(Input + Pos, Buffer, StreamInfo^.CSize,
-      StreamInfo^.DSize, Result)
+  case StreamInfo^.Codec of
+    1:
+      if (CodecEnabled[KRAKEN_CODEC] = False) and
+        (CodecEnabled[HYDRA_CODEC] = False) then
+        exit;
+    2:
+      if (CodecEnabled[MERMAID_CODEC] = False) and
+        (CodecEnabled[SELKIE_CODEC] = False) and
+        (CodecEnabled[HYDRA_CODEC] = False) then
+        exit;
+    3:
+      if (CodecEnabled[LEVIATHAN_CODEC] = False) and
+        (CodecEnabled[HYDRA_CODEC] = False) then
+        exit;
   else
-  begin
-    B := CustomLZ_DecompressN(Input + Pos, Buffer, StreamInfo^.CSize,
-      StreamInfo^.DSize, ResultN);
-    if B then
-      Result := ResultN[0];
+    exit;
   end;
+  Buffer := Funcs^.Allocator(Instance, StreamInfo^.DSize);
+  B := CustomLZ_Decompress(Input + Pos, Buffer, StreamInfo^.CSize,
+    StreamInfo^.DSize, Result);
   If B then
     if (Result > MinSize) and (Result > StreamInfo^.CSize) then
     begin
@@ -415,37 +305,25 @@ begin
       SetBits(SI.Option, OTradeOff, 13, 11);
       case StreamInfo^.Codec of
         1:
-          SetBits(SI.Option, KRAKEN_CODEC, 0, 5);
+          if CodecEnabled[KRAKEN_CODEC] then
+            SetBits(SI.Option, KRAKEN_CODEC, 0, 5);
         2:
           if CodecEnabled[MERMAID_CODEC] then
             SetBits(SI.Option, MERMAID_CODEC, 0, 5)
-          else
+          else if CodecEnabled[SELKIE_CODEC] then
             SetBits(SI.Option, SELKIE_CODEC, 0, 5);
         3:
-          SetBits(SI.Option, LEVIATHAN_CODEC, 0, 5);
+          if CodecEnabled[LEVIATHAN_CODEC] then
+            SetBits(SI.Option, LEVIATHAN_CODEC, 0, 5);
       end;
       if CodecEnabled[HYDRA_CODEC] then
         SetBits(SI.Option, HYDRA_CODEC, 0, 5);
       SetBits(SI.Option, Integer(StreamInfo^.HasCRC), 12, 1);
       SI.Status := TStreamStatus.None;
-      if OCount <= 0 then
-      begin
-        SI.NewSize := Result;
-        Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-          SI.OldSize, SI.NewSize);
-        Add(Instance, @SI, nil, nil);
-      end
-      else
-      begin
-        if Length(ResultN) > 0 then
-          for I := Low(ResultN) to High(ResultN) do
-          begin
-            SI.NewSize := ResultN[I];
-            Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-              SI.OldSize, SI.NewSize);
-            Add(Instance, @SI, nil, nil);
-          end;
-      end;
+      SI.NewSize := Result;
+      Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        SI.OldSize, SI.NewSize);
+      Add(Instance, @SI, nil, nil);
     end;
 end;
 
@@ -502,7 +380,7 @@ begin
             SOList[I][Y].Update
               ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
         if Funcs^.GetParam(Command, X, 'n') <> '' then
-          OCount := StrToInt(Funcs^.GetParam(Command, X, 'n'));
+          OLength := StrToInt(Funcs^.GetParam(Command, X, 'n'));
         if Funcs^.GetParam(Command, X, 't') <> '' then
           OTradeOff := StrToInt(Funcs^.GetParam(Command, X, 't'));
       end;
@@ -573,7 +451,11 @@ begin
   if DS <> '' then
   begin
     X := IndexTextW(@DS[0], OodleCodecs);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
+    if X < 0 then
+      exit;
+    if DI1.OldSize = 0 then
+      DI1.OldSize := SizeEx;
+    if not CodecAvailable[X] then
       exit;
     if not CodecAvailable[X] then
       exit;
@@ -589,7 +471,7 @@ begin
         begin
           if DI1.NewSize <= 0 then
           begin
-            if not CustomLZ_Decompress0(Input, Buffer, DI1.OldSize, Res, Res)
+            if not CustomLZ_Decompress(Input, Buffer, DI1.OldSize, Res, Res)
             then
               Res := 0;
           end
@@ -678,7 +560,7 @@ begin
   then
   begin
     Buffer := Funcs^.Allocator(Instance, OodleSI.DSize);
-    if CustomLZ_Decompress0(Input, Buffer, StreamInfo^.OldSize,
+    if CustomLZ_Decompress(Input, Buffer, StreamInfo^.OldSize,
       OodleSI.DSize, Res) then
     begin
       Output(Instance, Buffer, Res);
@@ -716,7 +598,7 @@ begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
       if (StreamInfo^.Status = TStreamStatus.Database) and
-        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+        (GetBits(StreamInfo^.Option, 31, 1) = 0) then
       begin
         Res1 := StreamInfo^.OldSize;
         Result := True;
@@ -726,6 +608,7 @@ begin
       SizeOf(TOodleLZ_CompressOptions));
     COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 12, 1) = 1;
     COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 13, 11);
+    // COptions.dictionarySize := 262144;
     Params := 'l' + I.ToString + ':' + 'c' + GetBits(StreamInfo^.Option, 12, 1)
       .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 13, 11).ToString;
     if not Result then
@@ -739,22 +622,22 @@ begin
     if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
       break;
   end;
-  if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
+  { if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
-  begin
+    begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
-      Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
+    Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
     Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2,
-      Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
+    Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
     if Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2) then
     begin
-      Output(Instance, Buffer + Res1, Res2);
-      SetBits(StreamInfo^.Option, 1, 31, 1);
-      SOList[Instance][X].Add(I);
-      Result := True;
+    Output(Instance, Buffer + Res1, Res2);
+    SetBits(StreamInfo^.Option, 1, 31, 1);
+    SOList[Instance][X].Add(I);
+    Result := True;
     end;
-  end;
+    end; }
   if Result then
   begin
     SetBits(StreamInfo^.Option, I, 5, 7);

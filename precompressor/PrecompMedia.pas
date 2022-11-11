@@ -5,7 +5,7 @@ unit PrecompMedia;
 interface
 
 uses
-  BrunsliDLL, FLACDLL, PackJPGDLL, JoJpegDLL, XDeltaDLL,
+  BrunsliDLL, FLACDLL, PackJPGDLL, JoJpegDLL,
   Utils,
   PrecompUtils,
   System.SysUtils, System.Classes, System.Math;

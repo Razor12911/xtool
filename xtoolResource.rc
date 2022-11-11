@@ -1,2 +1,1 @@
-xdelta3_dll RCDATA "resources\\Win64\\xdelta3_dll.dll"
-fast_lzma2 RCDATA "resources\\Win64\\fast-lzma2.dll"
+XTOOL RCDATA "cpp\\xtool\\x64\\Release\\xtool.dll"

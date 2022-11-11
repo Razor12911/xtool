@@ -3,6 +3,7 @@ unit BrunsliDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -39,41 +40,31 @@ var
 implementation
 
 var
-  DLLHandle: THandle;
-  S: String;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  S := 'brunsli.dll';
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + S));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'brunsli.dll');
+  if Lib.Loaded then
   begin
-    @brunsli_alloc_JPEGData := GetProcAddress(DLLHandle,
-      'brunsli_alloc_JPEGData');
-    @brunsli_free_JPEGData := GetProcAddress(DLLHandle,
-      'brunsli_free_JPEGData');
-    @brunsli_GetMaximumEncodedSize := GetProcAddress(DLLHandle,
-      'brunsli_GetMaximumEncodedSize');
-    @brunsli_ReadJpeg := GetProcAddress(DLLHandle, 'brunsli_ReadJpeg');
-    @brunsli_EncodeJpeg := GetProcAddress(DLLHandle, 'brunsli_EncodeJpeg');
-    @brunsli_DecodeJpeg := GetProcAddress(DLLHandle, 'brunsli_DecodeJpeg');
-    @brunsli_alloc_JPEGOutput := GetProcAddress(DLLHandle,
-      'brunsli_alloc_JPEGOutput');
-    @brunsli_free_JPEGOutput := GetProcAddress(DLLHandle,
-      'brunsli_free_JPEGOutput');
-    @brunsli_WriteJpeg := GetProcAddress(DLLHandle, 'brunsli_WriteJpeg');
+    @brunsli_alloc_JPEGData := Lib.GetProcAddr('brunsli_alloc_JPEGData');
+    @brunsli_free_JPEGData := Lib.GetProcAddr('brunsli_free_JPEGData');
+    @brunsli_GetMaximumEncodedSize :=
+      Lib.GetProcAddr('brunsli_GetMaximumEncodedSize');
+    @brunsli_ReadJpeg := Lib.GetProcAddr('brunsli_ReadJpeg');
+    @brunsli_EncodeJpeg := Lib.GetProcAddr('brunsli_EncodeJpeg');
+    @brunsli_DecodeJpeg := Lib.GetProcAddr('brunsli_DecodeJpeg');
+    @brunsli_alloc_JPEGOutput := Lib.GetProcAddr('brunsli_alloc_JPEGOutput');
+    @brunsli_free_JPEGOutput := Lib.GetProcAddr('brunsli_free_JPEGOutput');
+    @brunsli_WriteJpeg := Lib.GetProcAddr('brunsli_WriteJpeg');
     DLLLoaded := Assigned(brunsli_alloc_JPEGData) and
       Assigned(brunsli_alloc_JPEGOutput);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

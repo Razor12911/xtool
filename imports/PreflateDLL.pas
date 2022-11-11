@@ -3,6 +3,7 @@ unit PreflateDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -18,27 +19,22 @@ var
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'preflate_dll.dll'));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'preflate_dll.dll');
+  if Lib.Loaded then
   begin
-    @preflate_decode := GetProcAddress(DLLHandle, 'decode');
-    @preflate_reencode := GetProcAddress(DLLHandle, 'reencode');
+    @preflate_decode := Lib.GetProcAddr('decode');
+    @preflate_reencode := Lib.GetProcAddr('reencode');
     DLLLoaded := Assigned(preflate_decode) and Assigned(preflate_reencode);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

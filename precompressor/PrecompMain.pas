@@ -104,7 +104,7 @@ var
   DBFile: String = '';
   ExtDir: String = '';
   UseDB: Boolean = False;
-  StoreDD: Boolean = False;
+  StoreDD: Integer = -2;
   VERBOSE: Boolean = False;
   EXTRACT: Boolean = False;
   DupSysMem: Int64 = 0;
@@ -183,26 +183,31 @@ begin
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
     Options.Threads := Max(1, Round(ExpParse.Evaluate(S)));
-    Options.Depth := EnsureRange(Succ(ArgParse.AsInteger('-d')), 1, 10);
+    Options.Depth := EnsureRange(Succ(ArgParse.AsInteger('-d', 0, 0)), 1, 10);
     Options.LowMem := ArgParse.AsBoolean('-lm');
-    UseDB := ArgParse.AsBoolean('--dbase');
+    UseDB := ArgParse.AsBoolean('-db') or ArgParse.AsBoolean('--dbase');
     Options.DBaseFile := ArgParse.AsString('--dbase=');
     if Options.DBaseFile <> '' then
       UseDB := True;
-    StoreDD := ArgParse.AsBoolean('--dedup');
+    StoreDD := -2;
+    if ArgParse.AsBoolean('-dd') or ArgParse.AsBoolean('--dedup') then
+      StoreDD := -1;
+    if FileExists(ExtractFilePath(Utils.GetModuleName) + 'srep.exe') then
+      StoreDD := ArgParse.AsInteger('--dedup=', 0, StoreDD);
     S := ArgParse.AsString('--diff=', 0, '5p');
     S := ReplaceText(S, 'p', '%');
     DIFF_TOLERANCE := Max(0.00, ExpParse.Evaluate(S));
-    VERBOSE := ArgParse.AsBoolean('--verbose');
+    VERBOSE := ArgParse.AsBoolean('-v') or ArgParse.AsBoolean('--verbose');
     Options.ExtractDir := ArgParse.AsString('--extract=');
     if Options.ExtractDir <> '' then
       EXTRACT := DirectoryExists(Options.ExtractDir);
-    Options.DoCompress := ArgParse.AsBoolean('--compress');
+    Options.DoCompress := ArgParse.AsBoolean('--compress') and
+      FLZMA2DLL.DLLLoaded;
     S := ArgParse.AsString('--compress=');
     S := ReplaceText(S, SPrecompSep3, SPrecompSep2);
     Options.CompressCfg := S;
     if Options.CompressCfg <> '' then
-      Options.DoCompress := True;
+      Options.DoCompress := FLZMA2DLL.DLLLoaded;
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -1191,7 +1196,7 @@ begin
     for I := Low(DBInfo) to High(DBInfo) do
       DBCount[I] := 0;
   end;
-  if StoreDD then
+  if StoreDD > -2 then
   begin
     SetLength(DDInfo, $10000);
     SetLength(DDCount1, $10000);
@@ -1409,6 +1414,7 @@ var
   BlockSize: Int64;
   UI32: UInt32;
   I, J, K, X: Integer;
+  S: String;
   W: Word;
   I64: Int64;
   LastStream, LastPos: Int64;
@@ -1420,8 +1426,11 @@ var
 begin
   if (Depth = 0) then
   begin
-    if StoreDD then
-      TempOutput := TPrecompVMStream.Create
+    if StoreDD > -2 then
+      TempOutput := TBufferedStream.Create
+        (TFileStream.Create
+        (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
+        '-dd.tmp')), fmCreate or fmShareDenyNone), False, 4194304)
     else
       TempOutput := Output;
   end
@@ -1525,7 +1534,7 @@ begin
             begin
               Inc(StreamCount);
               DupBool := False;
-              if (Depth = 0) and StoreDD then
+              if (Depth = 0) and (StoreDD > -2) then
                 DupBool := not FindOrAddDD(StreamInfo, @DupIdx2, @DupCount);
               if DupBool then
               begin
@@ -1580,7 +1589,7 @@ begin
           while J >= 0 do
           begin
             DupBool := False;
-            if (Depth = 0) and StoreDD then
+            if (Depth = 0) and (StoreDD > -2) then
               DupBool := FindDD(StreamInfo, @DupIdx2, @DupCount);
             if (DupBool = False) or (DupIdx1 = DupIdx2) then
             begin
@@ -1663,9 +1672,9 @@ begin
       with WorkStream[0] do
       begin
         Position := 0;
-        for W := 0 to $10000 - 1 do
+        for W := Low(DBInfo) to High(DBInfo) do
         begin
-          J := DBCount[I];
+          J := DBCount[W];
           if J > 0 then
           begin
             WriteBuffer(W, W.Size);
@@ -1682,7 +1691,7 @@ begin
         Free;
       end;
     end;
-    if StoreDD then
+    if StoreDD > -2 then
     begin
       with WorkStream[0] do
       begin
@@ -1703,9 +1712,37 @@ begin
       end;
       Output.WriteBuffer(UI32, UI32.Size);
       Output.WriteBuffer(WorkStream[0].Memory^, WorkStream[0].Position);
-      Output.CopyFrom(TempOutput, 0);
+      try
+        EncFree;
+      finally
+      end;
+      S := TFileStream(TBufferedStream(TempOutput).Instance).Filename;
+      TBufferedStream(TempOutput).Flush;
+      if StoreDD >= 0 then
+      begin
+        with TProcessStream.Create(ExtractFilePath(Utils.GetModuleName) +
+          'srep.exe', '-m' + StoreDD.ToString + 'f ' + S + ' -', GetCurrentDir,
+          nil, Output) do
+          try
+            if Execute then
+            begin
+              Wait;
+              Done;
+            end;
+          finally
+            Free;
+          end;
+      end
+      else
+        Output.CopyFrom(TempOutput, 0);
       TempOutput.Free;
-    end;
+      DeleteFile(S);
+    end
+    else
+      try
+        EncFree;
+      finally
+      end;
   end;
 end;
 
@@ -1776,7 +1813,7 @@ procedure PrecompOutput2(Instance: Integer; const Buffer: Pointer;
 begin
   with ComVars2[CurDepth[Instance]] do
     DecOutput[Instance].WriteBuffer(Buffer^, Size);
-  if StoreDD and (CurDepth[Instance] = 0) then
+  if (StoreDD > -2) and (CurDepth[Instance] = 0) then
     if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index)) then
       DataMgr.Write(DDIndex1, Buffer, Size);
 end;
@@ -1821,7 +1858,7 @@ begin
       end
       else
       begin
-        if StoreDD and (Depth = 0) then
+        if (StoreDD > -2) and (Depth = 0) then
         begin
           Inc(DDIndex1);
           if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
@@ -1886,7 +1923,7 @@ begin
       end
       else
       begin
-        if StoreDD and (Depth = 0) then
+        if (StoreDD > -2) and (Depth = 0) then
           if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
           then
             Inc(DDIndex2);
@@ -2039,11 +2076,12 @@ var
   CurrPos: Int64;
   UI32: UInt32;
   I, J: Integer;
+  LStream: TProcessStream;
 begin
   if Depth = 0 then
   begin
     UI32 := 0;
-    if StoreDD then
+    if (StoreDD > -2) then
     begin
       Input.ReadBuffer(UI32, UI32.Size);
       SetLength(DDList2, UI32);
@@ -2057,7 +2095,16 @@ begin
   end;
   with ComVars2[Depth] do
   begin
-    DecInput[Index] := Input;
+    if (Depth = 0) and (StoreDD >= 0) then
+    begin
+      LStream := TProcessStream.Create(ExtractFilePath(Utils.GetModuleName) +
+        'srep.exe', '-d -s - -', GetCurrentDir, Input, nil);
+      if not LStream.Execute then
+        raise EReadError.CreateRes(@SReadError);
+      DecInput[Index] := TBufferedStream.Create(LStream, True, 4194304);
+    end
+    else
+      DecInput[Index] := Input;
     DecOutput[Index] := Output;
     DecInput[Index].ReadBuffer(StreamCount[Index]^, StreamCount[Index]^.Size);
     while StreamCount[Index]^ >= 0 do
@@ -2137,7 +2184,7 @@ begin
             if IsErrored(Tasks) then
               for I := Low(Tasks) to High(Tasks) do
                 Tasks[I].RaiseLastError;
-            if StoreDD and (Depth = 0) then
+            if (StoreDD > -2) and (Depth = 0) then
             begin
               Inc(DDIndex1);
               if ((DDIndex2 < DDCount2) and (DDIndex1 = DDList2[DDIndex2].Index))
@@ -2167,6 +2214,15 @@ begin
       if UI32 > 0 then
         CopyStreamEx(DecInput[Index], DecOutput[Index], UI32);
       DecInput[Index].ReadBuffer(StreamCount[Index]^, StreamCount[Index]^.Size);
+    end;
+    if (Depth = 0) and (StoreDD >= 0) then
+    begin
+      with LStream do
+      begin
+        Wait;
+        Done;
+      end;
+      DecInput[Index].Free;
     end;
   end;
 end;
@@ -2294,7 +2350,7 @@ begin
     if Options.DoCompress then
       LOutput.Free;
     try
-      EncFree;
+      // EncFree;
     finally
       Stopwatch.Stop;
     end;

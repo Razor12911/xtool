@@ -3,9 +3,11 @@ unit PrecompLZ4;
 interface
 
 uses
-  LZ4DLL, XDeltaDLL,
+  LZ4DLL,
+  lz4,
   Utils,
   PrecompUtils,
+  WinAPI.Windows,
   System.SysUtils, System.StrUtils, System.Classes, System.Math;
 
 var
@@ -163,7 +165,8 @@ procedure LZ4Scan1(Instance, Depth: Integer; Input: PByte;
   Funcs: PPrecompFuncs);
 var
   Buffer: PByte;
-  X, Y: Integer;
+  Pos: NativeInt;
+  X, Y, Z: Integer;
   SI: _StrInfo1;
   DI1, DI2: TDepthInfo;
   DS: TPrecompStr;
@@ -173,8 +176,10 @@ begin
   if DS <> '' then
   begin
     X := IndexTextW(@DS[0], LZ4Codecs);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
+    if X < 0 then
       exit;
+    if DI1.OldSize = 0 then
+      DI1.OldSize := SizeEx;
     if not CodecAvailable[X] then
       exit;
     Y := Max(DI1.NewSize, L_MAXSIZE);
@@ -212,6 +217,71 @@ begin
   end;
   if BoolArray(CodecEnabled, False) then
     exit;
+  Buffer := Funcs^.Allocator(Instance, L_MAXSIZE);
+  Pos := 0;
+  while Pos < Size do
+  begin
+    if CodecEnabled[LZ4_CODEC] or
+      (CodecEnabled[LZ4HC_CODEC] and (SOList[Instance][LZ4HC_CODEC].Count = 1))
+    then
+    begin
+      Y := LZ4_decompress_safe(Input + Pos, Buffer, SizeEx - Pos, L_MAXSIZE);
+      if Abs(Y) > 256 then
+      begin
+        try
+          X := LZ4_decompress_generic(Input + Pos, Buffer, SizeEx - Pos, Abs(Y),
+            Integer(endOnOutputSize));
+        except
+          X := 0;
+        end;
+        // X := Abs(X);
+        Y := Abs(Y);
+        if (Round(X * 1.4) < Y) and (X < Y) and (X > 256) then
+        begin
+          Output(Instance, Buffer, Y);
+          SI.Position := Pos;
+          SI.OldSize := X;
+          SI.NewSize := Y;
+          SI.Option := 0;
+          if CodecEnabled[LZ4_CODEC] then
+            SetBits(SI.Option, LZ4_CODEC, 0, 5)
+          else
+            SetBits(SI.Option, LZ4HC_CODEC, 0, 5);
+          SI.Status := TStreamStatus.None;
+          Funcs^.LogScan1(LZ4Codecs[GetBits(SI.Option, 0, 5)], SI.Position,
+            SI.OldSize, SI.NewSize);
+          Add(Instance, @SI, nil, nil);
+          Inc(Pos, 256);
+          continue;
+        end;
+      end;
+    end;
+    if CodecEnabled[LZ4F_CODEC] then
+      if PCardinal(Input + Pos)^ = $184D2204 then
+      begin
+        Y := LZ4F_decompress_safe(Input + Pos, Buffer, SizeEx - Pos,
+          L_MAXSIZE, @X, @Z);
+        if (X < Y) then
+        begin
+          Output(Instance, Buffer, Y);
+          SI.Position := Pos;
+          SI.OldSize := X;
+          SI.NewSize := Y;
+          SI.Option := 0;
+          SetBits(SI.Option, LZ4F_CODEC, 0, 5);
+          SetBits(SI.Option, Z - 4, 12, 2);
+          SetBits(SI.Option, 0, 14, 1);
+          SetBits(SI.Option, LAcceleration, 15, 7);
+          SI.Status := TStreamStatus.None;
+          Funcs^.LogScan1(LZ4Codecs[GetBits(SI.Option, 0, 5)], SI.Position,
+            SI.OldSize, SI.NewSize);
+          Add(Instance, @SI, nil, nil);
+          Inc(Pos, SI.OldSize);
+          continue;
+        end;
+      end;
+    Inc(Pos);
+  end;
 end;
 
 function LZ4Scan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
@@ -271,7 +341,7 @@ begin
       if GetBits(StreamInfo^.Option, 5, 7) <> I then
         continue;
       if (StreamInfo^.Status = TStreamStatus.Database) and
-        (GetBits(StreamInfo^.Option, 1, 31) = 0) then
+        (GetBits(StreamInfo^.Option, 31, 1) = 0) then
       begin
         Res1 := StreamInfo^.OldSize;
         Result := True;
@@ -283,6 +353,8 @@ begin
         begin
           Params := 'a' + GetBits(StreamInfo^.Option, 15, 7).ToString;
           if not Result then
+            { Res1 := LZ4_compress_block(NewInput, Buffer,
+              StreamInfo^.NewSize, Y); }
             Res1 := LZ4_compress_fast(NewInput, Buffer, StreamInfo^.NewSize, Y,
               GetBits(StreamInfo^.Option, 15, 7));
         end;
@@ -314,7 +386,7 @@ begin
         StreamInfo^.OldSize);
     Funcs^.LogProcess(LZ4Codecs[GetBits(StreamInfo^.Option, 0, 5)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
-    if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
+    if Result or (StreamInfo^.Status >= TStreamStatus.Predicted) then
       break;
   end;
   if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or

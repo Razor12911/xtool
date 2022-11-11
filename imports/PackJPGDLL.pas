@@ -3,6 +3,7 @@ unit PackJPGDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -25,35 +26,28 @@ var
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'packjpg_dll.dll'));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'packjpg_dll.dll');
+  if Lib.Loaded then
   begin
-    @pjglib_convert_stream2stream := GetProcAddress(DLLHandle,
-      'pjglib_convert_stream2stream');
-    @pjglib_convert_file2file := GetProcAddress(DLLHandle,
-      'pjglib_convert_file2file');
-    @pjglib_convert_stream2mem := GetProcAddress(DLLHandle,
-      'pjglib_convert_stream2mem');
-    @pjglib_init_streams := GetProcAddress(DLLHandle, 'pjglib_init_streams');
-    @pjglib_version_info := GetProcAddress(DLLHandle, 'pjglib_version_info');
-    @pjglib_short_name := GetProcAddress(DLLHandle, 'pjglib_short_name');
+    @pjglib_convert_stream2stream :=
+      Lib.GetProcAddr('pjglib_convert_stream2stream');
+    @pjglib_convert_file2file := Lib.GetProcAddr('pjglib_convert_file2file');
+    @pjglib_convert_stream2mem := Lib.GetProcAddr('pjglib_convert_stream2mem');
+    @pjglib_init_streams := Lib.GetProcAddr('pjglib_init_streams');
+    @pjglib_version_info := Lib.GetProcAddr('pjglib_version_info');
+    @pjglib_short_name := Lib.GetProcAddr('pjglib_short_name');
     DLLLoaded := Assigned(pjglib_init_streams) and
       Assigned(pjglib_convert_stream2stream);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

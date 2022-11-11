@@ -3,6 +3,7 @@ unit ReflateDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -25,41 +26,35 @@ var
 implementation
 
 var
-  DLLHandle1, DLLHandle2: THandle;
+  Lib1, Lib2: TLibImport;
 
 procedure Init;
 begin
-  DLLHandle1 := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'RAW2HIF_DLL.DLL'));
-  DLLHandle2 := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'HIF2RAW_DLL.DLL'));
-  if (DLLHandle1 >= 32) and (DLLHandle2 >= 32) then
+  Lib1 := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'RAW2HIF_DLL.DLL');
+  Lib2 := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'HIF2RAW_DLL.DLL');
+  if Lib1.Loaded and Lib2.Loaded then
   begin
-    @raw2hif_Alloc := GetProcAddress(DLLHandle1, 'raw2hif_Alloc');
-    @raw2hif_Free := GetProcAddress(DLLHandle1, 'raw2hif_Free');
-    @raw2hif_Init := GetProcAddress(DLLHandle1, 'raw2hif_Init');
-    @raw2hif_Loop := GetProcAddress(DLLHandle1, 'raw2hif_Loop');
-    @raw2hif_getoutlen := GetProcAddress(DLLHandle1, 'raw2hif_getoutlen');
-    @raw2hif_getou2len := GetProcAddress(DLLHandle1, 'raw2hif_getou2len');
-    @raw2hif_addbuf := GetProcAddress(DLLHandle1, 'raw2hif_addbuf');
-    @hif2raw_Alloc := GetProcAddress(DLLHandle2, 'hif2raw_Alloc');
-    @hif2raw_Free := GetProcAddress(DLLHandle2, 'hif2raw_Free');
-    @hif2raw_Init := GetProcAddress(DLLHandle2, 'hif2raw_Init');
-    @hif2raw_Loop := GetProcAddress(DLLHandle2, 'hif2raw_Loop');
-    @hif2raw_getoutlen := GetProcAddress(DLLHandle2, 'hif2raw_getoutlen');
-    @hif2raw_addbuf := GetProcAddress(DLLHandle2, 'hif2raw_addbuf');
+    @raw2hif_Alloc := Lib1.GetProcAddr('raw2hif_Alloc');
+    @raw2hif_Free := Lib1.GetProcAddr('raw2hif_Free');
+    @raw2hif_Init := Lib1.GetProcAddr('raw2hif_Init');
+    @raw2hif_Loop := Lib1.GetProcAddr('raw2hif_Loop');
+    @raw2hif_getoutlen := Lib1.GetProcAddr('raw2hif_getoutlen');
+    @raw2hif_getou2len := Lib1.GetProcAddr('raw2hif_getou2len');
+    @raw2hif_addbuf := Lib1.GetProcAddr('raw2hif_addbuf');
+    @hif2raw_Alloc := Lib2.GetProcAddr('hif2raw_Alloc');
+    @hif2raw_Free := Lib2.GetProcAddr('hif2raw_Free');
+    @hif2raw_Init := Lib2.GetProcAddr('hif2raw_Init');
+    @hif2raw_Loop := Lib2.GetProcAddr('hif2raw_Loop');
+    @hif2raw_getoutlen := Lib2.GetProcAddr('hif2raw_getoutlen');
+    @hif2raw_addbuf := Lib2.GetProcAddr('hif2raw_addbuf');
     DLLLoaded := Assigned(raw2hif_Alloc) and Assigned(hif2raw_Alloc);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle1);
-  FreeLibrary(DLLHandle2);
+  Lib1.Free;
+  Lib2.Free;
 end;
 
 initialization

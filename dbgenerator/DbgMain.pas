@@ -16,7 +16,7 @@ type
   TEncodeOptions = record
     ChunkSize, Threads: Integer;
     Method: String;
-    Format: String;
+    BlockSize: Integer;
   end;
 
 procedure PrintHelp;
@@ -104,6 +104,14 @@ begin
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
     Options.Threads := Max(1, Round(ExpParse.Evaluate(S)));
+    S := ArgParse.AsString('-c', 0, '1792mb');
+    S := ReplaceText(S, 'KB', '* 1024^1');
+    S := ReplaceText(S, 'MB', '* 1024^2');
+    S := ReplaceText(S, 'GB', '* 1024^3');
+    S := ReplaceText(S, 'K', '* 1024^1');
+    S := ReplaceText(S, 'M', '* 1024^2');
+    S := ReplaceText(S, 'G', '* 1024^3');
+    Options.BlockSize := Round(ExpParse.Evaluate(S));
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -161,7 +169,7 @@ var
   CountPos: NativeInt;
   BaseDir: String;
   LList: TArray<String>;
-  LSInfo: PScanInfo;
+  LSInfo: TScanInfo;
   LEntry: TEntryStruct;
   LBytes: TBytes;
   Hash: Cardinal;
@@ -171,6 +179,7 @@ var
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
   Tasks: TArray<TTask>;
+  NStream: TArray<TMemoryStream>;
   InfoStore: TArray<TListEx<TEntryStruct>>;
 begin
   SetLength(SearchInfo, $10000);
@@ -189,6 +198,13 @@ begin
   else
     BaseDir := ExtractFilePath(TPath.GetFullPath(Input1));
   LList := GetFileList([Input1], True);
+  SetLength(Tasks, Options.Threads);
+  SetLength(Tasks, Options.Threads);
+  for I := Low(Tasks) to High(Tasks) do
+  begin
+    Tasks[I] := TTask.Create(I);
+    NStream[I] := TMemoryStream.Create;
+  end;
   for I := Low(LList) to High(LList) do
   begin
     if InRange(FileSize(LList[I]), MinSize1, Integer.MaxValue) then
@@ -201,23 +217,22 @@ begin
           WordRec(A).Bytes[1] := Buffer[1];
           B := Buffer[MinSize1 - 1];
           J := MinSize1;
-          New(LSInfo);
-          LSInfo^.CRCSize := J;
-          LSInfo^.ActualSize := FileSize(LList[I]);
-          LSInfo^.CRC1 := Utils.Hash32(0, @Buffer[0], J);
-          LSInfo^.CRC2 := LSInfo^.CRC1;
-          while (J > 0) and (LSInfo^.CRCSize < Options.ChunkSize) do
+          LSInfo.CRCSize := J;
+          LSInfo.ActualSize := FileSize(LList[I]);
+          LSInfo.CRC1 := Utils.Hash32(0, @Buffer[0], J);
+          LSInfo.CRC2 := LSInfo.CRC1;
+          while (J > 0) and (LSInfo.CRCSize < Options.ChunkSize) do
           begin
-            J := Read(Buffer[0], Min(Options.ChunkSize - LSInfo^.CRCSize,
+            J := Read(Buffer[0], Min(Options.ChunkSize - LSInfo.CRCSize,
               BufferSize));
-            Inc(LSInfo^.CRCSize, J);
-            LSInfo^.CRC2 := Utils.Hash32(LSInfo^.CRC2, @Buffer[0], J);
+            Inc(LSInfo.CRCSize, J);
+            LSInfo.CRC2 := Utils.Hash32(LSInfo.CRC2, @Buffer[0], J);
           end;
+          Insert(LSInfo, SearchInfo[A, B], Length(SearchInfo[A, B]));
+          Inc(SearchCount[A, B]);
         finally
           Free;
         end;
-      Insert(LSInfo^, SearchInfo[A, B], Length(SearchInfo[A, B]));
-      Inc(SearchCount[A, B]);
     end
     else if FileSize(LList[I]) < MinSize1 then
       WriteLn(ErrOutput, Format('Skipped %s (Smaller than %d)',
@@ -226,9 +241,10 @@ begin
       WriteLn(ErrOutput, Format('Skipped %s (Larger than %d)',
         [ReplaceText(LList[I], BaseDir, ''), Integer.MaxValue]));
   end;
+  for I := Low(Tasks) to High(Tasks) do
+    NStream[I].Free;
   DataStore := TDataStore1.Create(nil, True, Options.Threads,
     Options.ChunkSize);
-  SetLength(Tasks, Options.Threads);
   SetLength(InfoStore, Options.Threads);
   OStream := TMemoryStream.Create;
   MStream := TMemoryStream.Create;
@@ -242,10 +258,9 @@ begin
   OStream.Position := OStream.Size;
   Found1 := False;
   try
-    for I := Low(Tasks) to High(Tasks) do
+    for I := Low(InfoStore) to High(InfoStore) do
     begin
       InfoStore[I] := TListEx<TEntryStruct>.Create(EntryStructCmp);
-      Tasks[I] := TTask.Create(I);
       Tasks[I].Perform(
         procedure(X: IntPtr)
         var
@@ -378,15 +393,18 @@ begin
     if Found1 then
       OStream.SaveToFile(Output);
   finally
-    for I := Low(Tasks) to High(Tasks) do
+    for I := Low(InfoStore) to High(InfoStore) do
     begin
       InfoStore[I].Free;
       Tasks[I].Free;
+      NStream[I].Free;
     end;
     DataStore.Free;
     OStream.Free;
     MStream.Free;
   end;
+  for I := Low(InfoStore) to High(InfoStore) do
+    Tasks[I].Free;
 end;
 
 end.

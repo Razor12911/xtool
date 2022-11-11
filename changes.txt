@@ -1,8 +1,28 @@
+  ES_R41 (0.6.6)
+  - fixed issues with exporting precompression database
+  - fixed issues with deduplication feature consuming a lot of system memory
+  - fixed oodle codec from auto enabling selkie method
+  - fixed reflate related checksum issues due to false positives
+
+  ES_R40 (0.6.5)
+  - updated oodle scanner
+  - remove xdelta support from oodle and lzo codecs (crc mismatch often generates large diff files)
+
+  ES_R39 (0.6.4)
+  - fixed issues with lzo2a and lzo1c codecs
+
+  ES_R38 (0.6.3)
+  - added universal lz4f scanner
+  - fixed issues with database feature
+  - fixed issues with executable plugin support
+  - updated lzo codecs
+
   ES_R37 (0.6.2)
   - added feature to inject libraries to main executable
 
   ES_R36 (0.6.1)
   - added fast lzma2 compression for portable mode
+  - fixed issues with wav stream detection
   - fixed minor issue with stream deduplication feature
 
   ES_R35 (0.6.0)

@@ -3,6 +3,7 @@ unit LZODLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils;
 
@@ -60,83 +61,36 @@ var
     dst: Pointer; dst_len: PNativeUInt; wrkmem: Pointer): integer; cdecl;
   lzo2a_decompress_safe: function(const src: Pointer; src_len: NativeUInt;
     dst: Pointer; dst_len: PNativeUInt): integer cdecl;
-  lzopro_lzo1x_w03_15_compress: function(const src: Pointer;
-    src_len: NativeUInt; dst: Pointer; dst_len: PNativeUInt; wrkmem: Pointer)
-    : integer; cdecl;
-  lzopro_lzo1x_99_compress: function(const src; src_len: integer; var dst;
-    var dst_len; var cb; compression_level: integer): integer; cdecl;
   DLLLoaded: Boolean = False;
-
-function lzo1x_99_compress(const src: Pointer; src_len: NativeUInt;
-  dst: Pointer; dst_len: PNativeUInt; compression_level: integer): integer;
 
 implementation
 
 var
-  DLLHandle: THandle;
-
-procedure nfree(self: Pointer; ptr: Pointer); cdecl;
-begin
-  FreeMem(ptr);
-end;
-
-function nalloc(self: Pointer; items, size: LongWord): Pointer; cdecl;
-var
-  p: Pointer;
-begin
-  GetMem(p, size * items);
-  Result := p;
-end;
-
-procedure nprogress(self: Pointer; a, b: LongWord; c: integer); cdecl;
-begin
-end;
-
-function lzo1x_99_compress(const src: Pointer; src_len: NativeUInt;
-  dst: Pointer; dst_len: PNativeUInt; compression_level: integer): integer;
-var
-  mycb: lzo_callback_t;
-begin
-  mycb.nalloc := nalloc;
-  mycb.nfree := nfree;
-  mycb.nprogress := nprogress;
-  Result := lzopro_lzo1x_99_compress(src^, src_len, dst^, dst_len^, mycb,
-    compression_level);
-end;
+  Lib: TLibImport;
 
 procedure Init(Filename: String);
 begin
-  if DLLLoaded then
-    Exit;
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) + Filename));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  if Lib.Loaded then
   begin
-    @lzo1x_1_compress := GetProcAddress(DLLHandle, 'lzo1x_1_compress');
-    @lzo1x_1_11_compress := GetProcAddress(DLLHandle, 'lzo1x_1_11_compress');
-    @lzo1x_1_12_compress := GetProcAddress(DLLHandle, 'lzo1x_1_12_compress');
-    @lzo1x_1_15_compress := GetProcAddress(DLLHandle, 'lzo1x_1_15_compress');
-    @lzo1x_999_compress := GetProcAddress(DLLHandle, 'lzo1x_999_compress');
-    @lzo1x_999_compress_level := GetProcAddress(DLLHandle,
-      'lzo1x_999_compress_level');
-    @lzo1x_decompress_safe := GetProcAddress(DLLHandle,
-      'lzo1x_decompress_safe');
-    @lzo1c_999_compress := GetProcAddress(DLLHandle, 'lzo1c_999_compress');
-    @lzo1c_decompress_safe := GetProcAddress(DLLHandle,
-      'lzo1c_decompress_safe');
-    @lzo2a_999_compress := GetProcAddress(DLLHandle, 'lzo2a_999_compress');
-    @lzo2a_decompress_safe := GetProcAddress(DLLHandle,
-      'lzo2a_decompress_safe');
+    @lzo1x_1_compress := Lib.GetProcAddr('lzo1x_1_compress');
+    @lzo1x_1_11_compress := Lib.GetProcAddr('lzo1x_1_11_compress');
+    @lzo1x_1_12_compress := Lib.GetProcAddr('lzo1x_1_12_compress');
+    @lzo1x_1_15_compress := Lib.GetProcAddr('lzo1x_1_15_compress');
+    @lzo1x_999_compress := Lib.GetProcAddr('lzo1x_999_compress');
+    @lzo1x_999_compress_level := Lib.GetProcAddr('lzo1x_999_compress_level');
+    @lzo1x_decompress_safe := Lib.GetProcAddr('lzo1x_decompress_safe');
+    @lzo1c_999_compress := Lib.GetProcAddr('lzo1c_999_compress');
+    @lzo1c_decompress_safe := Lib.GetProcAddr('lzo1c_decompress_safe');
+    @lzo2a_999_compress := Lib.GetProcAddr('lzo2a_999_compress');
+    @lzo2a_decompress_safe := Lib.GetProcAddr('lzo2a_decompress_safe');
     DLLLoaded := Assigned(lzo1x_decompress_safe);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    Exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 const

@@ -530,7 +530,7 @@ begin
           Res := inflate(ZStream^, Z_BLOCK);
           if not(Res in [Z_OK, Z_STREAM_END]) then
           begin
-            if (LastIn >= Z_MINSIZE) then
+            if (Res <> Z_DATA_ERROR) and (LastIn >= Z_MINSIZE) then
               Res := Z_STREAM_END;
             break;
           end;

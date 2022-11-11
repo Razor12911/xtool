@@ -3,7 +3,7 @@ unit XDeltaDLL;
 interface
 
 uses
-  MemoryModule,
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -37,34 +37,25 @@ var
 
 implementation
 
-uses
-  Utils;
-
 var
-  DLLStream: TResourceStream;
-  DLLHandle: TMemoryModule;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  DLLStream := TResourceStream.Create(HInstance, 'xdelta3_dll', RT_RCDATA);
-  DLLHandle := MemoryLoadLibary(DLLStream.Memory);
-  if Assigned(DLLHandle) then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'xdelta3_dll.dll');
+  if Lib.Loaded then
   begin
     DLLLoaded := True;
-    @xd3_encode := MemoryGetProcAddress(DLLHandle, 'xd3_encode');
+    @xd3_encode := Lib.GetProcAddr('xd3_encode');
     Assert(@xd3_encode <> nil);
-    @xd3_decode := MemoryGetProcAddress(DLLHandle, 'xd3_decode');
+    @xd3_decode := Lib.GetProcAddr('xd3_decode');
     Assert(@xd3_decode <> nil);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  MemoryFreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

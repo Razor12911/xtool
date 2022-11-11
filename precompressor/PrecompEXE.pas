@@ -274,7 +274,6 @@ begin
     S := ReplaceText(S, '<insize>', StreamInfo^.OldSize.ToString);
     S := ReplaceText(S, '<outsize>', StreamInfo^.NewSize.ToString);
     Res := 0;
-    Res := 0;
     if ContainsText(S, '<fileres>') and Funcs^.GetResource(StreamInfo^.Resource,
       nil, @Res) and (Res > 0) then
     begin
@@ -680,7 +679,7 @@ var
   Bytes: TBytes;
   Ini: TMemIniFile;
   SL: TStringList;
-  ExeStruct: PExeStruct;
+  ExeStruct: TExeStruct;
   Y, Z: Integer;
   List: TStringDynArray;
 
@@ -699,80 +698,84 @@ begin
       GetCmdStr(Ini.ReadString(SL[I], 'Decode', ''), 0)) then
       for K := Low(List) to High(List) do
       begin
-        New(ExeStruct);
         Insert(List[K], Codec.Names, Length(Codec.Names));
-        ExeStruct^.Name := List[K];
-        Bytes := BytesOf(ExeStruct^.Name);
-        ExeStruct^.ID := Utils.Hash32(0, @Bytes[0], Length(Bytes));
+        ExeStruct.Name := List[K];
+        Bytes := BytesOf(ExeStruct.Name);
+        ExeStruct.ID := Utils.Hash32(0, @Bytes[0], Length(Bytes));
         for X := 0 to 1 do
         begin
-          ExeStruct^.IsLib[X] := False;
+          ExeStruct.IsLib[X] := False;
           if X = 0 then
             S1 := Ini.ReadString(SL[I], 'Encode', '')
           else
             S1 := Ini.ReadString(SL[I], 'Decode', '');
           S1 := ReplaceText(S1, '<codec>', List[K]);
-          ExeStruct^.Exec[X] := ExtractFilePath(Utils.GetModuleName) +
+          ExeStruct.Exec[X] := ExtractFilePath(Utils.GetModuleName) +
             GetCmdStr(S1, 0);
-          ExeStruct^.Param[X] := '';
-          ExeStruct^.Mode[X] := 0;
+          ExeStruct.Param[X] := '';
+          ExeStruct.Mode[X] := 0;
           for J := 1 to GetCmdCount(S1) - 1 do
           begin
             S2 := GetCmdStr(S1, J);
             if ContainsText(S2, '<library>') then
             begin
-              SetBits(ExeStruct^.Mode[X], STDIO_MODE, 0, 2);
-              ExeStruct^.IsLib[X] := True;
+              SetBits(ExeStruct.Mode[X], STDIO_MODE, 0, 2);
+              ExeStruct.IsLib[X] := True;
               continue;
             end
             else if ContainsText(S2, '<stdin>') or ContainsText(S2, '[stdin]')
             then
             begin
-              SetBits(ExeStruct^.Mode[X], 1, 0, 1);
+              SetBits(ExeStruct.Mode[X], 1, 0, 1);
               continue;
             end
             else if ContainsText(S2, '<stdout>') or ContainsText(S2, '[stdout]')
             then
             begin
-              SetBits(ExeStruct^.Mode[X], 1, 1, 1);
+              SetBits(ExeStruct.Mode[X], 1, 1, 1);
               continue;
             end
             else if ContainsText(S2, '<filein>') or ContainsText(S2, '[filein]')
             then
             begin
               S3 := IfThen(X = 0, FILE_IN, FILE_OUT);
-              SetBits(ExeStruct^.Mode[X], 0, 0, 1);
+              SetBits(ExeStruct.Mode[X], 0, 0, 1);
               if ContainsText(S2, '<filein>') then
-                ExeStruct^.InFile[X] := ExtractStr('<filein>', S2)
+                ExeStruct.InFile[X] := ExtractStr('<filein>', S2)
               else
-                ExeStruct^.InFile[X] := ExtractStr('[filein]', S2);
-              S2 := ReplaceText(S2, ExeStruct^.InFile[X], S3);
-              ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+                ExeStruct.InFile[X] := ExtractStr('[filein]', S2);
+              S2 := ReplaceText(S2, ExeStruct.InFile[X], S3);
+              ExeStruct.InFile[X] := ReplaceText(ExeStruct.InFile[X],
                 '<filein>', S3);
-              ExeStruct^.InFile[X] := ReplaceText(ExeStruct^.InFile[X],
+              ExeStruct.InFile[X] := ReplaceText(ExeStruct.InFile[X],
                 '[filein]', S3);
+              S2 := ExeStruct.InFile[X];
+              if ContainsText(S2, '[filein]') then
+                continue;
             end
             else if ContainsText(S2, '<fileout>') or
               ContainsText(S2, '[fileout]') then
             begin
               S3 := IfThen(X = 0, FILE_OUT, FILE_IN);
-              SetBits(ExeStruct^.Mode[X], 0, 1, 1);
+              SetBits(ExeStruct.Mode[X], 0, 1, 1);
               if ContainsText(S2, '<fileout>') then
-                ExeStruct^.OutFile[X] := ExtractStr('<fileout>', S2)
+                ExeStruct.OutFile[X] := ExtractStr('<fileout>', S2)
               else
-                ExeStruct^.OutFile[X] := ExtractStr('[fileout]', S2);
-              S2 := ReplaceText(S2, ExeStruct^.OutFile[X], S3);
-              ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+                ExeStruct.OutFile[X] := ExtractStr('[fileout]', S2);
+              ExeStruct.OutFile[X] := ReplaceText(ExeStruct.OutFile[X],
                 '<fileout>', S3);
-              ExeStruct^.OutFile[X] := ReplaceText(ExeStruct^.OutFile[X],
+              ExeStruct.OutFile[X] := ReplaceText(ExeStruct.OutFile[X],
                 '[fileout]', S3);
+              S2 := ExeStruct.OutFile[X];
+              if ContainsText(S2, '[fileout]') then
+                continue;
             end;
             S2 := IfThen((Pos(' ', S2) > 0) or (S2 = ''), '"' + S2 + '"', S2);
-            ExeStruct^.Param[X] := ExeStruct^.Param[X] + ' ' + S2;
+            ExeStruct.Param[X] := ExeStruct.Param[X] + ' ' + S2;
           end;
-          ExeStruct^.Param[X] := Trim(ExeStruct^.Param[X]);
+          ExeStruct.Param[X] := Trim(ExeStruct.Param[X]);
         end;
-        Insert(ExeStruct^, CodecExe, Length(CodecExe));
+        Insert(ExeStruct, CodecExe, Length(CodecExe));
       end;
   end;
   SL.Free;

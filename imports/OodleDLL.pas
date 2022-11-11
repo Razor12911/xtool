@@ -3,6 +3,7 @@ unit OodleDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils;
 
@@ -72,57 +73,42 @@ function OodleLZ_GetCompressedBufferSizeNeeded(compressor: Byte;
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
   OldCompress, OldCompressOptions_GetDefault,
     OldGetCompressedBufferSizeNeeded: Boolean;
-  DLLs: TStringDynArray;
 
 procedure Init(Filename: String);
 var
   I: Integer;
   C: Cardinal;
 begin
-  if DLLLoaded then
-    Exit;
-  DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'oo2core*.dll',
-    TSearchOption.soTopDirectoryOnly);
-  Insert(ExtractFilePath(ParamStr(0)) + Filename, DLLs, 0);
-  for I := Low(DLLs) to High(DLLs) do
-  begin
-    DLLHandle := LoadLibrary(PChar(DLLs[I]));
-    if DLLHandle >= 32 then
-      break;
-  end;
-  if DLLHandle < 32 then
-  begin
-    DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'oo2ext*.dll',
-      TSearchOption.soTopDirectoryOnly);
-    for I := Low(DLLs) to High(DLLs) do
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  if not Lib.Loaded then
+    for I := 3 to 9 do
     begin
-      DLLHandle := LoadLibrary(PChar(DLLs[I]));
-      if DLLHandle >= 32 then
+      Lib.Free;
+      Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'oo2core_' +
+        I.ToString + '_win64.dll');
+      if Lib.Loaded then
         break;
     end;
-  end;
-  if DLLHandle < 32 then
-  begin
-    DLLs := TDirectory.GetFiles(ExtractFilePath(ParamStr(0)), 'oodle2*.dll',
-      TSearchOption.soTopDirectoryOnly);
-    for I := Low(DLLs) to High(DLLs) do
+  if not Lib.Loaded then
+    for I := 3 to 9 do
     begin
-      DLLHandle := LoadLibrary(PChar(DLLs[I]));
-      if DLLHandle >= 32 then
+      Lib.Free;
+      Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'oo2ext_' +
+        I.ToString + '_win64.dll');
+      if Lib.Loaded then
         break;
     end;
-  end;
-  if DLLHandle >= 32 then
+  if Lib.Loaded then
   begin
-    Oodle_CheckVersion := GetProcAddress(DLLHandle, 'Oodle_CheckVersion');
+    Oodle_CheckVersion := Lib.GetProcAddr('Oodle_CheckVersion');
     if not Assigned(Oodle_CheckVersion) then
       for I := 0 to 32 do
       begin
-        @Oodle_CheckVersion := GetProcAddress(DLLHandle,
-          PChar('_Oodle_CheckVersion@' + (I * 2).ToString));
+        @Oodle_CheckVersion :=
+          Lib.GetProcAddr(PAnsiChar('_Oodle_CheckVersion@' + (I * 2).ToString));
         if Assigned(Oodle_CheckVersion) then
           break;
       end;
@@ -131,61 +117,57 @@ begin
     OldCompress := LongRec(C).Hi < $2E06;
     OldGetCompressedBufferSizeNeeded := LongRec(C).Hi < $2E08;
     OldCompressOptions_GetDefault := LongRec(C).Hi < $2E08;
-    @OodleLZ_Compress_1 := GetProcAddress(DLLHandle, 'OodleLZ_Compress');
+    @OodleLZ_Compress_1 := Lib.GetProcAddr('OodleLZ_Compress');
     if not Assigned(OodleLZ_Compress_1) then
       for I := 0 to 32 do
       begin
-        @OodleLZ_Compress_1 := GetProcAddress(DLLHandle,
-          PChar('_OodleLZ_Compress@' + (I * 2).ToString));
+        @OodleLZ_Compress_1 :=
+          Lib.GetProcAddr(PAnsiChar('_OodleLZ_Compress@' + (I * 2).ToString));
         if Assigned(OodleLZ_Compress_1) then
           break;
       end;
     @OodleLZ_Compress_2 := @OodleLZ_Compress_1;
-    OodleLZ_Decompress := GetProcAddress(DLLHandle, 'OodleLZ_Decompress');
+    OodleLZ_Decompress := Lib.GetProcAddr('OodleLZ_Decompress');
     if not Assigned(OodleLZ_Decompress) then
       for I := 0 to 32 do
       begin
-        @OodleLZ_Decompress := GetProcAddress(DLLHandle,
-          PChar('_OodleLZ_Decompress@' + (I * 2).ToString));
+        @OodleLZ_Decompress :=
+          Lib.GetProcAddr(PAnsiChar('_OodleLZ_Decompress@' + (I * 2).ToString));
         if Assigned(OodleLZ_Decompress) then
           break;
       end;
-    OodleLZ_CompressOptions_GetDefault_1 := GetProcAddress(DLLHandle,
-      'OodleLZ_CompressOptions_GetDefault');
+    OodleLZ_CompressOptions_GetDefault_1 :=
+      Lib.GetProcAddr('OodleLZ_CompressOptions_GetDefault');
     if not Assigned(OodleLZ_CompressOptions_GetDefault_1) then
       for I := 0 to 32 do
       begin
         @OodleLZ_CompressOptions_GetDefault_1 :=
-          GetProcAddress(DLLHandle, PChar('_OodleLZ_CompressOptions_GetDefault@'
-          + (I * 2).ToString));
+          Lib.GetProcAddr(PAnsiChar('_OodleLZ_CompressOptions_GetDefault@' +
+          (I * 2).ToString));
         if Assigned(OodleLZ_CompressOptions_GetDefault_1) then
           break;
       end;
     @OodleLZ_CompressOptions_GetDefault_2 :=
       @OodleLZ_CompressOptions_GetDefault_1;
     OodleLZ_GetCompressedBufferSizeNeeded_1 :=
-      GetProcAddress(DLLHandle, 'OodleLZ_GetCompressedBufferSizeNeeded');
+      Lib.GetProcAddr('OodleLZ_GetCompressedBufferSizeNeeded');
     if not Assigned(OodleLZ_GetCompressedBufferSizeNeeded_1) then
       for I := 0 to 32 do
       begin
         @OodleLZ_GetCompressedBufferSizeNeeded_1 :=
-          GetProcAddress(DLLHandle,
-          PChar('_OodleLZ_GetCompressedBufferSizeNeeded@' + (I * 2).ToString));
+          Lib.GetProcAddr(PAnsiChar('_OodleLZ_GetCompressedBufferSizeNeeded@' +
+          (I * 2).ToString));
         if Assigned(OodleLZ_GetCompressedBufferSizeNeeded_1) then
           break;
       end;
     @OodleLZ_GetCompressedBufferSizeNeeded_2 :=
       @OodleLZ_GetCompressedBufferSizeNeeded_1;
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    Exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 function OodleLZ_Compress(compressor: Integer; rawBuf: Pointer;
@@ -228,7 +210,7 @@ var
 
 initialization
 
-DLLFile := 'oodle.dll';
+DLLFile := 'oo2core_9_win64.dll';
 for I := 1 to ParamCount do
   if ParamStr(I).StartsWith(DLLParam) then
   begin

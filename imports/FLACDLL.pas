@@ -3,6 +3,7 @@ unit FLACDLL;
 interface
 
 uses
+  LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -121,68 +122,60 @@ var
 implementation
 
 var
-  DLLHandle: THandle;
+  Lib: TLibImport;
 
 procedure Init;
 begin
-  DLLHandle := LoadLibrary(PChar(ExtractFilePath(ParamStr(0)) +
-    'libFLAC_dynamic.dll'));
-  if DLLHandle >= 32 then
+  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) +
+    'libFLAC_dynamic.dll');
+  if Lib.Loaded then
   begin
-    @FLAC__stream_encoder_new := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_new');
-    @FLAC__stream_encoder_set_verify := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_set_verify');
-    @FLAC__stream_encoder_set_channels := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_set_channels');
+    @FLAC__stream_encoder_new := Lib.GetProcAddr('FLAC__stream_encoder_new');
+    @FLAC__stream_encoder_set_verify :=
+      Lib.GetProcAddr('FLAC__stream_encoder_set_verify');
+    @FLAC__stream_encoder_set_channels :=
+      Lib.GetProcAddr('FLAC__stream_encoder_set_channels');
     @FLAC__stream_encoder_set_compression_level :=
-      GetProcAddress(DLLHandle, 'FLAC__stream_encoder_set_compression_level');
+      Lib.GetProcAddr('FLAC__stream_encoder_set_compression_level');
     @FLAC__stream_encoder_set_bits_per_sample :=
-      GetProcAddress(DLLHandle, 'FLAC__stream_encoder_set_bits_per_sample');
+      Lib.GetProcAddr('FLAC__stream_encoder_set_bits_per_sample');
     @FLAC__stream_encoder_set_sample_rate :=
-      GetProcAddress(DLLHandle, 'FLAC__stream_encoder_set_sample_rate');
+      Lib.GetProcAddr('FLAC__stream_encoder_set_sample_rate');
     @FLAC__stream_encoder_set_total_samples_estimate :=
-      GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_set_total_samples_estimate');
-    @FLAC__stream_encoder_init_stream := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_init_stream');
-    @FLAC__stream_encoder_init_file := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_init_file');
+      Lib.GetProcAddr('FLAC__stream_encoder_set_total_samples_estimate');
+    @FLAC__stream_encoder_init_stream :=
+      Lib.GetProcAddr('FLAC__stream_encoder_init_stream');
+    @FLAC__stream_encoder_init_file :=
+      Lib.GetProcAddr('FLAC__stream_encoder_init_file');
     @FLAC__stream_encoder_process_interleaved :=
-      GetProcAddress(DLLHandle, 'FLAC__stream_encoder_process_interleaved');
-    @FLAC__stream_encoder_finish := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_finish');
-    @FLAC__stream_encoder_delete := GetProcAddress(DLLHandle,
-      'FLAC__stream_encoder_delete');
-    @FLAC__stream_decoder_new := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_new');
-    @FLAC__stream_decoder_init_stream := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_init_stream');
-    @FLAC__stream_decoder_init_file := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_init_file');
-    @FLAC__stream_decoder_get_channels := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_get_channels');
+      Lib.GetProcAddr('FLAC__stream_encoder_process_interleaved');
+    @FLAC__stream_encoder_finish :=
+      Lib.GetProcAddr('FLAC__stream_encoder_finish');
+    @FLAC__stream_encoder_delete :=
+      Lib.GetProcAddr('FLAC__stream_encoder_delete');
+    @FLAC__stream_decoder_new := Lib.GetProcAddr('FLAC__stream_decoder_new');
+    @FLAC__stream_decoder_init_stream :=
+      Lib.GetProcAddr('FLAC__stream_decoder_init_stream');
+    @FLAC__stream_decoder_init_file :=
+      Lib.GetProcAddr('FLAC__stream_decoder_init_file');
+    @FLAC__stream_decoder_get_channels :=
+      Lib.GetProcAddr('FLAC__stream_decoder_get_channels');
     @FLAC__stream_decoder_get_bits_per_sample :=
-      GetProcAddress(DLLHandle, 'FLAC__stream_decoder_get_bits_per_sample');
+      Lib.GetProcAddr('FLAC__stream_decoder_get_bits_per_sample');
     @FLAC__stream_decoder_process_until_end_of_stream :=
-      GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_process_until_end_of_stream');
-    @FLAC__stream_decoder_finish := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_finish');
-    @FLAC__stream_decoder_delete := GetProcAddress(DLLHandle,
-      'FLAC__stream_decoder_delete');
+      Lib.GetProcAddr('FLAC__stream_decoder_process_until_end_of_stream');
+    @FLAC__stream_decoder_finish :=
+      Lib.GetProcAddr('FLAC__stream_decoder_finish');
+    @FLAC__stream_decoder_delete :=
+      Lib.GetProcAddr('FLAC__stream_decoder_delete');
     DLLLoaded := Assigned(FLAC__stream_encoder_new) and
       Assigned(FLAC__stream_decoder_new);
-  end
-  else
-    DLLLoaded := False;
+  end;
 end;
 
 procedure Deinit;
 begin
-  if not DLLLoaded then
-    exit;
-  FreeLibrary(DLLHandle);
+  Lib.Free;
 end;
 
 initialization

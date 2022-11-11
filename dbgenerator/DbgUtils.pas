@@ -10,6 +10,11 @@ resourcestring
   SPrecompSep1 = '+';
   SPrecompSep2 = ':';
   SPrecompSep3 = ',';
+  SPrecompSep4 = '/';
+  SPrecompSep5 = '/';
+  XTOOL_MAPSUF1 = '-tmp';
+  XTOOL_MAPSUF2 = '_mapped.io';
+  XTOOL_MAPSUF3 = '.tmp';
 
 const
   XTOOL_DB = $31445458;
