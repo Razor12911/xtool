@@ -1,3 +1,22 @@
+  ES_R44 (0.6.9)
+  - added library checker (trial and error)
+  - improved user interface
+  - fixed bugs related to oodle scanner
+  - skip verification no longer applies to encryption codecs
+
+  ES_R43 (0.6.8)
+  - added advanced configuration based plugin support
+  - added UI mode when xtool.exe is launched with xtoolui.dll present
+  - added skip verification mode
+  - xtool now enforces w15 deflate stream detection by default
+  - fixed oodle scanner exceptions when incomplete stream is detected
+  - fixed issue with zlib codec not accepting streams from database plugins
+  - updated command line syntax
+
+  ES_R42 (0.6.7)
+  - fixed oodle scanner exceptions when incorrect library is used
+  - fixed issues with deduplication feature
+
   ES_R41 (0.6.6)
   - fixed issues with exporting precompression database
   - fixed issues with deduplication feature consuming a lot of system memory
@@ -6,7 +25,7 @@
 
   ES_R40 (0.6.5)
   - updated oodle scanner
-  - remove xdelta support from oodle and lzo codecs (crc mismatch often generates large diff files)
+  - removed xdelta support from oodle and lzo codecs (crc mismatch often generates large diff files)
 
   ES_R39 (0.6.4)
   - fixed issues with lzo2a and lzo1c codecs

@@ -62,6 +62,7 @@ uses
   ZLibDLL in 'imports\ZLibDLL.pas',
   ZSTDDLL in 'imports\ZSTDDLL.pas',
   lz4 in 'sources\lz4.pas',
+  UIMain in 'ui\UIMain.pas',
   PrecompMain in 'precompressor\PrecompMain.pas',
   PrecompUtils in 'precompressor\PrecompUtils.pas',
   PrecompCrypto in 'precompressor\PrecompCrypto.pas',
@@ -72,6 +73,7 @@ uses
   PrecompMedia in 'precompressor\PrecompMedia.pas',
   PrecompOodle in 'precompressor\PrecompOodle.pas',
   PrecompINI in 'precompressor\PrecompINI.pas',
+  PrecompINIEx in 'precompressor\PrecompINIEx.pas',
   PrecompSearch in 'precompressor\PrecompSearch.pas',
   PrecompDLL in 'precompressor\PrecompDLL.pas',
   PrecompEXE in 'precompressor\PrecompEXE.pas',
@@ -172,15 +174,59 @@ begin
     Result := TFileStream.Create(Output, fmCreate);
 end;
 
+function CheckInstance(const InstanceName: string): boolean;
+var
+  Sem: THandle;
+begin
+  Result := False;
+  Sem := CreateSemaphore(nil, 0, 1, PChar(InstanceName));
+  if ((Sem <> 0) and (GetLastError = ERROR_ALREADY_EXISTS)) then
+  begin
+    CloseHandle(Sem);
+    exit(True);
+  end;
+end;
+
+function Exec_(Executable, CommandLine, WorkDir: string): boolean;
+var
+  StartupInfo: TStartupInfo;
+  ProcessInfo: TProcessInformation;
+  dwExitCode: DWORD;
+  LWorkDir: PChar;
+begin
+  Result := False;
+  FillChar(StartupInfo, sizeof(StartupInfo), #0);
+  StartupInfo.cb := sizeof(StartupInfo);
+  if WorkDir <> '' then
+    LWorkDir := Pointer(WorkDir)
+  else
+    LWorkDir := Pointer(GetCurrentDir);
+  if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
+    False, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
+  begin
+    CloseHandleEx(ProcessInfo.hThread);
+    WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+    GetExitCodeProcess(ProcessInfo.hProcess, dwExitCode);
+    CloseHandleEx(ProcessInfo.hProcess);
+    Result := dwExitCode = 0;
+  end
+  else
+    RaiseLastOSError;
+end;
+
 const
   BufferSize = 1048576;
 
 var
   I, J: Integer;
   S: String;
+  LibType: Integer;
+  LibPath: String;
+  LibList: System.Types.TStringDynArray;
+  ParamStr_: TArray<String>;
   ParamArg: array [0 .. 1] of TArray<String>;
   StrArray: TArray<String>;
-  IsParam: Boolean;
+  IsParam: boolean;
   Input, Output: TStream;
   PrecompEnc: PrecompMain.TEncodeOptions;
   PrecompDec: PrecompMain.TDecodeOptions;
@@ -207,7 +253,56 @@ end;
 
 begin
   FormatSettings := TFormatSettings.Invariant;
-  ProgramInfo;
+  if not CheckInstance('XToolUI_Check') then
+    ProgramInfo;
+  if UIMain.DLLLoaded and (ParamCount = 0) then
+  begin
+    XTLUI1;
+    while XTLUI2(@UIFuncs, ParamStr_, LibType, LibPath) do
+    begin
+      S := '';
+      for I := 1 to High(ParamStr_) do
+        S := S + IfThen(ParamStr_[I].Contains(' '), '"' + ParamStr_[I] + '"',
+          ParamStr_[I]) + ' ';
+      PrecompMain.Parse(ParamStr_, PrecompEnc);
+      if LibType = 0 then
+      begin
+        WriteLine('Chunk size: ' + ConvertKB2TB(PrecompEnc.ChunkSize div 1024) +
+          ', ' + 'Threads: ' + PrecompEnc.Threads.ToString + ', ' + 'Depth: ' +
+          (PrecompEnc.Depth - 1).ToString);
+        WriteLine('');
+        Exec_(ParamStr(0), S, '');
+      end
+      else
+      begin
+        LibList := TDirectory.GetFiles(LibPath, '*.dll',
+          TSearchOption.soAllDirectories);
+        for J := Low(LibList) to High(LibList) do
+        begin
+          S := '';
+          for I := 1 to High(ParamStr_) do
+          begin
+            S := S + IfThen(ParamStr_[I].Contains(' '),
+              '"' + ParamStr_[I] + '"', ParamStr_[I]) + ' ';
+            if I = 1 then
+              case LibType of
+                1:
+                  S := S + '"' + '-l4' + LibList[J] + '"' + ' ';
+                2:
+                  S := S + '"' + '-zs' + LibList[J] + '"' + ' ';
+                3:
+                  S := S + '"' + '-od' + LibList[J] + '"' + ' ';
+              end;
+          end;
+          WriteLine('Library loaded: ' + ReplaceText(LibList[J],
+            IncludeTrailingBackSlash(LibPath), ''));
+          WriteLine('');
+          Exec_(ParamStr(0), S, '');
+        end;
+      end;
+    end;
+    exit;
+  end;
   try
     if ParamCount = 0 then
     begin
@@ -240,6 +335,12 @@ begin
         try
           PrecompMain.Parse(ParamArg[0], PrecompEnc);
           PrecompMain.Encode(Input, Output, PrecompEnc);
+          if TBufferedStream(Output).Instance is TNullStream then
+          begin
+            WriteLine('Results: ' + ConvertKB2TB(Input.Size div 1024) + ' >> ' +
+              ConvertKB2TB(Output.Size div 1024));
+            WriteLine('');
+          end;
         finally
           Input.Free;
           Output.Free;

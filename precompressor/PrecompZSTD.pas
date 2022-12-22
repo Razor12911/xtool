@@ -320,8 +320,6 @@ begin
     if Result or (StreamInfo^.Status >= TStreamStatus.Predicted) then
       break;
   end;
-  if Res1 < 0 then
-    exit;
   if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
     (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin

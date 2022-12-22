@@ -1,0 +1,1287 @@
+object Form2: TForm2
+  Left = 0
+  Top = 0
+  BorderIcons = [biSystemMenu]
+  BorderStyle = Single
+  Caption = 'XTool'
+  ClientHeight = 420
+  ClientWidth = 300
+  Position = OwnerFormCenter
+  StyleBook = Form1.StyleBook1
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnShow = FormShow
+  DesignerMasterStyle = 0
+  object TabControl1: TTabControl
+    Align = Client
+    Margins.Left = 8.000000000000000000
+    Margins.Top = 8.000000000000000000
+    Margins.Right = 8.000000000000000000
+    Margins.Bottom = 8.000000000000000000
+    Size.Width = 284.000000000000000000
+    Size.Height = 376.000000000000000000
+    Size.PlatformDefault = False
+    TabIndex = 0
+    TabOrder = 0
+    TabPosition = PlatformDefault
+    Sizes = (
+      284s
+      354s
+      284s
+      354s)
+    object TabItem1: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = True
+      Size.Width = 101.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Internal codecs'
+      ExplicitSize.cx = 101.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object VertScrollBox1: TVertScrollBox
+        Align = Client
+        Size.Width = 284.000000000000000000
+        Size.Height = 354.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Viewport.Width = 268.000000000000000000
+        Viewport.Height = 354.000000000000000000
+        object Expander1: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 8.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 242.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'ZLib'
+          TabOrder = 5
+          ContentSize = '217'
+          object Layout6: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 37
+            object CheckBox3: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'ZLib'
+              OnChange = CheckBox3Change
+            end
+          end
+          object Layout1: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object Label4: TLabel
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Window bits'
+              TabOrder = 1
+            end
+            object SpinBox4: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 8.000000000000000000
+              Max = 15.000000000000000000
+              Value = 15.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+          object Layout2: TLayout
+            Align = Top
+            Position.Y = 72.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 36
+            object CheckBox1: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Reflate'
+              OnChange = CheckBox1Change
+            end
+          end
+          object Layout3: TLayout
+            Align = Top
+            Position.Y = 108.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object Label1: TLabel
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Level'
+              TabOrder = 1
+            end
+            object SpinBox1: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 6.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+          object Layout4: TLayout
+            Align = Top
+            Position.Y = 144.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 35
+            object CheckBox2: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Preflate'
+            end
+          end
+          object Layout28: TLayout
+            Align = Top
+            Position.Y = 180.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 34
+            object CheckBox20: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'PNG Preprocessor (Depth +1)'
+            end
+          end
+        end
+        object Expander2: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 258.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 278.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'LZ4'
+          TabOrder = 0
+          ContentSize = '253'
+          object Layout5: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 38
+            object CheckBox4: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'LZ4 (Experimental)'
+              OnChange = CheckBox4Change
+            end
+          end
+          object Layout7: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 35
+            object Label2: TLabel
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Acceleration'
+              TabOrder = 1
+            end
+            object SpinBox2: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 16.000000000000000000
+              Value = 1.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+          object Layout8: TLayout
+            Align = Top
+            Position.Y = 72.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 37
+            object CheckBox5: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'LZ4HC (Experimental)'
+              OnChange = CheckBox5Change
+            end
+          end
+          object Layout9: TLayout
+            Align = Top
+            Position.Y = 108.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 34
+            object SpinBox3: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 2.000000000000000000
+              Max = 12.000000000000000000
+              Value = 9.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox24: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox24Change
+            end
+          end
+          object Layout10: TLayout
+            Align = Top
+            Position.Y = 144.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 36
+            object CheckBox6: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'LZ4F'
+              OnChange = CheckBox6Change
+            end
+          end
+          object Layout11: TLayout
+            Align = Top
+            Position.Y = 216.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object SpinBox5: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 2.000000000000000000
+              Max = 12.000000000000000000
+              Value = 9.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox23: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox23Change
+            end
+          end
+          object Layout12: TLayout
+            Align = Top
+            Position.Y = 180.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object Label6: TLabel
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Block dependency'
+              TabOrder = 1
+            end
+            object SpinBox6: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Max = 1.000000000000000000
+              Value = 1.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+        end
+        object Expander3: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 544.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 134.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'LZO'
+          TabOrder = 4
+          ContentSize = '109'
+          object Layout13: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 34
+            object CheckBox7: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'LZO1X'
+              OnChange = CheckBox7Change
+            end
+          end
+          object Layout14: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object Label7: TLabel
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Mode'
+              TabOrder = 0
+            end
+            object ComboBox1: TComboBox
+              Align = Left
+              Items.Strings = (
+                'LZO1X-999')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+            end
+          end
+          object Layout15: TLayout
+            Align = Top
+            Position.Y = 72.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object SpinBox8: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 9.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox25: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox25Change
+            end
+          end
+        end
+        object Expander4: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 686.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 98.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'ZSTD'
+          TabOrder = 3
+          ContentSize = '73'
+          object Layout16: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object CheckBox8: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'ZSTD'
+              OnChange = CheckBox8Change
+            end
+          end
+          object Layout18: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object SpinBox7: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 22.000000000000000000
+              Value = 19.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox9: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox9Change
+            end
+          end
+        end
+        object Expander5: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 792.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 456.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Oodle'
+          TabOrder = 1
+          ContentSize = '431'
+          object Layout17: TLayout
+            Align = Top
+            Position.Y = 72.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 43
+            object CheckBox10: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Kraken'
+              OnChange = CheckBox10Change
+            end
+          end
+          object Layout19: TLayout
+            Align = Top
+            Position.Y = 108.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 38
+            object SpinBox9: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 4.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox11: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox11Change
+            end
+          end
+          object Layout20: TLayout
+            Align = Top
+            Position.Y = 144.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 42
+            object CheckBox12: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Mermaid'
+              OnChange = CheckBox12Change
+            end
+          end
+          object Layout21: TLayout
+            Align = Top
+            Position.Y = 180.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 37
+            object SpinBox10: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 4.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox13: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox13Change
+            end
+          end
+          object Layout22: TLayout
+            Align = Top
+            Position.Y = 216.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 41
+            object CheckBox14: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Selkie'
+              OnChange = CheckBox14Change
+            end
+          end
+          object Layout23: TLayout
+            Align = Top
+            Position.Y = 252.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 36
+            object SpinBox11: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 4.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox15: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox15Change
+            end
+          end
+          object Layout24: TLayout
+            Align = Top
+            Position.Y = 288.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 40
+            object CheckBox16: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Hydra (Experimental)'
+              OnChange = CheckBox16Change
+            end
+          end
+          object Layout25: TLayout
+            Align = Top
+            Position.Y = 324.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 35
+            object SpinBox12: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 4.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox17: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox17Change
+            end
+          end
+          object Layout26: TLayout
+            Align = Top
+            Position.Y = 360.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 39
+            object CheckBox18: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Leviathan (Experimental)'
+              OnChange = CheckBox18Change
+            end
+          end
+          object Layout27: TLayout
+            Align = Top
+            Position.Y = 396.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 34
+            object SpinBox13: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 9.000000000000000000
+              Value = 4.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox19: TCheckBox
+              Align = Left
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Level'
+              OnChange = CheckBox19Change
+            end
+          end
+          object Layout31: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object Label3: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 122.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'No. of scan iterations'
+              TabOrder = 1
+            end
+            object SpinBox15: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 32.000000000000000000
+              Max = 1024.000000000000000000
+              Value = 32.000000000000000000
+              Increment = 32.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+          object Layout36: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object Label5: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 122.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Speed/size tradeoff'
+              TabOrder = 1
+            end
+            object SpinBox16: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 32.000000000000000000
+              Max = 1024.000000000000000000
+              Value = 256.000000000000000000
+              Increment = 64.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+        end
+        object Expander6: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 1256.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 240.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Media'
+          TabOrder = 2
+          ContentSize = '215'
+          object Layout29: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 37
+            object CheckBox21: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'WAV audio compression'
+              OnChange = CheckBox21Change
+            end
+          end
+          object Layout30: TLayout
+            Align = Top
+            Position.Y = 36.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 35
+            object SpinBox14: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 8.000000000000000000
+              Value = 5.000000000000000000
+              Position.X = 138.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object RadioButton4: TRadioButton
+              Align = Left
+              GroupName = 'WAV'
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 30.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'FLAC'
+              OnChange = RadioButton4Change
+            end
+          end
+          object Layout32: TLayout
+            Align = Top
+            Position.Y = 72.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 36
+            object CheckBox26: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'JPG image compression'
+              OnChange = CheckBox26Change
+            end
+          end
+          object Layout33: TLayout
+            Align = Top
+            Position.Y = 108.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 34
+            object RadioButton1: TRadioButton
+              Align = Client
+              GroupName = 'JPG'
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 214.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              Text = 'Brunsli'
+            end
+          end
+          object Layout34: TLayout
+            Align = Top
+            Position.Y = 144.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 33
+            object RadioButton2: TRadioButton
+              Align = Client
+              GroupName = 'JPG'
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 214.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              Text = 'PackJPG'
+            end
+          end
+          object Layout35: TLayout
+            Align = Top
+            Position.Y = 180.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object RadioButton3: TRadioButton
+              Align = Client
+              GroupName = 'JPG'
+              Margins.Left = 30.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 214.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 2
+              Text = 'JoJpeg (Experimental)'
+            end
+          end
+        end
+      end
+    end
+    object TabItem2: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 102.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'External codecs'
+      ExplicitSize.cx = 102.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object VertScrollBox3: TVertScrollBox
+        Align = Client
+        Size.Width = 284.000000000000000000
+        Size.Height = 354.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Viewport.Width = 284.000000000000000000
+        Viewport.Height = 354.000000000000000000
+        object Expander10: TExpander
+          Align = MostTop
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 8.000000000000000000
+          ShowCheck = False
+          Size.Width = 268.000000000000000000
+          Size.Height = 130.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Databases (*.xtl)'
+          TabOrder = 2
+          ContentSize = '105'
+          object ListBox2: TListBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 252.000000000000000000
+            Size.Height = 97.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            DisableFocusEffect = True
+            DefaultItemStyles.ItemStyle = ''
+            DefaultItemStyles.GroupHeaderStyle = ''
+            DefaultItemStyles.GroupFooterStyle = ''
+            ShowCheckboxes = True
+            Viewport.Width = 248.000000000000000000
+            Viewport.Height = 93.000000000000000000
+          end
+        end
+      end
+    end
+  end
+  object Layout37: TLayout
+    Align = Bottom
+    Margins.Bottom = 8.000000000000000000
+    Position.Y = 392.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 20.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    object Button1: TButton
+      Align = Right
+      ModalResult = 1
+      Margins.Left = 8.000000000000000000
+      Margins.Right = 8.000000000000000000
+      Position.X = 212.000000000000000000
+      Size.Width = 80.000000000000000000
+      Size.Height = 20.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Text = 'Ok'
+      OnClick = Button1Click
+    end
+  end
+end

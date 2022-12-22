@@ -4,6 +4,7 @@ interface
 
 uses
   Utils, SynCommons, SynCrypto,
+  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -281,6 +282,8 @@ begin
           SetLength(CodecSearch, Succ(J));
           S := ChangeFileExt(ExtractFileName(SearchList[I]), '');
           Insert(S, Codec.Names, Length(Codec.Names));
+          if UIMain.DLLLoaded then
+            XTLAddplugin(S, PLUGIN_DATABASE);
         end;
         while FStream.Position < FStream.Size do
         begin

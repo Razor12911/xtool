@@ -3,7 +3,7 @@ unit ZLibDLL;
 interface
 
 uses
-  LibImport,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils, System.ZLib;
 
@@ -148,16 +148,16 @@ end;
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  Lib := TLibImport.Create(ExpandPath(Filename));
   if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
   begin
     Lib.Free;
-    Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'zlibwapi.dll');
+    Lib := TLibImport.Create(ExpandPath('zlibwapi.dll'));
   end;
   if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
   begin
     Lib.Free;
-    Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'zlib1.dll');
+    Lib := TLibImport.Create(ExpandPath('zlib1.dll'));
   end;
   if Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion')) then
   begin
@@ -192,7 +192,8 @@ begin
 end;
 
 const
-  DLLParam = '--zlib=';
+  DLLParam1 = '--zlib=';
+  DLLParam2 = '-zb';
 
 var
   I: integer;
@@ -202,11 +203,18 @@ initialization
 
 DLLFile := 'zlibwapi.dll';
 for I := 1 to ParamCount do
-  if ParamStr(I).StartsWith(DLLParam) then
+begin
+  if ParamStr(I).StartsWith(DLLParam1) then
   begin
-    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    DLLFile := ParamStr(I).Substring(DLLParam1.Length);
     break;
   end;
+  if ParamStr(I).StartsWith(DLLParam2) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam2.Length);
+    break;
+  end;
+end;
 
 Init(DLLFile);
 

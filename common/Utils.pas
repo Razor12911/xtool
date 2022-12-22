@@ -96,10 +96,13 @@ type
   end;
 
   TNullStream = class(TStream)
+  private
+    FPosition, FSize: Int64;
   public
     constructor Create;
-    destructor Destroy; override;
+    function Read(var Buffer; Count: LongInt): LongInt; override;
     function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
   end;
 
   TArrayStream = class(TStream)
@@ -134,33 +137,6 @@ type
     function Add(AStreamType: Pointer; MaxSize: Int64 = FMaxStreamSize)
       : Integer;
     procedure Update(Index: Integer; MaxSize: Int64);
-  end;
-
-  TPointersStream = class(TStream)
-  protected
-    function GetSize: Int64; override;
-    procedure SetSize(NewSize: LongInt); override;
-    procedure SetSize(const NewSize: Int64); override;
-  private
-    FPointers: TArray<Pointer>;
-    FSizes: TArray<NativeInt>;
-    FPosition, FSize: NativeInt;
-    FMaxSize: NativeInt;
-    FIndex, FCount: Integer;
-    FIndexPos: NativeInt;
-    procedure Recalculate;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    function Read(var Buffer; Count: LongInt): LongInt; override;
-    function Write(const Buffer; Count: LongInt): LongInt; override;
-    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
-    function Add(Ptr: Pointer; Size: NativeInt): Integer;
-    procedure Delete(Index: Integer);
-    procedure Insert(Index: Integer; Ptr: Pointer; Size: NativeInt);
-    procedure Clear;
-    property Count: Integer read FCount;
-    property Capacity: NativeInt read FMaxSize;
   end;
 
   TMemoryStreamEx = class(TMemoryStream)
@@ -255,7 +231,10 @@ type
   end;
 
   TBufferedStream = class(TStream)
+  protected
+    function GetSize: Int64; override;
   private
+    FSize: Int64;
     FReadMode: Boolean;
     FMemory: PByte;
     FBufferSize: Integer;
@@ -487,6 +466,7 @@ function GetFileList(const APath: TArray<string>; SubDir: Boolean = True)
 procedure FileReadBuffer(Handle: THandle; var Buffer; Count: NativeInt);
 procedure FileWriteBuffer(Handle: THandle; const Buffer; Count: NativeInt);
 procedure CloseHandleEx(var Handle: THandle);
+function ExpandPath(const AFileName: string): String;
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;
 function ExecStdin(Executable, CommandLine, WorkDir: string; InBuff: Pointer;
@@ -745,16 +725,35 @@ end;
 constructor TNullStream.Create;
 begin
   inherited Create;
+  FPosition := 0;
+  FSize := 0;
 end;
 
-destructor TNullStream.Destroy;
+function TNullStream.Read(var Buffer; Count: LongInt): LongInt;
 begin
-  inherited Destroy;
+  Inc(FPosition, Count);
+  Result := Count;
 end;
 
 function TNullStream.Write(const Buffer; Count: LongInt): LongInt;
 begin
+  Inc(FPosition, Count);
+  if FSize < FPosition then
+    FSize := FPosition;
   Result := Count;
+end;
+
+function TNullStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+  case Origin of
+    soBeginning:
+      FPosition := Offset;
+    soCurrent:
+      Inc(FPosition, Offset);
+    soEnd:
+      FPosition := FSize + Offset;
+  end;
+  Result := Position;
 end;
 
 constructor TArrayStream.Create;
@@ -946,102 +945,6 @@ procedure TArrayStream.Update(Index: Integer; MaxSize: Int64);
 begin
   if FStreams[Index].Size < FStreams[Index].MaxSize then
     FStreams[Index].MaxSize := MaxSize;
-end;
-
-constructor TPointersStream.Create;
-begin
-  inherited Create;
-  Clear;
-  Recalculate;
-end;
-
-destructor TPointersStream.Destroy;
-begin
-  Clear;
-  inherited Destroy;
-end;
-
-function TPointersStream.GetSize: Int64;
-begin
-  Result := FSize;
-end;
-
-procedure TPointersStream.SetSize(NewSize: LongInt);
-begin
-  SetSize(Int64(NewSize));
-end;
-
-procedure TPointersStream.SetSize(const NewSize: Int64);
-var
-  OldPosition: NativeInt;
-begin
-  OldPosition := FPosition;
-  if NewSize <= FMaxSize then
-    FSize := NewSize;
-  if OldPosition > NewSize then
-    Seek(0, soEnd);
-end;
-
-procedure TPointersStream.Recalculate;
-var
-  I: Integer;
-begin
-  FMaxSize := 0;
-  for I := 0 to FCount - 1 do
-    Inc(FMaxSize, FSizes[I]);
-  if FPosition > FMaxSize then
-    FPosition := FMaxSize;
-  if FSize > FMaxSize then
-    FSize := FMaxSize;
-end;
-
-function TPointersStream.Read(var Buffer; Count: LongInt): LongInt;
-begin
-  // 2121212
-end;
-
-function TPointersStream.Write(const Buffer; Count: LongInt): LongInt;
-begin
-
-end;
-
-function TPointersStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-
-end;
-
-function TPointersStream.Add(Ptr: Pointer; Size: NativeInt): Integer;
-begin
-  System.Insert(Ptr, FPointers, FCount);
-  System.Insert(Size, FSizes, FCount);
-  Result := FCount;
-  Inc(FCount);
-  Recalculate;
-end;
-
-procedure TPointersStream.Delete(Index: Integer);
-begin
-  System.Delete(FPointers, Index, 1);
-  Dec(FCount);
-  Recalculate;
-end;
-
-procedure TPointersStream.Insert(Index: Integer; Ptr: Pointer; Size: NativeInt);
-begin
-  System.Insert(Ptr, FPointers, Index);
-  System.Insert(Size, FSizes, Index);
-  Inc(FCount);
-  Recalculate;
-end;
-
-procedure TPointersStream.Clear;
-begin
-  SetLength(FPointers, 0);
-  SetLength(FSizes, 0);
-  FCount := 0;
-  FPosition := 0;
-  FSize := 0;
-  FMaxSize := 0;
 end;
 
 constructor TMemoryStreamEx.Create(AOwnMemory: Boolean; const AMemory: Pointer;
@@ -1603,6 +1506,11 @@ begin
   inherited Destroy;
 end;
 
+function TBufferedStream.GetSize: Int64;
+begin
+  Result := FSize;
+end;
+
 function TBufferedStream.Read(var Buffer; Count: Integer): Integer;
 var
   I, FCount: Integer;
@@ -1643,6 +1551,7 @@ begin
     end;
   end;
   Result := Count - FCount;
+  Inc(FSize, Result);
 end;
 
 function TBufferedStream.Write(const Buffer; Count: Integer): Integer;
@@ -1693,6 +1602,7 @@ begin
     end;
   end;
   Result := Count - FCount;
+  Inc(FSize, Result);
 end;
 
 procedure TBufferedStream.Flush;
@@ -3500,6 +3410,16 @@ begin
       CloseHandle(Handle);
       Handle := 0;
     end;
+end;
+
+function ExpandPath(const AFileName: string): String;
+begin
+  if AFileName = '' then
+    Result := ''
+  else if Pos(':', AFileName) > 0 then
+    Result := AFileName
+  else
+    Result := ExtractFilePath(GetModuleName) + AFileName;
 end;
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;

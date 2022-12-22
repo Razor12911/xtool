@@ -4,6 +4,7 @@ interface
 
 uses
   Utils, ParseExpr,
+  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -136,7 +137,7 @@ begin
       if CompareText(S, Codec.Names[Y]) = 0 then
       begin
         for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
-          CodecEnabled[Y][I] := True;
+          CodecEnabled[Y, I] := True;
         for Z := Low(CodecCfg[0, Y]) to High(CodecCfg[0, Y]) do
           if Funcs^.GetParam(Command, X, PChar(CodecCfg[0, Y, Z].Name)) <> ''
           then
@@ -144,7 +145,7 @@ begin
             if not ParamsSet then
             begin
               for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
-                CodecEnabled[Y][I] := False;
+                CodecEnabled[Y, I] := False;
               ParamsSet := True;
             end;
             CodecEnabled[Y, Z] := True;
@@ -292,11 +293,13 @@ begin
                   continue;
                 end;
                 for Y := Low(Conditions) to High(Conditions) do
+                begin
                   if Round(Parser.Evaluate(Conditions[Y])) = 0 then
                   begin
                     Status := TScanStatus.Fail;
                     break;
                   end;
+                end;
                 if Status = TScanStatus.None then
                 begin
                   Output(Instance, nil, -1);
@@ -362,7 +365,7 @@ begin
 end;
 
 var
-  I, J, X, Y: Integer;
+  I, J, K, X, Y: Integer;
   SL: TStringList;
   Bytes: TBytes;
   S1, S2: String;
@@ -373,8 +376,6 @@ var
   CfgRecArray: PCfgRecDynArray;
   CfgStruct: PCfgStruct;
   SList: TStringDynArray;
-  PStr1: PAnsiChar;
-  PStr2: PString;
 
 initialization
 
@@ -390,13 +391,20 @@ begin
       begin
         S1 := ChangeFileExt(ExtractFileName(CfgList[I]), '');
         Insert(S1, Codec.Names, Length(Codec.Names));
-        New(CfgRecArray);
+        if UIMain.DLLLoaded then
+          XTLAddplugin(S1, PLUGIN_CONFIG);
+        SetLength(CodecCfg[0], Succ(Length(CodecCfg[0])));
+        CfgRecArray := @CodecCfg[0, Pred(Length(CodecCfg[0]))];
         X := 1;
         while ReadString('Stream' + X.ToString, 'Name', '') <> '' do
         begin
-          New(CfgRec);
+          J := Length(CodecCfg[0, Pred(Length(CodecCfg[0]))]);
+          SetLength(CodecCfg[0, Pred(Length(CodecCfg[0]))], Succ(J));
+          CfgRec := @CodecCfg[0, Pred(Length(CodecCfg[0])), J];
           CfgRec^.Parser := TExpressionParser.Create;
           CfgRec^.Name := ReadString('Stream' + X.ToString, 'Name', '');
+          if UIMain.DLLLoaded then
+            XTLAddCodec(CfgRec^.Name);
           CfgRec^.Codec := ReadString('Stream' + X.ToString, 'Codec', '');
           CfgRec^.BigEndian := ReadBool('Stream' + X.ToString,
             'BigEndian', False);
@@ -406,7 +414,11 @@ begin
           BStream := True;
           for Y := Low(SList) to High(SList) do
           begin
-            New(CfgStruct);
+            K := Length(CodecCfg[0, Pred(Length(CodecCfg[0])), J].Structure);
+            SetLength(CodecCfg[0, Pred(Length(CodecCfg[0])),
+              J].Structure, Succ(K));
+            CfgStruct := @CodecCfg[0, Pred(Length(CodecCfg[0])), J]
+              .Structure[K];
             DecodeHeader(SList[Y], S1, S2);
             ConvertHexChr(S2);
             CfgStruct^.Name := S1;
@@ -422,6 +434,8 @@ begin
               if HexValue then
               begin
                 S1 := S1.Substring(1);
+                while S1.Length < (CfgStruct^.Size * 2) do
+                  S1.Insert(0, '0');
                 SetLength(Bytes, CfgStruct^.Size);
                 SetLength(Bytes, HexToBin(BytesOf(S1), 0, Bytes, 0,
                   Length(Bytes)));
@@ -437,8 +451,6 @@ begin
             CfgStruct^.Position := Pos;
             CfgStruct^.Value := 0;
             CfgStruct^.BeforeStream := BStream;
-            if (CfgStruct^.Name = 'Stream') or (CfgStruct^.Size > 0) then
-              Insert(CfgStruct^, CfgRec^.Structure, Length(CfgRec^.Structure));
             Inc(Pos, CfgStruct^.Size);
             if CfgStruct^.Name = 'Stream' then
             begin
@@ -462,11 +474,10 @@ begin
           while ReadString('Stream' + X.ToString, 'Condition' + Y.ToString,
             '') <> '' do
           begin
-            New(PStr2);
-            PStr2^ := ReadString('Stream' + X.ToString,
+            S2 := ReadString('Stream' + X.ToString,
               'Condition' + Y.ToString, '');
-            ConvertHexChr(PStr2^);
-            Insert(PStr2^, CfgRec^.Conditions, Length(CfgRec^.Conditions));
+            ConvertHexChr(S2);
+            Insert(S2, CfgRec^.Conditions, Length(CfgRec^.Conditions));
             Inc(Y);
           end;
           ReadSectionValues('Stream' + X.ToString, SL);
@@ -489,10 +500,8 @@ begin
             CfgRec^.Exprs[J] := S2;
             CfgRec^.Values[J] := 0;
           end;
-          Insert(CfgRec^, CfgRecArray^, Length(CfgRecArray^));
           Inc(X);
         end;
-        Insert(CfgRecArray^, CodecCfg[0], Length(CodecCfg[0]));
       end;
     finally
       Free;
@@ -504,10 +513,10 @@ for J := Low(CodecCfg[0]) to High(CodecCfg[0]) do
   begin
     with CodecCfg[0, J, X] do
     begin
-      for Y := Low(Names) to High(Names) do
-        Parser.DefineVariable(Names[Y], @Values[Y]);
       for Y := Low(Structure) to High(Structure) do
         Parser.DefineVariable(Structure[Y].Name, @Structure[Y].Value);
+      for Y := Low(Names) to High(Names) do
+        Parser.DefineVariable(Names[Y], @Values[Y]);
     end;
   end;
 

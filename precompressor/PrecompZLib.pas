@@ -444,7 +444,8 @@ begin
       exit;
   end
   else if BoolArray(CodecEnabled, False) then
-    exit;
+    if Assigned(Add) then
+      exit;
   Pos := 0;
   Buffer := Funcs^.Allocator(Instance, Z_WORKMEM);
   IsZlib := False;
@@ -487,7 +488,7 @@ begin
       (EndianSwap(PWord(Input + Pos - 2)^) mod $1F = 0) then
     begin
       WinBits := (Input + Pos - 2)^ shr 4;
-      if WinBits in [0 .. 7] then
+      if WinBits = ZWinBits then
       begin
         ZStream := @ZStream2[Instance, WinBits];
         Level := (Input + Pos - 1)^ shr $6;
@@ -569,7 +570,8 @@ begin
             if (I = ZLIB_CODEC) and (WinBits = 0) then
               SetBits(SI.Option, 1, 12, 3);
             SetBits(SI.Option, I, 0, 5);
-            if CodecEnabled[I] or (I = X) then
+            if CodecEnabled[I] or (I = X) or
+              (CodecAvailable[I] and not Assigned(Add)) then
             begin
               DS := Funcs^.GetDepthCodec(DI1.Codec);
               Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
@@ -751,8 +753,7 @@ begin
         L := EnsureRange(L, 1, 9);
         M := 0;
         I := 0;
-        Params := 'l' + L.ToString + ':' + 'w' +
-          (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
+        Params := 'l' + L.ToString;
         raw2hif_Init(HR, L);
         while True do
         begin
@@ -793,7 +794,7 @@ begin
         Res1 := StreamInfo^.NewSize;
         Res2 := P_HIFSIZE;
         Buffer := Funcs^.Allocator(Instance, Res2);
-        Params := 'w' + (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
+        Params := '';
         if preflate_decode(OldInput, StreamInfo^.OldSize, NewInput, @Res1,
           Buffer, @Res2) then
         begin
@@ -868,8 +869,7 @@ begin
         I := 0;
         J := 0;
         M := 0;
-        Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'w' +
-          (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
+        Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString;
         hif2raw_Init(HR, GetBits(StreamInfo.Option, 5, 7));
         while True do
         begin
@@ -904,7 +904,7 @@ begin
       begin
         Res1 := StreamInfo.OldSize;
         Buffer := Funcs^.Allocator(Instance, Res1);
-        Params := 'w' + (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
+        Params := '';
         if preflate_reencode(Input, StreamInfo.NewSize, InputExt,
           StreamInfo.ExtSize, Buffer, @Res1) then
         begin

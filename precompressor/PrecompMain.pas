@@ -7,7 +7,8 @@ interface
 uses
   Threading, Utils, SynCommons, ParseClass, ParseExpr, FLZMA2DLL,
   PrecompUtils, PrecompCrypto, PrecompZLib, PrecompLZ4, PrecompLZO, PrecompZSTD,
-  PrecompOodle, PrecompMedia, PrecompINI, PrecompSearch, PrecompDLL, PrecompEXE,
+  PrecompOodle, PrecompMedia, PrecompINI, PrecompINIEx, PrecompSearch,
+  PrecompDLL, PrecompEXE,
   WinAPI.Windows, WinAPI.ShlObj,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.StrUtils, System.RTLConsts, System.TimeSpan, System.Diagnostics,
@@ -103,12 +104,15 @@ var
   Codecs: array of TPrecompressor;
   DBFile: String = '';
   ExtDir: String = '';
+  SrepMemCfg: String;
   UseDB: Boolean = False;
   StoreDD: Integer = -2;
   VERBOSE: Boolean = False;
   EXTRACT: Boolean = False;
+  NOVERIFY: Boolean = False;
   DupSysMem: Int64 = 0;
   EncInfo: TEncInfo;
+  EncFreed: Boolean = False;
   ConTask: TTask;
   Stopwatch: TStopwatch;
 
@@ -186,18 +190,24 @@ begin
     Options.Depth := EnsureRange(Succ(ArgParse.AsInteger('-d', 0, 0)), 1, 10);
     Options.LowMem := ArgParse.AsBoolean('-lm');
     UseDB := ArgParse.AsBoolean('-db') or ArgParse.AsBoolean('--dbase');
-    Options.DBaseFile := ArgParse.AsString('--dbase=');
+    Options.DBaseFile := ArgParse.AsString('--dbase=', 0, '');
+    Options.DBaseFile := ArgParse.AsString('-db', 0, Options.DBaseFile);
     if Options.DBaseFile <> '' then
       UseDB := True;
     StoreDD := -2;
     if ArgParse.AsBoolean('-dd') or ArgParse.AsBoolean('--dedup') then
       StoreDD := -1;
     if FileExists(ExtractFilePath(Utils.GetModuleName) + 'srep.exe') then
+    begin
       StoreDD := ArgParse.AsInteger('--dedup=', 0, StoreDD);
+      StoreDD := ArgParse.AsInteger('-dd', 0, StoreDD);
+    end;
     S := ArgParse.AsString('--diff=', 0, '5p');
+    S := ArgParse.AsString('-df', 0, S);
     S := ReplaceText(S, 'p', '%');
     DIFF_TOLERANCE := Max(0.00, ExpParse.Evaluate(S));
     VERBOSE := ArgParse.AsBoolean('-v') or ArgParse.AsBoolean('--verbose');
+    NOVERIFY := ArgParse.AsBoolean('-s') or ArgParse.AsBoolean('--skip');
     Options.ExtractDir := ArgParse.AsString('--extract=');
     if Options.ExtractDir <> '' then
       EXTRACT := DirectoryExists(Options.ExtractDir);
@@ -244,10 +254,11 @@ begin
     Options.DedupSysMem := Max(0, Round(ExpParse.Evaluate(S)));
     if B then
       Options.DedupSysMem := -Options.DedupSysMem;
-    VERBOSE := ArgParse.AsBoolean('--verbose');
-    S := ArgParse.AsString('--compress=', 0, 't50p');
+    VERBOSE := ArgParse.AsBoolean('-v') or ArgParse.AsBoolean('--verbose');
+    S := ArgParse.AsString('--compress=', 0, 't25p');
     S := ReplaceText(S, SPrecompSep3, SPrecompSep2);
     Options.CompressCfg := S;
+    SrepMemCfg := ArgParse.AsString('--srepmem=', 0, '75p');
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -317,6 +328,7 @@ var
 begin
   SetLength(Codecs, 0);
   Insert(PrecompINI.Codec, Codecs, Length(Codecs));
+  Insert(PrecompINIEx.Codec, Codecs, Length(Codecs));
   Insert(PrecompSearch.Codec, Codecs, Length(Codecs));
   Insert(PrecompDLL.Codec, Codecs, Length(Codecs));
   Insert(PrecompEXE.Codec, Codecs, Length(Codecs));
@@ -992,10 +1004,13 @@ begin
     CurCodec[Index] := SI2.Codec;
     CurDepth[Index] := Depth;
     try
-      Result := Codecs[SI2.Codec].Process(Index, Depth,
-        PByte(DataStore.Slot(ThreadIndex).Memory) + SI2.ActualPosition,
-        PByte(MemOutput1[ThreadIndex].Memory) + SI2.StorePosition, @SI1,
-        @PrecompOutput1, @PrecompFunctions);
+      if NOVERIFY and not(SI2.Codec in [5]) then
+        Result := True
+      else
+        Result := Codecs[SI2.Codec].Process(Index, Depth,
+          PByte(DataStore.Slot(ThreadIndex).Memory) + SI2.ActualPosition,
+          PByte(MemOutput1[ThreadIndex].Memory) + SI2.StorePosition, @SI1,
+          @PrecompOutput1, @PrecompFunctions);
     except
       Result := False;
     end;
@@ -1274,11 +1289,10 @@ begin
         DataStore := TDataStore2.Create(Length(InfoStore1));
     end;
   CodecInit(Options^.Threads, Options^.Method);
-  DBFile := Options^.DBaseFile;
-  if FileExists(ExtractFilePath(Utils.GetModuleName) + DBFile) then
+  DBFile := ExpandPath(Options^.DBaseFile);
+  if FileExists(DBFile) then
   begin
-    with TFileStream.Create(ExtractFilePath(Utils.GetModuleName) + DBFile,
-      fmShareDenyNone) do
+    with TFileStream.Create(DBFile, fmShareDenyNone) do
     begin
       Position := 0;
       if WorkStream[0].Size < Size then
@@ -1308,6 +1322,8 @@ begin
   begin
     if (IndexText(PrecompGetCodec(PChar(Options^.Method), I, False),
       PrecompINI.Codec.Names) < 0) and
+      (IndexText(PrecompGetCodec(PChar(Options^.Method), I, False),
+      PrecompINIEx.Codec.Names) < 0) and
       (IndexText(PrecompGetCodec(PChar(Options^.Method), I, False),
       PrecompSearch.Codec.Names) < 0) then
     begin
@@ -1359,6 +1375,7 @@ var
   UI32: UInt32;
   I, J, K: Integer;
 begin
+  EncFreed := True;
   if Length(Tasks) > 1 then
     WaitForAll(Tasks);
   CodecFree(Length(Tasks));
@@ -1684,8 +1701,7 @@ begin
           end;
         end;
       end;
-      with TFileStream.Create(ExtractFilePath(Utils.GetModuleName) + DBFile,
-        fmCreate) do
+      with TFileStream.Create(DBFile, fmCreate) do
       begin
         WriteBuffer(WorkStream[0].Memory^, WorkStream[0].Position);
         Free;
@@ -1734,7 +1750,7 @@ begin
           end;
       end
       else
-        Output.CopyFrom(TempOutput, 0);
+        Output.CopyFrom(TBufferedStream(TempOutput).Instance, 0);
       TempOutput.Free;
       DeleteFile(S);
     end
@@ -2098,7 +2114,8 @@ begin
     if (Depth = 0) and (StoreDD >= 0) then
     begin
       LStream := TProcessStream.Create(ExtractFilePath(Utils.GetModuleName) +
-        'srep.exe', '-d -s - -', GetCurrentDir, Input, nil);
+        'srep.exe', '-d -s -mem' + SrepMemCfg + ' - -', GetCurrentDir,
+        Input, nil);
       if not LStream.Execute then
         raise EReadError.CreateRes(@SReadError);
       DecInput[Index] := TBufferedStream.Create(LStream, True, 4194304);
@@ -2350,7 +2367,8 @@ begin
     if Options.DoCompress then
       LOutput.Free;
     try
-      // EncFree;
+      if not EncFreed then
+        EncFree;
     finally
       Stopwatch.Stop;
     end;

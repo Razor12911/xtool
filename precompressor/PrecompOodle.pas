@@ -513,16 +513,27 @@ begin
   Pos := 0;
   while Pos < Size do
   begin
-    GetOodleSI(Input + Pos, SizeEx - Pos, @OodleSI);
-    if (OodleSI.CSize > 0) then
-    begin
-      if GetOodleUS(Instance, Input, Pos, @OodleSI, Output, Add, Funcs) > 0 then
+    try
+      while Pos < Size do
       begin
-        Inc(Pos, OodleSI.CSize);
-        continue;
+        GetOodleSI(Input + Pos, SizeEx - Pos, @OodleSI);
+        if (OodleSI.CSize > 0) then
+        begin
+          try
+            if GetOodleUS(Instance, Input, Pos, @OodleSI, Output, Add, Funcs) > 0
+            then
+            begin
+              Inc(Pos, OodleSI.CSize);
+              continue;
+            end;
+          except
+          end;
+        end;
+        Inc(Pos);
       end;
+    except
+      Inc(Pos);
     end;
-    Inc(Pos);
   end;
 end;
 

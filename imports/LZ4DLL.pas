@@ -3,7 +3,7 @@ unit LZ4DLL;
 interface
 
 uses
-  LibImport,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Math;
 
@@ -271,7 +271,7 @@ var
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + Filename);
+  Lib := TLibImport.Create(ExpandPath(Filename));
   if Lib.Loaded then
   begin
     @LZ4_decompress_safe := Lib.GetProcAddr('LZ4_decompress_safe');
@@ -311,7 +311,8 @@ begin
 end;
 
 const
-  DLLParam = '--lz4=';
+  DLLParam1 = '--lz4=';
+  DLLParam2 = '-l4';
 
 var
   I: Integer;
@@ -321,11 +322,18 @@ initialization
 
 DLLFile := 'liblz4.dll';
 for I := 1 to ParamCount do
-  if ParamStr(I).StartsWith(DLLParam) then
+begin
+  if ParamStr(I).StartsWith(DLLParam1) then
   begin
-    DLLFile := ParamStr(I).Substring(DLLParam.Length);
+    DLLFile := ParamStr(I).Substring(DLLParam1.Length);
     break;
   end;
+  if ParamStr(I).StartsWith(DLLParam2) then
+  begin
+    DLLFile := ParamStr(I).Substring(DLLParam2.Length);
+    break;
+  end;
+end;
 
 Init(DLLFile);
 

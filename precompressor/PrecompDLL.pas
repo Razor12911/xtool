@@ -4,6 +4,7 @@ interface
 
 uses
   Utils,
+  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -375,6 +376,9 @@ begin
       @DLLStruct^.Scan2 := GetProcAddress(DLLHandle, 'PrecompScan2');
       @DLLStruct^.Process := GetProcAddress(DLLHandle, 'PrecompProcess');
       @DLLStruct^.Restore := GetProcAddress(DLLHandle, 'PrecompRestore');
+      if UIMain.DLLLoaded then
+        XTLAddplugin(ChangeFileExt(ExtractFileName(DLLList[I]), ''),
+          PLUGIN_LIBRARY);
       Insert(DLLStruct^, CodecDLL, Length(CodecDLL));
       J := 0;
       while Assigned(CodecDLL[Pred(Length(CodecDLL))].Codec(J)) do
@@ -383,6 +387,8 @@ begin
         Insert(S, CodecDLL[Pred(Length(CodecDLL))].Names,
           Length(CodecDLL[Pred(Length(CodecDLL))].Names));
         Insert(S, Codec.Names, Length(Codec.Names));
+        if UIMain.DLLLoaded then
+          XTLAddCodec(S);
         Inc(J);
       end;
       if J = 0 then
@@ -392,6 +398,8 @@ begin
           Length(CodecDLL[Pred(Length(CodecDLL))].Names));
         Insert(ChangeFileExt(ExtractFileName(DLLList[I]), ''), Codec.Names,
           Length(Codec.Names));
+        if UIMain.DLLLoaded then
+          XTLAddCodec(ChangeFileExt(ExtractFileName(DLLList[I]), ''));
       end;
     end;
   end;
