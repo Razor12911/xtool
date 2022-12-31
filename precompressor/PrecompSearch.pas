@@ -3,6 +3,7 @@ unit PrecompSearch;
 interface
 
 uses
+  InitCode,
   Utils, SynCommons, SynCrypto,
   UIMain,
   PrecompUtils,
@@ -265,7 +266,7 @@ var
 
 initialization
 
-SearchList := TDirectory.GetFiles(ExtractFilePath(Utils.GetModuleName), '*.xtl',
+SearchList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.xtl',
   TSearchOption.soTopDirectoryOnly);
 for I := Low(SearchList) to High(SearchList) do
 begin
@@ -282,7 +283,7 @@ begin
           SetLength(CodecSearch, Succ(J));
           S := ChangeFileExt(ExtractFileName(SearchList[I]), '');
           Insert(S, Codec.Names, Length(Codec.Names));
-          if UIMain.DLLLoaded then
+          if InitCode.UIDLLLoaded then
             XTLAddplugin(S, PLUGIN_DATABASE);
         end;
         while FStream.Position < FStream.Size do

@@ -3,7 +3,8 @@ unit PreflateDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -23,7 +24,7 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'preflate_dll.dll');
+  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'preflate_dll.dll', True));
   if Lib.Loaded then
   begin
     @preflate_decode := Lib.GetProcAddr('decode');

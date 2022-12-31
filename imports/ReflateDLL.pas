@@ -3,7 +3,8 @@ unit ReflateDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -30,8 +31,8 @@ var
 
 procedure Init;
 begin
-  Lib1 := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'RAW2HIF_DLL.DLL');
-  Lib2 := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'HIF2RAW_DLL.DLL');
+  Lib1 := TLibImport.Create(ExpandPath(PluginsPath + 'RAW2HIF_DLL.DLL', True));
+  Lib2 := TLibImport.Create(ExpandPath(PluginsPath + 'HIF2RAW_DLL.DLL', True));
   if Lib1.Loaded and Lib2.Loaded then
   begin
     @raw2hif_Alloc := Lib1.GetProcAddr('raw2hif_Alloc');

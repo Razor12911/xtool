@@ -3,7 +3,8 @@ unit PackJPGDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -30,7 +31,7 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'packjpg_dll.dll');
+  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'packjpg_dll.dll', True));
   if Lib.Loaded then
   begin
     @pjglib_convert_stream2stream :=

@@ -48,6 +48,7 @@ uses
   oObjects in 'contrib\ParseExpression\oObjects.pas',
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
+  InitCode in 'InitCode.pas',
   BrunsliDLL in 'imports\BrunsliDLL.pas',
   FLACDLL in 'imports\FLACDLL.pas',
   FLZMA2DLL in 'imports\FLZMA2DLL.pas',
@@ -255,7 +256,7 @@ begin
   FormatSettings := TFormatSettings.Invariant;
   if not CheckInstance('XToolUI_Check') then
     ProgramInfo;
-  if UIMain.DLLLoaded and (ParamCount = 0) then
+  if InitCode.UIDLLLoaded and (ParamCount = 0) then
   begin
     XTLUI1;
     while XTLUI2(@UIFuncs, ParamStr_, LibType, LibPath) do

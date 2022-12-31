@@ -165,6 +165,7 @@
         <DCCReference Include="contrib\ParseExpression\oObjects.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseClass.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
+        <DCCReference Include="InitCode.pas"/>
         <DCCReference Include="imports\BrunsliDLL.pas"/>
         <DCCReference Include="imports\FLACDLL.pas"/>
         <DCCReference Include="imports\FLZMA2DLL.pas"/>

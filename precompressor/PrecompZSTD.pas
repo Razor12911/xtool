@@ -27,6 +27,7 @@ var
   // cdict, ddict: Pointer;
   DStream: TMemoryStream;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
+  ZMaxSize: Integer = Z_MAXSIZE;
 
 function ZSTDInit(Command: PChar; Count: Integer; Funcs: PPrecompFuncs)
   : Boolean;
@@ -59,6 +60,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][ZSTD_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
+      if Funcs^.GetParam(Command, X, 'm') <> '' then
+        ZMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
     end;
     Inc(X);
   end;
@@ -143,7 +146,7 @@ begin
       exit;
     Y := ZSTD_findDecompressedSize(Input, SizeEx);
     if Y <= 0 then
-      Y := Z_MAXSIZE;
+      Y := ZMaxSize;
     Buffer := Funcs^.Allocator(Instance, Y);
     case X of
       ZSTD_CODEC:
@@ -183,7 +186,7 @@ begin
       begin
         Z := ZSTD_findDecompressedSize(Input + Pos, X);
         if Z <= 0 then
-          Z := Z_MAXSIZE;
+          Z := ZMaxSize;
         Buffer := Funcs^.Allocator(Instance, Z);
         Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Z, Input + Pos, X);
         // Y := ZSTD_decompress_usingDDict(dctx[Instance], Buffer, Z, Input + Pos, X, ddict);
@@ -224,7 +227,7 @@ begin
   if StreamInfo^.NewSize <= 0 then
     StreamInfo^.NewSize := ZSTD_findDecompressedSize(Input, Size);
   if StreamInfo^.NewSize <= 0 then
-    StreamInfo^.NewSize := Z_MAXSIZE;
+    StreamInfo^.NewSize := ZMaxSize;
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
   case X of
     ZSTD_CODEC:

@@ -3,6 +3,7 @@ unit PrecompDLL;
 interface
 
 uses
+  InitCode,
   Utils,
   UIMain,
   PrecompUtils,
@@ -151,14 +152,15 @@ end;
 function DLLParse(Command: PChar; Option: PInteger;
   Funcs: PPrecompFuncs): Boolean;
 var
-  I: Integer;
+  I, J: Integer;
 begin
   Result := False;
   for I := Low(CodecDLL) to High(CodecDLL) do
   begin
-    if IndexText(Funcs^.GetCodec(Command, 0, False), CodecDLL[I].Names) >= 0
-    then
+    J := IndexText(Funcs^.GetCodec(Command, 0, False), CodecDLL[I].Names);
+    if J >= 0 then
     begin
+      LongRec(Option^).Lo := J;
       LongRec(Option^).Hi := I;
       Result := True;
       break;
@@ -355,7 +357,7 @@ var
 
 initialization
 
-DLLList := TDirectory.GetFiles(ExtractFilePath(Utils.GetModuleName), '*.dll',
+DLLList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.dll',
   TSearchOption.soTopDirectoryOnly);
 FuncList := TStringList.Create;
 for I := Low(DLLList) to High(DLLList) do
@@ -376,7 +378,7 @@ begin
       @DLLStruct^.Scan2 := GetProcAddress(DLLHandle, 'PrecompScan2');
       @DLLStruct^.Process := GetProcAddress(DLLHandle, 'PrecompProcess');
       @DLLStruct^.Restore := GetProcAddress(DLLHandle, 'PrecompRestore');
-      if UIMain.DLLLoaded then
+      if InitCode.UIDLLLoaded then
         XTLAddplugin(ChangeFileExt(ExtractFileName(DLLList[I]), ''),
           PLUGIN_LIBRARY);
       Insert(DLLStruct^, CodecDLL, Length(CodecDLL));
@@ -387,7 +389,7 @@ begin
         Insert(S, CodecDLL[Pred(Length(CodecDLL))].Names,
           Length(CodecDLL[Pred(Length(CodecDLL))].Names));
         Insert(S, Codec.Names, Length(Codec.Names));
-        if UIMain.DLLLoaded then
+        if InitCode.UIDLLLoaded then
           XTLAddCodec(S);
         Inc(J);
       end;
@@ -398,7 +400,7 @@ begin
           Length(CodecDLL[Pred(Length(CodecDLL))].Names));
         Insert(ChangeFileExt(ExtractFileName(DLLList[I]), ''), Codec.Names,
           Length(Codec.Names));
-        if UIMain.DLLLoaded then
+        if InitCode.UIDLLLoaded then
           XTLAddCodec(ChangeFileExt(ExtractFileName(DLLList[I]), ''));
       end;
     end;

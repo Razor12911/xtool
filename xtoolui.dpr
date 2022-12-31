@@ -59,6 +59,9 @@ begin
   if not UIInitialised then
   begin
     UIInitialised := True;
+    Form1.Edit6.Text := GetIniString('UI', 'Plugins', '',
+      ChangeFileExt(GetModuleName, '.ini'));
+    Form1.Edit6.OnChange := Form1.Edit6Change;
     { Form2.CheckBox3.Enabled := Funcs^.IsZlibLoaded;
       Form2.CheckBox1.Enabled := Funcs^.IsReflateLoaded;
       Form2.CheckBox2.Enabled := Funcs^.IsPreflateLoaded;

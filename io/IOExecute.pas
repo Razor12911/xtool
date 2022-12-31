@@ -7,6 +7,7 @@ unit IOExecute;
 interface
 
 uses
+  InitCode,
   Threading, Utils, SynCommons, SynCrypto, ParseClass, ParseExpr,
   IOUtils,
   WinAPI.Windows, WinAPI.ShlObj,
@@ -182,7 +183,7 @@ begin
         OutFile := ReplaceText(OutFile, '[fileout]', FILE_OUT);
       end;
       if I = 0 then
-        Exec := ExtractFilePath(Utils.GetModuleName) + S
+        Exec := ExpandPath(PluginsPath + S, True)
       else
         Param := Param + ' ' + IfThen(ContainsText(S, ' ') or (S = ''),
           '"' + S + '"', S);

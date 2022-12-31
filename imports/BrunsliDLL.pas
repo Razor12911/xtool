@@ -3,7 +3,8 @@ unit BrunsliDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -44,7 +45,7 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'brunsli.dll');
+  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'brunsli.dll', True));
   if Lib.Loaded then
   begin
     @brunsli_alloc_JPEGData := Lib.GetProcAddr('brunsli_alloc_JPEGData');

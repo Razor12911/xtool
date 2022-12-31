@@ -8,6 +8,7 @@ uses
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.AnsiStrings, System.StrUtils, System.IniFiles, System.IOUtils,
   System.RTLConsts, System.TypInfo, System.ZLib, System.Net.HttpClientComponent,
+  System.Net.HttpClient,
   System.Generics.Defaults, System.Generics.Collections;
 
 procedure ShowMessage(Msg: string; Caption: string = '');
@@ -215,7 +216,7 @@ type
 
   TDownloadStream = class(TStream)
   private const
-    FChunkSize = 65536;
+    FChunkSize = 1048576;
   private
     FUrl: string;
     FNetHTTPClient: TNetHTTPClient;
@@ -466,7 +467,8 @@ function GetFileList(const APath: TArray<string>; SubDir: Boolean = True)
 procedure FileReadBuffer(Handle: THandle; var Buffer; Count: NativeInt);
 procedure FileWriteBuffer(Handle: THandle; const Buffer; Count: NativeInt);
 procedure CloseHandleEx(var Handle: THandle);
-function ExpandPath(const AFileName: string): String;
+function ExpandPath(const AFileName: string;
+  AFullPath: Boolean = False): String;
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;
 function ExecStdin(Executable, CommandLine, WorkDir: string; InBuff: Pointer;
@@ -1448,6 +1450,8 @@ begin
 end;
 
 function TDownloadStream.Read(var Buffer; Count: LongInt): LongInt;
+var
+  Res: IHTTPResponse;
 begin
   if (FPosition >= 0) and (Count >= 0) then
   begin
@@ -1459,9 +1463,9 @@ begin
         Result := FSize - FPosition;
       Result := Min(Result, FChunkSize);
       FMemoryStream.Position := 0;
-      FNetHTTPClient.GetRange(FUrl, FPosition, FPosition + Result,
+      Res := FNetHTTPClient.GetRange(FUrl, FPosition, FPosition + Result - 1,
         FMemoryStream);
-      Result := FMemoryStream.Position;
+      Result := Res.ContentLength;
       Move(FMemoryStream.Memory^, Buffer, Result);
       Inc(FPosition, Result);
       exit;
@@ -3412,7 +3416,7 @@ begin
     end;
 end;
 
-function ExpandPath(const AFileName: string): String;
+function ExpandPath(const AFileName: string; AFullPath: Boolean): String;
 begin
   if AFileName = '' then
     Result := ''
@@ -3420,6 +3424,8 @@ begin
     Result := AFileName
   else
     Result := ExtractFilePath(GetModuleName) + AFileName;
+  if AFullPath then
+    Result := TPath.GetFullPath(Result);
 end;
 
 function Exec(Executable, CommandLine, WorkDir: string): Boolean;

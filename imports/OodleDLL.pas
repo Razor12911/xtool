@@ -3,6 +3,7 @@ unit OodleDLL;
 interface
 
 uses
+  InitCode,
   Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils;
@@ -82,13 +83,13 @@ var
   I: Integer;
   C: Cardinal;
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename));
+  Lib := TLibImport.Create(ExpandPath(Filename, True));
   if not Lib.Loaded then
     for I := 1 to 9 do
     begin
       Lib.Free;
-      Lib := TLibImport.Create(ExpandPath('oo2core_' + I.ToString +
-        '_win64.dll'));
+      Lib := TLibImport.Create(ExpandPath(PluginsPath + 'oo2core_' + I.ToString
+        + '_win64.dll', True));
       if Lib.Loaded then
         break;
     end;
@@ -96,8 +97,8 @@ begin
     for I := 3 to 9 do
     begin
       Lib.Free;
-      Lib := TLibImport.Create(ExpandPath('oo2ext_' + I.ToString +
-        '_win64.dll'));
+      Lib := TLibImport.Create(ExpandPath(PluginsPath + 'oo2ext_' + I.ToString +
+        '_win64.dll', True));
       if Lib.Loaded then
         break;
     end;
@@ -211,7 +212,7 @@ var
 
 initialization
 
-DLLFile := 'oo2core_9_win64.dll';
+DLLFile := PluginsPath + 'oo2core_9_win64.dll';
 for I := 1 to ParamCount do
 begin
   if ParamStr(I).StartsWith(DLLParam1) then

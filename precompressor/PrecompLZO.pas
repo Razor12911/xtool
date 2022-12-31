@@ -21,8 +21,8 @@ const
   LZO1C_CODEC = 2;
 
 const
-  L_WORKMEM = 524288;
   L_MAXSIZE = 16 * 1024 * 1024;
+  L_WORKMEM = 524288;
   LZO1X_999 = 999;
   LZO2A_999 = 999;
   LZO1C_999 = 999;
@@ -34,6 +34,7 @@ var
   LZO2AVariant: Integer = LZO2A_999;
   LZO1CVariant: Integer = LZO1C_999;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
+  LMaxSize: Integer = L_MAXSIZE;
 
 type
   PLZOSI = ^TLZOSI;
@@ -134,6 +135,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][LZO1X_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
+      if Funcs^.GetParam(Command, X, 'm') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
     end
     else if (CompareText(S, LZOCodecs[LZO2A_CODEC]) = 0) and LZODLL.DLLLoaded
     then
@@ -141,6 +144,8 @@ begin
       CodecEnabled[LZO2A_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'v') = '999' then
         LZO2AVariant := 999;
+      if Funcs^.GetParam(Command, X, 'm') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
     end
     else if (CompareText(S, LZOCodecs[LZO1C_CODEC]) = 0) and LZODLL.DLLLoaded
     then
@@ -148,6 +153,8 @@ begin
       CodecEnabled[LZO1C_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'v') = '999' then
         LZO1CVariant := 999;
+      if Funcs^.GetParam(Command, X, 'm') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
     end;
     Inc(X);
   end;
@@ -240,7 +247,7 @@ begin
       exit;
     if not CodecAvailable[X] then
       exit;
-    Res := Max(DI1.NewSize, L_MAXSIZE);
+    Res := Max(DI1.NewSize, LMaxSize);
     Buffer := Funcs^.Allocator(Instance, Res);
     case X of
       LZO1X_CODEC:
@@ -285,11 +292,11 @@ begin
   end;
   if BoolArray(CodecEnabled, False) then
     exit;
-  Buffer := Funcs^.Allocator(Instance, L_MAXSIZE);
+  Buffer := Funcs^.Allocator(Instance, LMaxSize);
   Pos := 0;
   while Pos < Size do
   begin
-    if GetLZO1XSI(Input + Pos, SizeEx - Pos, Buffer, L_MAXSIZE, @LZOSI) then
+    if GetLZO1XSI(Input + Pos, SizeEx - Pos, Buffer, LMaxSize, @LZOSI) then
     begin
       Output(Instance, Buffer, LZOSI.DSize);
       SI.Position := Pos;
@@ -321,7 +328,7 @@ begin
   X := GetBits(StreamInfo^.Option, 0, 5);
   if StreamInfo^.OldSize <= 0 then
     exit;
-  Res := Max(StreamInfo^.NewSize, L_MAXSIZE);
+  Res := Max(StreamInfo^.NewSize, LMaxSize);
   Buffer := Funcs^.Allocator(Instance, Res);
   case X of
     LZO1X_CODEC:

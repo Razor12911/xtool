@@ -3,6 +3,7 @@ unit PrecompExe;
 interface
 
 uses
+  InitCode,
   Utils, Threading,
   SynCommons, SynCrypto,
   PrecompUtils,
@@ -685,7 +686,8 @@ var
 
 initialization
 
-S1 := ChangeFileExt(Utils.GetModuleName, '.ini');
+S1 := ExpandPath(PluginsPath, True) +
+  ChangeFileExt(ExtractFileName(Utils.GetModuleName), '.ini');
 if FileExists(S1) then
 begin
   Ini := TMemIniFile.Create(S1);
@@ -694,7 +696,7 @@ begin
   for I := 0 to SL.Count - 1 do
   begin
     List := DecodeStr(SL[I], ',');
-    if FileExists(ExtractFilePath(Utils.GetModuleName) +
+    if FileExists(ExpandPath(PluginsPath, True) +
       GetCmdStr(Ini.ReadString(SL[I], 'Decode', ''), 0)) then
       for K := Low(List) to High(List) do
       begin
@@ -710,8 +712,7 @@ begin
           else
             S1 := Ini.ReadString(SL[I], 'Decode', '');
           S1 := ReplaceText(S1, '<codec>', List[K]);
-          ExeStruct.Exec[X] := ExtractFilePath(Utils.GetModuleName) +
-            GetCmdStr(S1, 0);
+          ExeStruct.Exec[X] := ExpandPath(PluginsPath, True) + GetCmdStr(S1, 0);
           ExeStruct.Param[X] := '';
           ExeStruct.Mode[X] := 0;
           for J := 1 to GetCmdCount(S1) - 1 do

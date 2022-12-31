@@ -3,6 +3,7 @@ unit ZLibDLL;
 interface
 
 uses
+  InitCode,
   Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils, System.ZLib;
@@ -148,16 +149,11 @@ end;
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename));
+  Lib := TLibImport.Create(ExpandPath(Filename, True));
   if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
   begin
     Lib.Free;
-    Lib := TLibImport.Create(ExpandPath('zlibwapi.dll'));
-  end;
-  if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
-  begin
-    Lib.Free;
-    Lib := TLibImport.Create(ExpandPath('zlib1.dll'));
+    Lib := TLibImport.Create(ExpandPath(PluginsPath + 'zlib1.dll', True));
   end;
   if Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion')) then
   begin
@@ -201,7 +197,7 @@ var
 
 initialization
 
-DLLFile := 'zlibwapi.dll';
+DLLFile := PluginsPath + 'zlibwapi.dll';
 for I := 1 to ParamCount do
 begin
   if ParamStr(I).StartsWith(DLLParam1) then

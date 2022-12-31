@@ -3,6 +3,7 @@ unit LZODLL;
 interface
 
 uses
+  InitCode,
   Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils;
@@ -70,7 +71,7 @@ var
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename));
+  Lib := TLibImport.Create(ExpandPath(Filename, True));
   if Lib.Loaded then
   begin
     @lzo1x_1_compress := Lib.GetProcAddr('lzo1x_1_compress');
@@ -103,7 +104,7 @@ var
 
 initialization
 
-DLLFile := 'lzo2.dll';
+DLLFile := PluginsPath + 'lzo2.dll';
 for I := 1 to ParamCount do
 begin
   if ParamStr(I).StartsWith(DLLParam1) then

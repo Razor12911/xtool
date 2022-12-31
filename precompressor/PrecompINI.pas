@@ -3,6 +3,7 @@ unit PrecompINI;
 interface
 
 uses
+  InitCode,
   Utils, ParseExpr,
   UIMain,
   PrecompUtils,
@@ -379,7 +380,7 @@ var
 
 initialization
 
-CfgList := TDirectory.GetFiles(ExtractFilePath(Utils.GetModuleName), '*.ini',
+CfgList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.ini',
   TSearchOption.soTopDirectoryOnly);
 SL := TStringList.Create;
 SetLength(CodecCfg, 1);
@@ -391,7 +392,7 @@ begin
       begin
         S1 := ChangeFileExt(ExtractFileName(CfgList[I]), '');
         Insert(S1, Codec.Names, Length(Codec.Names));
-        if UIMain.DLLLoaded then
+        if InitCode.UIDLLLoaded then
           XTLAddplugin(S1, PLUGIN_CONFIG);
         SetLength(CodecCfg[0], Succ(Length(CodecCfg[0])));
         CfgRecArray := @CodecCfg[0, Pred(Length(CodecCfg[0]))];
@@ -403,7 +404,7 @@ begin
           CfgRec := @CodecCfg[0, Pred(Length(CodecCfg[0])), J];
           CfgRec^.Parser := TExpressionParser.Create;
           CfgRec^.Name := ReadString('Stream' + X.ToString, 'Name', '');
-          if UIMain.DLLLoaded then
+          if InitCode.UIDLLLoaded then
             XTLAddCodec(CfgRec^.Name);
           CfgRec^.Codec := ReadString('Stream' + X.ToString, 'Codec', '');
           CfgRec^.BigEndian := ReadBool('Stream' + X.ToString,

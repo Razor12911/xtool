@@ -3,7 +3,8 @@ unit XDeltaDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -42,7 +43,7 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'xdelta3_dll.dll');
+  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'xdelta3_dll.dll', True));
   if Lib.Loaded then
   begin
     DLLLoaded := True;

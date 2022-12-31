@@ -3,6 +3,7 @@ unit LZ4DLL;
 interface
 
 uses
+  InitCode,
   Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Math;
@@ -198,80 +199,12 @@ begin
   Result := Pos2;
 end;
 
-function UnravelEncode(InBuff: Pointer; InSize: Integer; OutBuff: Pointer;
-  OutSize: Integer): Integer;
-const
-  blockSize = 65536;
-var
-  ctx: PLZ4_streamHC_t;
-  Pos1, Pos2, Res: Integer;
-  X, Y: Integer;
-begin
-  Result := 0;
-  ctx := LZ4_createStreamHC;
-  LZ4_resetStreamHC(ctx, 9);
-  Pos1 := 0;
-  Pos2 := 0;
-  try
-    while (Pos1 < InSize) do
-    begin
-      X := Min(InSize - Pos1, blockSize);
-      Y := OutSize - (Pos2 + Integer.Size);
-      Res := LZ4_compress_HC_continue(ctx, PByte(InBuff) + Pos1,
-        PByte(OutBuff) + Pos2 + Integer.Size, X, Y);
-      if Res <= 0 then
-      begin
-        LZ4_freeStreamHC(ctx);
-        exit(-Pos2);
-      end;
-      PInteger(PByte(OutBuff) + Pos2)^ := Res;
-      Inc(Pos1, X);
-      Inc(Pos2, Res + Integer.Size);
-    end;
-  finally
-    LZ4_freeStreamHC(ctx);
-  end;
-  Result := Pos2;
-end;
-
-function UnravelDecode(InBuff: Pointer; InSize: Integer; OutBuff: Pointer;
-  OutSize: Integer): Integer;
-const
-  blockSize = 65536;
-var
-  ctx: PLZ4_streamDecode_t;
-  Pos1, Pos2, Res: Integer;
-begin
-  Result := 0;
-  ctx := LZ4_createStreamDecode;
-  Pos1 := 0;
-  Pos2 := 0;
-  try
-    while (Pos1 < InSize) and (Pos2 < OutSize) do
-    begin
-      Res := LZ4_decompress_safe_continue(ctx, PByte(InBuff) + Pos1 +
-        Integer.Size, PByte(OutBuff) + Pos2, PInteger(PByte(InBuff) + Pos1)^,
-        Min(OutSize - Pos2, blockSize));
-      if Res <= 0 then
-      begin
-        LZ4_freeStreamDecode(ctx);
-        exit(-Pos2);
-      end;
-      Inc(Pos1, PInteger(PByte(InBuff) + Pos1)^ + Integer.Size);
-      Inc(Pos2, Res);
-    end;
-  finally
-    LZ4_freeStreamDecode(ctx);
-  end;
-  Result := Pos2;
-end;
-
 var
   Lib: TLibImport;
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename));
+  Lib := TLibImport.Create(ExpandPath(Filename, True));
   if Lib.Loaded then
   begin
     @LZ4_decompress_safe := Lib.GetProcAddr('LZ4_decompress_safe');
@@ -320,7 +253,7 @@ var
 
 initialization
 
-DLLFile := 'liblz4.dll';
+DLLFile := PluginsPath + 'liblz4.dll';
 for I := 1 to ParamCount do
 begin
   if ParamStr(I).StartsWith(DLLParam1) then

@@ -3,7 +3,8 @@ unit FLZMA2DLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.Types;
 
@@ -193,9 +194,6 @@ type
 
 implementation
 
-uses
-  Utils;
-
 var
   Lib: TLibImport;
 
@@ -308,7 +306,7 @@ begin
   inherited Create;
   LConfig := AConfig;
   if LConfig = '' then
-    LConfig := 't50p';
+    LConfig := 't25p';
   FProp.Parse(LConfig);
   FInput := AInput;
   LSize := 0;
@@ -367,7 +365,7 @@ end;
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) + 'fast-lzma2.dll');
+  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'fast-lzma2.dll', True));
   if Lib.Loaded then
   begin
     @FL2_compress := Lib.GetProcAddr('FL2_compress');

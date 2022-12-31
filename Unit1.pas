@@ -3,8 +3,9 @@ unit Unit1;
 interface
 
 uses
+  WinAPI.Windows,
   System.SysUtils, System.Types, System.UITypes, System.Classes,
-  System.Variants, System.Math, System.StrUtils,
+  System.Variants, System.Math, System.StrUtils, System.IniFiles,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.TabControl,
   FMX.Layouts, FMX.ListBox, FMX.Controls.Presentation, FMX.StdCtrls, FMX.Edit,
   FMX.EditBox, FMX.SpinBox, FMX.Menus;
@@ -66,6 +67,9 @@ type
     Edit5: TEdit;
     SearchEditButton4: TSearchEditButton;
     ComboBox4: TComboBox;
+    Label5: TLabel;
+    Edit6: TEdit;
+    SearchEditButton5: TSearchEditButton;
     procedure FormShow(Sender: TObject);
     procedure SearchEditButton1Click(Sender: TObject);
     procedure SearchEditButton3Click(Sender: TObject);
@@ -77,6 +81,9 @@ type
     procedure SearchEditButton2Click(Sender: TObject);
     procedure ComboBox4Change(Sender: TObject);
     procedure SearchEditButton4Click(Sender: TObject);
+    procedure Edit6Change(Sender: TObject);
+    procedure SearchEditButton5Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
   public
@@ -87,12 +94,51 @@ var
   Form1: TForm1;
   CmdStr: TArray<String>;
 
+function GetModuleName: string;
+function GetIniString(Section, Key, Default, FileName: string): string;
+procedure SetIniString(Section, Key, Value, FileName: string);
+
 implementation
 
 {$R *.fmx}
 
 uses
   Unit2;
+
+function GetModuleName: string;
+var
+  szFileName: array [0 .. MAX_PATH] of char;
+begin
+  FillChar(szFileName, sizeof(szFileName), #0);
+  GetModuleFileName(hInstance, szFileName, MAX_PATH);
+  Result := szFileName;
+end;
+
+function GetIniString(Section, Key, Default, FileName: string): string;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FileName);
+  with Ini do
+    try
+      Result := Ini.ReadString(Section, Key, Default);
+    finally
+      Free;
+    end;
+end;
+
+procedure SetIniString(Section, Key, Value, FileName: string);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FileName);
+  with Ini do
+    try
+      Ini.WriteString(Section, Key, Value);
+    finally
+      Free;
+    end;
+end;
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
@@ -119,6 +165,7 @@ begin
   if CheckBox4.IsChecked then
     Insert('--compress=' + 't' + SpinBox2.Text + ':l' + SpinBox7.Text + ':hi' +
       IfThen(CheckBox5.IsChecked, '1', '0'), CmdStr, Length(CmdStr));
+  Insert('--basedir=' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit1.Text, CmdStr, Length(CmdStr));
   if ComboBox3.ItemIndex = 0 then
     Insert(Edit3.Text, CmdStr, Length(CmdStr));
@@ -157,6 +204,19 @@ procedure TForm1.ComboBox4Change(Sender: TObject);
 begin
   Edit5.Enabled := ComboBox4.ItemIndex > 0;
   Edit5.Text := '';
+end;
+
+procedure TForm1.Edit6Change(Sender: TObject);
+begin
+  ShowMessage('Restart required to reload new plugins folder.');
+end;
+
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  if Edit6.Text <> GetIniString('UI', 'Plugins', '',
+    ChangeFileExt(GetModuleName, '.ini')) then
+    SetIniString('UI', 'Plugins', Edit6.Text,
+      ChangeFileExt(GetModuleName, '.ini'));
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
@@ -216,6 +276,14 @@ var
 begin
   if SelectDirectory('', '', Dir) then
     Edit5.Text := Dir;
+end;
+
+procedure TForm1.SearchEditButton5Click(Sender: TObject);
+var
+  Dir: string;
+begin
+  if SelectDirectory('', '', Dir) then
+    Edit6.Text := Dir;
 end;
 
 end.

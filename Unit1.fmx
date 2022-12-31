@@ -4,13 +4,14 @@ object Form1: TForm1
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = Single
   Caption = 'XTool'
-  ClientHeight = 410
+  ClientHeight = 517
   ClientWidth = 592
   Position = ScreenCenter
   StyleBook = StyleBook1
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
+  OnClose = FormClose
   OnShow = FormShow
   DesignerMasterStyle = 0
   object StyleBook1: TStyleBook
@@ -3361,23 +3362,51 @@ object Form1: TForm1
   object Layout4: TLayout
     Align = Bottom
     Margins.Bottom = 8.000000000000000000
-    Position.Y = 382.000000000000000000
+    Position.Y = 487.000000000000000000
     Size.Width = 592.000000000000000000
-    Size.Height = 20.000000000000000000
+    Size.Height = 22.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 3
     object Button1: TButton
       Align = Right
       ModalResult = 1
       Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 504.000000000000000000
+      Margins.Right = 16.000000000000000000
+      Position.X = 496.000000000000000000
       Size.Width = 80.000000000000000000
-      Size.Height = 20.000000000000000000
+      Size.Height = 22.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 0
+      TabOrder = 1
       Text = 'Start'
       OnClick = Button1Click
+    end
+    object Label5: TLabel
+      Align = Left
+      Margins.Left = 16.000000000000000000
+      Margins.Right = 8.000000000000000000
+      Position.X = 16.000000000000000000
+      Size.Width = 96.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      Text = 'Base directory'
+      TabOrder = 2
+    end
+    object Edit6: TEdit
+      Touch.InteractiveGestures = [LongTap, DoubleTap]
+      Align = Client
+      TabOrder = 0
+      Size.Width = 368.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      object SearchEditButton5: TSearchEditButton
+        CanFocus = False
+        Cursor = crArrow
+        Size.Width = 28.000000000000000000
+        Size.Height = 16.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        OnClick = SearchEditButton5Click
+      end
     end
   end
   object PopupMenu1: TPopupMenu
@@ -3394,17 +3423,17 @@ object Form1: TForm1
     Margins.Right = 8.000000000000000000
     Margins.Bottom = 8.000000000000000000
     Size.Width = 576.000000000000000000
-    Size.Height = 366.000000000000000000
+    Size.Height = 471.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
-    Viewport.Width = 560.000000000000000000
-    Viewport.Height = 366.000000000000000000
+    Viewport.Width = 576.000000000000000000
+    Viewport.Height = 471.000000000000000000
     object GroupBox1: TGroupBox
       Align = Top
       Margins.Left = 8.000000000000000000
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Input'
@@ -3413,7 +3442,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3426,7 +3455,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Size.Width = 440.000000000000000000
+          Size.Width = 456.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
           object SearchEditButton1: TSearchEditButton
@@ -3465,7 +3494,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 108.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 90.000000000000000000
       Size.PlatformDefault = False
       Text = 'Options'
@@ -3474,7 +3503,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 15
@@ -3558,7 +3587,7 @@ object Form1: TForm1
       object Layout2: TLayout
         Align = Top
         Position.Y = 52.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3625,7 +3654,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 54.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Output'
@@ -3634,7 +3663,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3647,7 +3676,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Size.Width = 440.000000000000000000
+          Size.Width = 456.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
           object SearchEditButton3: TSearchEditButton
@@ -3685,7 +3714,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 360.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Deduplication'
@@ -3694,7 +3723,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 12
@@ -3749,7 +3778,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 414.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Compression'
@@ -3758,10 +3787,10 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 13
+        TabOrder = 14
         object Label7: TLabel
           Align = Left
           Margins.Left = 8.000000000000000000
@@ -3827,7 +3856,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 198.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Method'
@@ -3836,7 +3865,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3849,7 +3878,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Size.Width = 440.000000000000000000
+          Size.Width = 456.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
         end
@@ -3858,7 +3887,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Position.X = 456.000000000000000000
+          Position.X = 472.000000000000000000
           Position.Y = 8.000000000000000000
           Size.Width = 80.000000000000000000
           Size.Height = 20.000000000000000000
@@ -3875,7 +3904,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 306.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Database'
@@ -3884,7 +3913,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3898,7 +3927,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Size.Width = 440.000000000000000000
+          Size.Width = 456.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
           object SearchEditButton2: TSearchEditButton
@@ -3938,7 +3967,7 @@ object Form1: TForm1
       Margins.Right = 8.000000000000000000
       Position.X = 8.000000000000000000
       Position.Y = 252.000000000000000000
-      Size.Width = 544.000000000000000000
+      Size.Width = 560.000000000000000000
       Size.Height = 54.000000000000000000
       Size.PlatformDefault = False
       Text = 'Library checker'
@@ -3947,7 +3976,7 @@ object Form1: TForm1
         Align = Top
         Margins.Top = 16.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 544.000000000000000000
+        Size.Width = 560.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 14
@@ -3961,7 +3990,7 @@ object Form1: TForm1
           Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
           Margins.Bottom = 8.000000000000000000
-          Size.Width = 440.000000000000000000
+          Size.Width = 456.000000000000000000
           Size.Height = 20.000000000000000000
           Size.PlatformDefault = False
           object SearchEditButton4: TSearchEditButton

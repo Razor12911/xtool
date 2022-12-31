@@ -3,7 +3,8 @@ unit FLACDLL;
 interface
 
 uses
-  LibImport,
+  InitCode,
+  Utils, LibImport,
   WinAPI.Windows,
   System.SysUtils, System.Classes;
 
@@ -126,8 +127,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExtractFilePath(ParamStr(0)) +
-    'libFLAC_dynamic.dll');
+  Lib := TLibImport.Create
+    (ExpandPath(PluginsPath + 'libFLAC_dynamic.dll', True));
   if Lib.Loaded then
   begin
     @FLAC__stream_encoder_new := Lib.GetProcAddr('FLAC__stream_encoder_new');

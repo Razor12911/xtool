@@ -5,6 +5,7 @@ unit PrecompMain;
 interface
 
 uses
+  InitCode,
   Threading, Utils, SynCommons, ParseClass, ParseExpr, FLZMA2DLL,
   PrecompUtils, PrecompCrypto, PrecompZLib, PrecompLZ4, PrecompLZO, PrecompZSTD,
   PrecompOodle, PrecompMedia, PrecompINI, PrecompINIEx, PrecompSearch,
@@ -197,7 +198,7 @@ begin
     StoreDD := -2;
     if ArgParse.AsBoolean('-dd') or ArgParse.AsBoolean('--dedup') then
       StoreDD := -1;
-    if FileExists(ExtractFilePath(Utils.GetModuleName) + 'srep.exe') then
+    if FileExists(ExpandPath(PluginsPath + 'srep.exe', True)) then
     begin
       StoreDD := ArgParse.AsInteger('--dedup=', 0, StoreDD);
       StoreDD := ArgParse.AsInteger('-dd', 0, StoreDD);
@@ -1736,9 +1737,9 @@ begin
       TBufferedStream(TempOutput).Flush;
       if StoreDD >= 0 then
       begin
-        with TProcessStream.Create(ExtractFilePath(Utils.GetModuleName) +
-          'srep.exe', '-m' + StoreDD.ToString + 'f ' + S + ' -', GetCurrentDir,
-          nil, Output) do
+        with TProcessStream.Create(ExpandPath(PluginsPath + 'srep.exe', True),
+          '-m' + StoreDD.ToString + 'f ' + S + ' -', GetCurrentDir, nil,
+          Output) do
           try
             if Execute then
             begin
@@ -2113,9 +2114,8 @@ begin
   begin
     if (Depth = 0) and (StoreDD >= 0) then
     begin
-      LStream := TProcessStream.Create(ExtractFilePath(Utils.GetModuleName) +
-        'srep.exe', '-d -s -mem' + SrepMemCfg + ' - -', GetCurrentDir,
-        Input, nil);
+      LStream := TProcessStream.Create(ExpandPath(PluginsPath + 'srep.exe',
+        True), '-d -s -mem' + SrepMemCfg + ' - -', GetCurrentDir, Input, nil);
       if not LStream.Execute then
         raise EReadError.CreateRes(@SReadError);
       DecInput[Index] := TBufferedStream.Create(LStream, True, 4194304);

@@ -25,14 +25,17 @@ const
   LEVIATHAN_CODEC = 5;
 
 const
+  O_MAXSIZE = 16 * 1024 * 1024;
   O_LENGTH = 32;
   O_TRADEOFF = 256;
-  O_MAXSIZE = 16 * 1024 * 1024;
+  O_DICTIONARY = 0;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
+  OMaxSize: Integer = O_MAXSIZE;
   OLength: Integer = O_LENGTH;
   OTradeOff: Integer = O_TRADEOFF;
+  ODictionary: Integer = O_DICTIONARY;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
 
 type
@@ -379,10 +382,14 @@ begin
           for I := Low(SOList) to High(SOList) do
             SOList[I][Y].Update
               ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
+        if Funcs^.GetParam(Command, X, 'm') <> '' then
+          OMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
         if Funcs^.GetParam(Command, X, 'n') <> '' then
           OLength := StrToInt(Funcs^.GetParam(Command, X, 'n'));
         if Funcs^.GetParam(Command, X, 't') <> '' then
           OTradeOff := StrToInt(Funcs^.GetParam(Command, X, 't'));
+        if Funcs^.GetParam(Command, X, 'd') <> '' then
+          ODictionary := StrToInt(Funcs^.GetParam(Command, X, 'd'));
       end;
     Inc(X);
   end;
@@ -427,6 +434,8 @@ begin
           SetBits(Option^, 1, 12, 1);
         if Funcs^.GetParam(Command, I, 't') <> '' then
           SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 't')), 13, 11);
+        if Funcs^.GetParam(Command, I, 'd') <> '' then
+          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'd')), 24, 5);
         Result := True;
       end;
     Inc(I);
@@ -462,7 +471,7 @@ begin
     if (X in [LZNA_CODEC, LEVIATHAN_CODEC]) and (DI1.NewSize <= 0) then
       exit;
     if DI1.NewSize <= 0 then
-      Res := O_MAXSIZE
+      Res := OMaxSize
     else
       Res := DI1.NewSize;
     Buffer := Funcs^.Allocator(Instance, Res);
@@ -619,9 +628,11 @@ begin
       SizeOf(TOodleLZ_CompressOptions));
     COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 12, 1) = 1;
     COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 13, 11);
-    // COptions.dictionarySize := 262144;
+    COptions.dictionarySize := IfThen(GetBits(StreamInfo^.Option, 24, 5) = 0, 0,
+      Round(Power(2, GetBits(StreamInfo^.Option, 24, 5))));
     Params := 'l' + I.ToString + ':' + 'c' + GetBits(StreamInfo^.Option, 12, 1)
-      .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 13, 11).ToString;
+      .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 13, 11).ToString + ':'
+      + 'd' + GetBits(StreamInfo^.Option, 24, 5).ToString;
     if not Result then
       Res1 := OodleLZ_Compress(Y, NewInput, StreamInfo^.NewSize, Buffer, I,
         @COptions);
@@ -677,9 +688,12 @@ begin
     COptions, SizeOf(TOodleLZ_CompressOptions));
   COptions.sendQuantumCRCs := GetBits(StreamInfo.Option, 12, 1) = 1;
   COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo.Option, 13, 11);
+  COptions.dictionarySize := IfThen(GetBits(StreamInfo.Option, 24, 5) = 0, 0,
+    Round(Power(2, GetBits(StreamInfo.Option, 24, 5))));
   Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'c' +
     GetBits(StreamInfo.Option, 12, 1).ToString + ':' + 't' +
-    GetBits(StreamInfo.Option, 13, 11).ToString;
+    GetBits(StreamInfo.Option, 13, 11).ToString + ':' + 'd' +
+    GetBits(StreamInfo.Option, 24, 5).ToString;
   Res1 := OodleLZ_Compress(Y, Input, StreamInfo.NewSize, Buffer,
     GetBits(StreamInfo.Option, 5, 7), @COptions);
   Funcs^.LogRestore(OodleCodecs[GetBits(StreamInfo.Option, 0, 5)],
