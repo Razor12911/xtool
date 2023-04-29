@@ -186,8 +186,7 @@ begin
 end;
 
 const
-  DLLParam1 = '--zstd=';
-  DLLParam2 = '-zs';
+  DLLParam = '-zstd';
 
 var
   I: Integer;
@@ -198,14 +197,9 @@ initialization
 DLLFile := PluginsPath + 'libzstd.dll';
 for I := 1 to ParamCount do
 begin
-  if ParamStr(I).StartsWith(DLLParam1) then
+  if ParamStr(I).StartsWith(DLLParam) then
   begin
-    DLLFile := ParamStr(I).Substring(DLLParam1.Length);
-    break;
-  end;
-  if ParamStr(I).StartsWith(DLLParam2) then
-  begin
-    DLLFile := ParamStr(I).Substring(DLLParam2.Length);
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
     break;
   end;
 end;

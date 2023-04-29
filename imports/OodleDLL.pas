@@ -8,6 +8,9 @@ uses
   WinAPI.Windows,
   System.SysUtils, System.Types, System.IOUtils;
 
+const
+  OODLELZ_SCRATCH_MEM_NO_BOUND = NativeUInt(-1);
+
 type
   POodleLZ_CompressOptions = ^TOodleLZ_CompressOptions;
 
@@ -32,6 +35,8 @@ type
   end;
 
 var
+  OldCompress, OldCompressOptions_GetDefault,
+    OldGetCompressedBufferSizeNeeded: Boolean;
   Oodle_CheckVersion: function(oodle_header_version: Cardinal;
     pOodleLibVersion: PCardinal = nil): LongBool stdcall;
   OodleLZ_Compress_1: function(compressor: Integer; rawBuf: Pointer;
@@ -58,6 +63,9 @@ var
     : NativeUInt stdcall;
   OodleLZ_GetCompressedBufferSizeNeeded_2: function(compressor: Integer;
     rawSize: NativeUInt): NativeUInt stdcall;
+  OodleLZ_GetCompressScratchMemBound: function(compressor: Integer;
+    compressSelect: Integer; rawSize: NativeUInt;
+    pOptions: POodleLZ_CompressOptions): NativeUInt stdcall = nil;
 
   DLLLoaded: Boolean = False;
 
@@ -75,8 +83,6 @@ implementation
 
 var
   Lib: TLibImport;
-  OldCompress, OldCompressOptions_GetDefault,
-    OldGetCompressedBufferSizeNeeded: Boolean;
 
 procedure Init(Filename: String);
 var
@@ -163,6 +169,20 @@ begin
       end;
     @OodleLZ_GetCompressedBufferSizeNeeded_2 :=
       @OodleLZ_GetCompressedBufferSizeNeeded_1;
+    if not OldCompress then
+    begin
+      OodleLZ_GetCompressScratchMemBound :=
+        Lib.GetProcAddr('OodleLZ_GetCompressScratchMemBound');
+      if not Assigned(OodleLZ_GetCompressScratchMemBound) then
+        for I := 0 to 32 do
+        begin
+          @OodleLZ_GetCompressScratchMemBound :=
+            Lib.GetProcAddr(PAnsiChar('_OodleLZ_GetCompressScratchMemBound@' +
+            (I * 2).ToString));
+          if Assigned(OodleLZ_GetCompressScratchMemBound) then
+            break;
+        end;
+    end;
   end;
 end;
 
@@ -203,8 +223,7 @@ begin
 end;
 
 const
-  DLLParam1 = '--oodle=';
-  DLLParam2 = '-od';
+  DLLParam = '-oodle';
 
 var
   I: Integer;
@@ -215,14 +234,9 @@ initialization
 DLLFile := PluginsPath + 'oo2core_9_win64.dll';
 for I := 1 to ParamCount do
 begin
-  if ParamStr(I).StartsWith(DLLParam1) then
+  if ParamStr(I).StartsWith(DLLParam) then
   begin
-    DLLFile := ParamStr(I).Substring(DLLParam1.Length);
-    break;
-  end;
-  if ParamStr(I).StartsWith(DLLParam2) then
-  begin
-    DLLFile := ParamStr(I).Substring(DLLParam2.Length);
+    DLLFile := ParamStr(I).Substring(DLLParam.Length);
     break;
   end;
 end;

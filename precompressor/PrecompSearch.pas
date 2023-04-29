@@ -77,7 +77,7 @@ begin
     while Y > 0 do
     begin
       Inc(LPos, Y);
-      CRC := Utils.Hash32(CRC, @Buffer[0], Y);
+      CRC := Utils.CRC32(CRC, @Buffer[0], Y);
       Dec(X, Y);
       Y := Funcs^.ReadFuture(Instance, LPos, @Buffer[0], Min(X, BufferSize));
     end;
@@ -201,7 +201,7 @@ begin
             begin
               if not Checked then
               begin
-                CRC := Utils.Hash32(0, Input + Pos, MinSize);
+                CRC := Utils.CRC32(0, Input + Pos, MinSize);
                 Checked := True;
               end;
               if (CodecSearch[I, SearchInfo[I, J, X]].Hash = CRC) and

@@ -126,8 +126,8 @@ type
     FIndex, FCount: Integer;
     procedure FSetPos(APosition: Int64);
     procedure FSetSize(ASize: Int64);
-    procedure FUpdate1;
-    procedure FUpdate2;
+    procedure FUpdateRead;
+    procedure FUpdateWrite;
   public
     constructor Create;
     destructor Destroy; override;
@@ -138,6 +138,7 @@ type
     function Add(AStreamType: Pointer; MaxSize: Int64 = FMaxStreamSize)
       : Integer;
     procedure Update(Index: Integer; MaxSize: Int64);
+    function MaxSize(Index: Integer): NativeInt;
   end;
 
   TMemoryStreamEx = class(TMemoryStream)
@@ -207,7 +208,7 @@ type
     procedure Flush(AForceFlush: Boolean = False);
   public
     constructor Create(const AMapName: String; AFileName: string); overload;
-    constructor Create(const AMapName: String; ASize: NativeInt); overload;
+    constructor Create(const AMapName: String; ASize: NativeInt = 0); overload;
     destructor Destroy; override;
     procedure SetSize(const NewSize: Int64); override;
     function Write(const Buffer; Count: LongInt): LongInt; override;
@@ -252,17 +253,20 @@ type
 
   TProcessStream = class(TStream)
   private
-    FInput, FOutput: TStream;
-    FTask: TTask;
+    FInput, FOutput, FError: TStream;
+    FTask, FTask2: TTask;
     FProcessInfo: TProcessInformation;
     FStdinr, FStdinw: THandle;
     FStdoutr, FStdoutw: THandle;
+    FStderrr, FStderrw: THandle;
     FExecutable, FCommandLine, FWorkDir: String;
+    FInSize, FOutSize: Int64;
     procedure ExecReadTask;
     procedure ExecWriteTask;
+    procedure ExecErrorTask;
   public
     constructor Create(AExecutable, ACommandLine, AWorkDir: String;
-      AInput: TStream = nil; AOutput: TStream = nil);
+      AInput: TStream = nil; AOutput: TStream = nil; AError: TStream = nil);
     destructor Destroy; override;
     function Read(var Buffer; Count: LongInt): LongInt; override;
     function Write(const Buffer; Count: LongInt): LongInt; override;
@@ -270,6 +274,23 @@ type
     procedure Wait;
     function Done: Boolean;
     function Running: Boolean;
+    property InSize: Int64 read FInSize;
+    property OutSize: Int64 read FOutSize;
+  end;
+
+  TCacheStream = class(TStream)
+  private
+    FStream: TStream;
+    FTask: TTask;
+    FMemory: PByte;
+    FPosition1, FPosition2: Int64;
+    FAvaiSize, FMaxSize: Integer;
+    FDone: Boolean;
+    procedure CacheMemory;
+  public
+    constructor Create(Stream: TStream; Size: Integer = 16 * 1024 * 1024);
+    destructor Destroy; override;
+    function Read(var Buffer; Count: Integer): Integer; override;
   end;
 
   TDataStore = class(TObject)
@@ -778,54 +799,43 @@ procedure TArrayStream.FSetPos(APosition: Int64);
 var
   I: Integer;
   LPosition, LSize: Int64;
-  IdxSet: Boolean;
+  B: Boolean;
 begin
   FIndex := 0;
+  LPosition := 0;
   LSize := 0;
-  IdxSet := False;
+  B := False;
   for I := 0 to FCount - 1 do
   begin
-    if APosition > LSize + FStreams[I].Size then
-      LPosition := FStreams[I].Size
-    else
+    FStreams[I].Position := Min(FStreams[I].Size, Max(0, APosition - LSize));
+    FStreams[I].Instance.Position := FStreams[I].Position;
+    if (B = False) and (APosition <= LSize + FStreams[I].Size) then
     begin
-      LPosition := Max(0, APosition - LSize);
-      if not IdxSet then
-      begin
-        FIndex := I;
-        IdxSet := True;
-      end;
+      FIndex := I;
+      B := True;
     end;
-    FStreams[I].Instance.Position := LPosition;
-    FStreams[I].Position := LPosition;
-    if IdxSet then
-      break;
+    Inc(LPosition, FStreams[I].Position);
     Inc(LSize, FStreams[I].Size);
   end;
-  FPosition := APosition;
+  FPosition := LPosition;
 end;
 
 procedure TArrayStream.FSetSize(ASize: Int64);
 var
   I: Integer;
-  LSize1, LSize2: Int64;
+  LSize: Int64;
 begin
-  LSize2 := 0;
+  LSize := 0;
   for I := 0 to FCount - 1 do
   begin
-    if ASize > FStreams[I].MaxSize - LSize2 then
-      LSize1 := FStreams[I].MaxSize
-    else
-      LSize1 := Max(0, ASize - LSize2);
-    FStreams[I].Instance.Size := LSize1;
-    FStreams[I].Size := LSize1;
-    FStreams[I].Position := Min(FStreams[I].Position, FStreams[I].Size);
-    Inc(LSize2, FStreams[I].Size);
+    FStreams[I].Size := Min(FStreams[I].MaxSize, Max(0, ASize - LSize));
+    FStreams[I].Instance.Size := FStreams[I].Size;
+    Inc(LSize, FStreams[I].Size);
   end;
-  FSize := ASize;
+  FSize := LSize;
 end;
 
-procedure TArrayStream.FUpdate1;
+procedure TArrayStream.FUpdateRead;
 begin
   if FStreams[FIndex].Position = FStreams[FIndex].Size then
   begin
@@ -840,7 +850,7 @@ begin
   end;
 end;
 
-procedure TArrayStream.FUpdate2;
+procedure TArrayStream.FUpdateWrite;
 begin
   if FStreams[FIndex].Position = FStreams[FIndex].MaxSize then
   begin
@@ -880,8 +890,9 @@ begin
   Result := 0;
   if FCount = 0 then
     exit;
-  FUpdate1;
-  LCount := Min(FStreams[FIndex].Size - FStreams[FIndex].Position, Count);
+  FUpdateRead;
+  LCount := Min(FStreams[FIndex].Size - FStreams[FIndex].Position,
+    Int64(Count));
   Result := FStreams[FIndex].Instance.Read(Buffer, LCount);
   Inc(FStreams[FIndex].Position, Result);
   Inc(FPosition, Result);
@@ -894,13 +905,14 @@ begin
   Result := 0;
   if FCount = 0 then
     exit;
-  FUpdate2;
-  LCount := Min(FStreams[FIndex].MaxSize - FStreams[FIndex].Position, Count);
+  FUpdateWrite;
+  LCount := Min(FStreams[FIndex].MaxSize - FStreams[FIndex].Position,
+    Int64(Count));
   Result := FStreams[FIndex].Instance.Write(Buffer, LCount);
   Inc(FStreams[FIndex].Position, Result);
-  Inc(FPosition, Result);
   FStreams[FIndex].Size := Max(FStreams[FIndex].Position,
     FStreams[FIndex].Size);
+  Inc(FPosition, Result);
   FSize := Max(FPosition, FSize);
 end;
 
@@ -945,8 +957,13 @@ end;
 
 procedure TArrayStream.Update(Index: Integer; MaxSize: Int64);
 begin
-  if FStreams[Index].Size < FStreams[Index].MaxSize then
+  if FStreams[Index].Size < MaxSize then
     FStreams[Index].MaxSize := MaxSize;
+end;
+
+function TArrayStream.MaxSize(Index: Integer): NativeInt;
+begin
+  Result := FStreams[Index].MaxSize;
 end;
 
 constructor TMemoryStreamEx.Create(AOwnMemory: Boolean; const AMemory: Pointer;
@@ -1272,7 +1289,7 @@ constructor TSharedMemoryStream.Create(const AMapName: String;
     if OpenAndUse then
       Result := fmOpenReadWrite or fmShareDenyNone
     else
-      Result := fmCreate;
+      Result := fmCreate or fmShareDenyNone;
   end;
 
 var
@@ -1312,6 +1329,7 @@ constructor TSharedMemoryStream.Create(const AMapName: String;
   ASize: NativeInt);
 var
   LSize: Int64;
+  LMBI: TMemoryBasicInformation;
 begin
   inherited Create(False);
   FStream := nil;
@@ -1329,7 +1347,14 @@ begin
     raise EFOpenError.CreateResFmt(@SFCreateErrorEx,
       [FMapName, SysErrorMessage(GetLastError)]);
   FMapBuffer := MapViewOfFile(FMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+  if LSize = 0 then
+  begin
+    FillChar(LMBI, sizeof(LMBI), 0);
+    VirtualQueryEx(GetCurrentProcess, FMapBuffer, LMBI, sizeof(LMBI));
+    LSize := LMBI.RegionSize;
+  end;
   Update(FMapBuffer, LSize);
+  SetSize(LSize);
 end;
 
 destructor TSharedMemoryStream.Destroy;
@@ -1619,15 +1644,19 @@ begin
 end;
 
 constructor TProcessStream.Create(AExecutable, ACommandLine, AWorkDir: String;
-  AInput: TStream; AOutput: TStream);
+  AInput: TStream; AOutput: TStream; AError: TStream);
 begin
   inherited Create;
   FInput := AInput;
   FOutput := AOutput;
+  FError := AError;
   FExecutable := AExecutable;
   FCommandLine := ACommandLine;
   FWorkDir := AWorkDir;
+  FInSize := 0;
+  FOutSize := 0;
   FTask := TTask.Create;
+  FTask2 := TTask.Create;
 end;
 
 destructor TProcessStream.Destroy;
@@ -1636,8 +1665,11 @@ begin
   CloseHandleEx(FStdinw);
   CloseHandleEx(FStdoutr);
   CloseHandleEx(FStdoutw);
+  CloseHandleEx(FStderrr);
+  CloseHandleEx(FStderrw);
   CloseHandleEx(FProcessInfo.hProcess);
   FTask.Free;
+  FTask2.Free;
   inherited Destroy;
 end;
 
@@ -1650,6 +1682,7 @@ begin
     raise EReadError.CreateRes(@SReadError);
   if ReadFile(FStdoutr, Buffer, Count, BytesRead, nil) then
     Result := BytesRead;
+  Inc(FOutSize, Result);
 end;
 
 function TProcessStream.Write(const Buffer; Count: LongInt): LongInt;
@@ -1660,8 +1693,11 @@ begin
   Result := 0;
   if Assigned(FInput) then
     raise EWriteError.CreateRes(@SWriteError);
-  if WriteFile(FStdinw, Buffer, Count, BytesWritten, nil) then
+  if Count = 0 then
+    CloseHandleEx(FStdinw)
+  else if WriteFile(FStdinw, Buffer, Count, BytesWritten, nil) then
     Result := BytesWritten;
+  Inc(FInSize, Result);
 end;
 
 procedure TProcessStream.ExecReadTask;
@@ -1673,7 +1709,10 @@ var
 begin
   while ReadFile(FStdoutr, Buffer[0], Length(Buffer), BytesRead, nil) and
     (BytesRead > 0) do
+  begin
+    Inc(FOutSize, BytesRead);
     FOutput.WriteBuffer(Buffer[0], BytesRead);
+  end;
   CloseHandleEx(FStdoutr);
 end;
 
@@ -1687,8 +1726,25 @@ begin
   BytesWritten := FInput.Read(Buffer[0], BufferSize);
   while WriteFile(FStdinw, Buffer[0], BytesWritten, BytesWritten, nil) and
     (BytesWritten > 0) do
+  begin
+    Inc(FInSize, BytesWritten);
     BytesWritten := FInput.Read(Buffer[0], BufferSize);
+  end;
   CloseHandleEx(FStdinw);
+end;
+
+procedure TProcessStream.ExecErrorTask;
+const
+  BufferSize = 65536;
+var
+  Buffer: array [0 .. BufferSize - 1] of Byte;
+  BytesRead: DWORD;
+begin
+  while ReadFile(FStderrr, Buffer[0], Length(Buffer), BytesRead, nil) and
+    (BytesRead > 0) do
+    if Assigned(FError) then
+      FError.WriteBuffer(Buffer[0], BytesRead);
+  CloseHandleEx(FStderrr);
 end;
 
 function TProcessStream.Execute: Boolean;
@@ -1699,32 +1755,35 @@ var
   StartupInfo: TStartupInfo;
   dwExitCode: DWORD;
   LWorkDir: PChar;
-  LStream: THandleStream;
 begin
   Result := False;
   CreatePipe(FStdinr, FStdinw, @PipeSecurityAttributes, 0);
   CreatePipe(FStdoutr, FStdoutw, @PipeSecurityAttributes, 0);
+  CreatePipe(FStderrr, FStderrw, @PipeSecurityAttributes, 0);
   SetHandleInformation(FStdinw, HANDLE_FLAG_INHERIT, 0);
   SetHandleInformation(FStdoutr, HANDLE_FLAG_INHERIT, 0);
+  SetHandleInformation(FStderrr, HANDLE_FLAG_INHERIT, 0);
   ZeroMemory(@StartupInfo, sizeof(StartupInfo));
   StartupInfo.cb := sizeof(StartupInfo);
   StartupInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
   StartupInfo.wShowWindow := SW_HIDE;
   StartupInfo.hStdInput := FStdinr;
   StartupInfo.hStdOutput := FStdoutw;
-  StartupInfo.hStdError := 0;
+  StartupInfo.hStdError := FStderrw;
   ZeroMemory(@FProcessInfo, sizeof(FProcessInfo));
   if FWorkDir <> '' then
     LWorkDir := Pointer(FWorkDir)
   else
     LWorkDir := Pointer(GetCurrentDir);
   if CreateProcess(nil, PChar('"' + FExecutable + '" ' + FCommandLine), nil,
-    nil, True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, FProcessInfo)
-  then
+    nil, True, 0, nil, LWorkDir, StartupInfo, FProcessInfo) then
   begin
     CloseHandleEx(FProcessInfo.hThread);
     CloseHandleEx(FStdinr);
     CloseHandleEx(FStdoutw);
+    CloseHandleEx(FStderrw);
+    FTask2.Perform(ExecErrorTask);
+    FTask2.Start;
     if Assigned(FOutput) and not Assigned(FInput) then
     begin
       FTask.Perform(ExecReadTask);
@@ -1741,14 +1800,8 @@ begin
     begin
       FTask.Perform(ExecReadTask);
       FTask.Start;
-      LStream := THandleStream.Create(FStdinw);
-      try
-        CopyStream(FInput, LStream);
-      finally
-        LStream.Free;
-        CloseHandleEx(FStdinw);
-        FTask.Wait;
-      end;
+      ExecWriteTask;
+      FTask.Wait;
       WaitForSingleObject(FProcessInfo.hProcess, INFINITE);
       GetExitCodeProcess(FProcessInfo.hProcess, dwExitCode);
       CloseHandleEx(FProcessInfo.hProcess);
@@ -1763,6 +1816,8 @@ begin
     CloseHandleEx(FStdinw);
     CloseHandleEx(FStdoutr);
     CloseHandleEx(FStdoutw);
+    CloseHandleEx(FStderrr);
+    CloseHandleEx(FStderrw);
     RaiseLastOSError;
   end;
 end;
@@ -1779,7 +1834,9 @@ begin
   Result := False;
   CloseHandleEx(FStdinw);
   CloseHandleEx(FStdoutr);
+  CloseHandleEx(FStderrr);
   FTask.Wait;
+  FTask2.Wait;
   WaitForSingleObject(FProcessInfo.hProcess, INFINITE);
   GetExitCodeProcess(FProcessInfo.hProcess, dwExitCode);
   CloseHandleEx(FProcessInfo.hProcess);
@@ -1791,6 +1848,75 @@ end;
 function TProcessStream.Running: Boolean;
 begin
   Result := WaitForSingleObject(FProcessInfo.hProcess, 0) = WAIT_TIMEOUT;
+end;
+
+constructor TCacheStream.Create(Stream: TStream; Size: Integer);
+begin
+  inherited Create;
+  FStream := Stream;
+  GetMem(FMemory, Size);
+  FPosition1 := 0;
+  FPosition2 := 0;
+  FAvaiSize := 0;
+  FMaxSize := Size;
+  FDone := False;
+  FTask := TTask.Create;
+  FTask.Perform(CacheMemory);
+  FTask.Start;
+end;
+
+destructor TCacheStream.Destroy;
+begin
+  FDone := True;
+  FTask.Wait;
+  FTask.Free;
+  FreeMem(FMemory);
+  inherited Destroy;
+end;
+
+procedure TCacheStream.CacheMemory;
+var
+  I: Integer;
+begin
+  AtomicExchange(I, FAvaiSize);
+  I := FStream.Read((FMemory + FPosition1 mod FMaxSize)^,
+    Min(FMaxSize - I, FMaxSize - (FPosition1 mod FMaxSize)));
+  while (I > 0) and (FDone = False) do
+  begin
+    Inc(FPosition1, I);
+    I := AtomicIncrement(FAvaiSize, I);
+    while I = FMaxSize do
+    begin
+      Sleep(1);
+      AtomicExchange(I, FAvaiSize);
+      if FDone then
+        exit;
+    end;
+    I := FStream.Read((FMemory + FPosition1 mod FMaxSize)^,
+      Min(FMaxSize - I, FMaxSize - (FPosition1 mod FMaxSize)));
+  end;
+  FDone := True;
+end;
+
+function TCacheStream.Read(var Buffer; Count: Integer): Integer;
+var
+  I: Integer;
+begin
+  if Count <= 0 then
+    exit(0);
+  AtomicExchange(I, FAvaiSize);
+  if I = 0 then
+    while True do
+    begin
+      Sleep(1);
+      AtomicExchange(I, FAvaiSize);
+      if (I > 0) or ((I = 0) and FDone) then
+        break;
+    end;
+  Result := Min(Count, Min(I, FMaxSize - (FPosition2 mod FMaxSize)));
+  Move((FMemory + FPosition2 mod FMaxSize)^, Buffer, Result);
+  Inc(FPosition2, Result);
+  AtomicDecrement(FAvaiSize, Result);
 end;
 
 constructor TDataStore1.Create(AInput: TStream; ADynamic: Boolean;
@@ -2354,7 +2480,7 @@ begin
   Result := Default;
   J := 0;
   for I := Low(FArgs) to High(FArgs) do
-    if FArgs[I].StartsWith(Parameter, True) then
+    if FArgs[I].StartsWith(Parameter, False) then
     begin
       if J >= Index then
       begin
@@ -2374,7 +2500,7 @@ begin
   Result := Default;
   J := 0;
   for I := Low(FArgs) to High(FArgs) do
-    if FArgs[I].StartsWith(Parameter, True) then
+    if FArgs[I].StartsWith(Parameter, False) then
     begin
       if J >= Index then
       begin
@@ -2397,7 +2523,7 @@ begin
   Result := Default;
   J := 0;
   for I := Low(FArgs) to High(FArgs) do
-    if FArgs[I].StartsWith(Parameter, True) then
+    if FArgs[I].StartsWith(Parameter, False) then
     begin
       if J >= Index then
       begin
@@ -2420,7 +2546,7 @@ begin
   Result := Default;
   J := 0;
   for I := Low(FArgs) to High(FArgs) do
-    if FArgs[I].StartsWith(Parameter, True) then
+    if FArgs[I].StartsWith(Parameter, False) then
     begin
       if J >= Index then
       begin
@@ -3169,32 +3295,32 @@ end;
 
 function ConvertToBytes(S: string): Int64;
 begin
-  if AnsiContainsStr(S, 'kb') then
+  if ContainsText(S, 'kb') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 2)) * Power(1024, 1));
     exit;
   end;
-  if AnsiContainsStr(S, 'mb') then
+  if ContainsText(S, 'mb') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 2)) * Power(1024, 2));
     exit;
   end;
-  if AnsiContainsStr(S, 'gb') then
+  if ContainsText(S, 'gb') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 2)) * Power(1024, 3));
     exit;
   end;
-  if AnsiContainsStr(S, 'k') then
+  if ContainsText(S, 'k') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 1)) * Power(1024, 1));
     exit;
   end;
-  if AnsiContainsStr(S, 'm') then
+  if ContainsText(S, 'm') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 1)) * Power(1024, 2));
     exit;
   end;
-  if AnsiContainsStr(S, 'g') then
+  if ContainsText(S, 'g') then
   begin
     Result := Round(StrToFloat(Copy(S, 1, Length(S) - 1)) * Power(1024, 3));
     exit;
@@ -3204,7 +3330,7 @@ end;
 
 function ConvertToThreads(S: string): Integer;
 begin
-  if AnsiContainsStr(S, 'p') or AnsiContainsStr(S, '%') then
+  if ContainsText(S, 'p') or ContainsText(S, '%') then
   begin
     Result := Round((CPUCount * StrToInt(Copy(S, 1, Length(S) - 1))) / 100);
     if Result < 1 then
@@ -3488,7 +3614,7 @@ begin
   else
     LWorkDir := Pointer(GetCurrentDir);
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
-    True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
+    True, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
     CloseHandleEx(ProcessInfo.hThread);
     CloseHandleEx(hstdinr);
@@ -3541,7 +3667,7 @@ begin
   else
     LWorkDir := Pointer(GetCurrentDir);
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
-    True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
+    True, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
     CloseHandleEx(ProcessInfo.hThread);
     CloseHandleEx(hstdoutw);
@@ -3599,7 +3725,7 @@ begin
   else
     LWorkDir := Pointer(GetCurrentDir);
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
-    True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
+    True, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
     CloseHandleEx(ProcessInfo.hThread);
     CloseHandleEx(hstdinr);
@@ -3676,7 +3802,7 @@ begin
   else
     LWorkDir := Pointer(GetCurrentDir);
   if CreateProcess(nil, PChar('"' + Executable + '" ' + CommandLine), nil, nil,
-    True, NORMAL_PRIORITY_CLASS, nil, LWorkDir, StartupInfo, ProcessInfo) then
+    True, 0, nil, LWorkDir, StartupInfo, ProcessInfo) then
   begin
     CloseHandleEx(ProcessInfo.hThread);
     CloseHandleEx(hstdinr);

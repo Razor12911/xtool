@@ -47,7 +47,7 @@ type
     StreamPosition, StreamOffset, OldSize, NewSize, DepthSize: String;
     Names, Exprs: TArray<String>;
     Values: TArray<Double>;
-    Conditions: TArray<String>;
+    Conditions: array [0 .. 2] of TArray<String>;
   end;
 
   PCfgRecDynArray = ^TCfgRecDynArray;
@@ -149,9 +149,12 @@ begin
               Exprs[Y] := CodecCfg[0, J, X].Exprs[Y];
               Values[Y] := CodecCfg[0, J, X].Values[Y];
             end;
-            SetLength(Conditions, Length(CodecCfg[0, J, X].Conditions));
-            for Y := Low(Conditions) to High(Conditions) do
-              Conditions[Y] := CodecCfg[0, J, X].Conditions[Y];
+            for Z := Low(Conditions) to High(Conditions) do
+            begin
+              SetLength(Conditions[Z], Length(CodecCfg[0, J, X].Conditions[Z]));
+              for Y := Low(Conditions[Z]) to High(Conditions[Z]) do
+                Conditions[Z, Y] := CodecCfg[0, J, X].Conditions[Z, Y];
+            end;
             for Z := Low(Structure) to High(Structure) do
               for Y := Low(Structure[Z]) to High(Structure[Z]) do
                 Parser.DefineVariable(Structure[Z, Y].Name,
@@ -331,6 +334,12 @@ begin
                   if Status = TScanStatus.Fail then
                     break;
                 end;
+                for Y := Low(Conditions[0]) to High(Conditions[0]) do
+                  if Round(Parser.Evaluate(Conditions[0, Y])) = 0 then
+                  begin
+                    Status := TScanStatus.Fail;
+                    break;
+                  end;
                 if Status = TScanStatus.Fail then
                 begin
                   Inc(Pos);
@@ -369,68 +378,75 @@ begin
                   end;
                   if Status = TScanStatus.Fail then
                     break;
-                  StreamPosInt1 := Pos + Round(Parser.Evaluate(StreamPosition));
-                  StreamPosInt2 := StreamPosInt1;
-                  for Y := Low(Structure[2]) to High(Structure[2]) do
-                  begin
-                    if (Structure[2, Y].BeforeStream = True) then
+                  for Y := Low(Conditions[1]) to High(Conditions[1]) do
+                    if Round(Parser.Evaluate(Conditions[1, Y])) = 0 then
                     begin
-                      if Structure[2, Y].Name = 'Stream' then
-                      begin
-                        StreamPosInt1 := StreamPosInt2;
-                        continue;
-                      end;
-                      Funcs^.ReadFuture(Instance, StreamPosInt2,
-                        Structure[2, Y].Data, Structure[2, Y].Size);
-                      I64 := 0;
-                      EndianMove(Structure[2, Y].Data, @I64,
-                        Min(Structure[2, Y].Size, I64.Size), BigEndian);
-                      Structure[2, Y].Value := I64.ToDouble;
-                      Inc(StreamPosInt2, Structure[2, Y].Size);
+                      Status := TScanStatus.Fail;
+                      break;
                     end;
-                  end;
-                  for A := Low(Exprs) to High(Exprs) do
+                  if Status = TScanStatus.None then
                   begin
-                    for B := Low(Exprs) to High(Exprs) do
-                      try
-                        if A = B then
+                    StreamPosInt1 := Pos +
+                      Round(Parser.Evaluate(StreamPosition));
+                    StreamPosInt2 := StreamPosInt1;
+                    for Y := Low(Structure[2]) to High(Structure[2]) do
+                    begin
+                      if (Structure[2, Y].BeforeStream = True) then
+                      begin
+                        if Structure[2, Y].Name = 'Stream' then
+                        begin
+                          StreamPosInt1 := StreamPosInt2;
                           continue;
-                        Values[B] := Parser.Evaluate(Exprs[B]);
+                        end;
+                        Funcs^.ReadFuture(Instance, StreamPosInt2,
+                          Structure[2, Y].Data, Structure[2, Y].Size);
+                        I64 := 0;
+                        EndianMove(Structure[2, Y].Data, @I64,
+                          Min(Structure[2, Y].Size, I64.Size), BigEndian);
+                        Structure[2, Y].Value := I64.ToDouble;
+                        Inc(StreamPosInt2, Structure[2, Y].Size);
+                      end;
+                    end;
+                    for A := Low(Exprs) to High(Exprs) do
+                    begin
+                      for B := Low(Exprs) to High(Exprs) do
+                        try
+                          if A = B then
+                            continue;
+                          Values[B] := Parser.Evaluate(Exprs[B]);
+                        except
+                        end;
+                      try
+                        Values[A] := Parser.Evaluate(Exprs[A]);
                       except
                       end;
-                    try
-                      Values[A] := Parser.Evaluate(Exprs[A]);
-                    except
                     end;
-                  end;
-                  StreamOffsetInt := Round(Parser.Evaluate(StreamOffset));
-                  OldSizeInt := Round(Parser.Evaluate(OldSize));
-                  NewSizeInt := Round(Parser.Evaluate(NewSize));
-                  DepthSizeInt := Round(Parser.Evaluate(DepthSize));
-                  for Y := Low(Structure[2]) to High(Structure[2]) do
-                  begin
-                    if (Structure[2, Y].BeforeStream = False) then
+                    StreamOffsetInt := Round(Parser.Evaluate(StreamOffset));
+                    OldSizeInt := Round(Parser.Evaluate(OldSize));
+                    NewSizeInt := Round(Parser.Evaluate(NewSize));
+                    DepthSizeInt := Round(Parser.Evaluate(DepthSize));
+                    for Y := Low(Structure[2]) to High(Structure[2]) do
                     begin
-                      Funcs^.ReadFuture(Instance, StreamPosInt2 + OldSizeInt,
-                        Structure[2, Y].Data, Structure[2, Y].Size);
-                      I64 := 0;
-                      EndianMove(Structure[2, Y].Data, @I64,
-                        Min(Structure[2, Y].Size, I64.Size), BigEndian);
-                      Structure[2, Y].Value := I64.ToDouble;
-                      Inc(StreamPosInt2, Structure[2, Y].Size);
+                      if (Structure[2, Y].BeforeStream = False) then
+                      begin
+                        Funcs^.ReadFuture(Instance, StreamPosInt2 + OldSizeInt,
+                          Structure[2, Y].Data, Structure[2, Y].Size);
+                        I64 := 0;
+                        EndianMove(Structure[2, Y].Data, @I64,
+                          Min(Structure[2, Y].Size, I64.Size), BigEndian);
+                        Structure[2, Y].Value := I64.ToDouble;
+                        Inc(StreamPosInt2, Structure[2, Y].Size);
+                      end;
                     end;
-                  end;
-                  if Length(Conditions) = 0 then
-                    DoAddStream(CodecCfg[Instance, I, J])
-                  else
-                    for Y := Low(Conditions) to High(Conditions) do
-                    begin
-                      if (Round(Parser.Evaluate(Conditions[Y])) <> 0) and
-                        (Y = High(Conditions)) then
-                        DoAddStream(CodecCfg[Instance, I, J])
-                      else
+                    for Y := Low(Conditions[2]) to High(Conditions[2]) do
+                      if Round(Parser.Evaluate(Conditions[2, Y])) = 0 then
+                      begin
+                        Status := TScanStatus.Fail;
                         break;
-                    end;
+                      end;
+                  end;
+                  if Status = TScanStatus.None then
+                    DoAddStream(CodecCfg[Instance, I, J]);
                   UpdateCounters(CodecCfg[Instance, I, J]);
                   for Y := Low(Counter) to High(Counter) do
                   begin
@@ -628,15 +644,25 @@ begin
           CfgRec^.DepthSize := ReadString('StreamList' + X.ToString,
             'DepthSize', '0');
           ConvertHexChr(CfgRec^.DepthSize);
-          Y := 1;
-          while ReadString('StreamList' + X.ToString, 'Condition' + Y.ToString,
-            '') <> '' do
+          for Z := Low(CfgRec^.Conditions) to High(CfgRec^.Conditions) do
           begin
-            S2 := ReadString('StreamList' + X.ToString,
-              'Condition' + Y.ToString, '');
-            ConvertHexChr(S2);
-            Insert(S2, CfgRec^.Conditions, Length(CfgRec^.Conditions));
-            Inc(Y);
+            case Z of
+              0:
+                S3 := 'Condition1_';
+              1:
+                S3 := 'ConditionN_';
+              2:
+                S3 := 'ConditionS_';
+            end;
+            Y := 1;
+            while ReadString('StreamList' + X.ToString, S3 + Y.ToString,
+              '') <> '' do
+            begin
+              S2 := ReadString('StreamList' + X.ToString, S3 + Y.ToString, '');
+              ConvertHexChr(S2);
+              Insert(S2, CfgRec^.Conditions[Z], Length(CfgRec^.Conditions[Z]));
+              Inc(Y);
+            end;
           end;
           ReadSectionValues('StreamList' + X.ToString, SL);
           for J := SL.Count - 1 downto 0 do

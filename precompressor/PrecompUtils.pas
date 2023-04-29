@@ -3,7 +3,8 @@ unit PrecompUtils;
 interface
 
 uses
-  Utils, Threading,
+  InitCode,
+  Utils, Threading, XXHASHLIB,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils, System.Types, System.Math,
   System.Generics.Defaults, System.Generics.Collections;
@@ -55,7 +56,7 @@ type
     Codec: Byte;
     Scan2: Boolean;
     Option: Integer;
-    Checksum: Cardinal;
+    Checksum: XXH128_hash_t;
     Status: TStreamStatus;
     DepthInfo: TDepthInfo;
   end;
@@ -194,7 +195,9 @@ type
     AcceptPatch: function(OldSize, NewSize, PatchSize: Integer): Boolean cdecl;
     // 40
     Transfer: procedure(Instance: Integer; Codec: PChar)cdecl;
-    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 41] of Pointer;
+    Storage: function(Instance: Integer; Size: PInteger): Pointer cdecl;
+    AddResourceEx: function(Data: Pointer; Size: Integer): Integer cdecl;
+    Reserved: array [0 .. (PRECOMP_FCOUNT - 1) - 43] of Pointer;
   end;
 
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
@@ -248,7 +251,7 @@ type
     Size: Integer;
     Codec: Byte;
     Option: Integer;
-    Checksum: Cardinal;
+    Checksum: XXH128_hash_t;
     Status: TStreamStatus;
   end;
 
@@ -256,7 +259,7 @@ type
 
   TDuplicate1 = packed record
     Size: Integer;
-    Checksum: Cardinal;
+    Checksum: XXH128_hash_t;
     Index: Integer;
     Count: Integer;
   end;
@@ -366,6 +369,7 @@ function PrecompAcceptPatch(OldSize, NewSize, PatchSize: Integer)
 var
   PrecompFunctions: _PrecompFuncs;
   DIFF_TOLERANCE: Single = 0.05;
+  OPTIMISE_DEC: Boolean = False;
   EncodeSICmp: TEncodeSIComparer;
   FutureSICmp: TFutureSIComparer;
   StockMethods, ExternalMethods: TStringList;
@@ -427,10 +431,9 @@ begin
       List2 := DecodeStr(List1[I], SPrecompSep2);
       for J := Succ(Low(List2)) to High(List2) do
       begin
-        if FileExists(ExtractFilePath(Utils.GetModuleName) + List2[J]) then
+        if FileExists(PluginsPath + List2[J]) then
         begin
-          Result := PrecompAddResource
-            (PChar(ExtractFilePath(Utils.GetModuleName) + List2[J]));
+          Result := PrecompAddResource(PChar(List2[J]));
           break;
         end;
       end;
@@ -591,7 +594,7 @@ begin
       else
       begin
         for I := Succ(Low(List2)) to High(List2) do
-          if List2[I].StartsWith(Param, True) and
+          if List2[I].StartsWith(Param, False) and
             (ResourceExists(List2[I]) = False) then
           begin
             S := List2[I].Substring(Length(Param));
@@ -649,14 +652,14 @@ begin
         if S = '' then
           S := '15';
         FillChar(ZStream, SizeOf(z_stream), 0);
+        ZStream.next_in := InBuff;
+        ZStream.avail_in := InSize;
+        ZStream.next_out := OutBuff;
+        ZStream.avail_out := OutSize;
         deflateInit2(ZStream, I div 10, Z_DEFLATED, -StrToInt(S), I mod 10,
           Z_DEFAULT_STRATEGY);
         try
-          ZStream.next_in := InBuff;
-          ZStream.avail_in := InSize;
-          ZStream.next_out := OutBuff;
-          ZStream.avail_out := OutSize;
-          if deflate(ZStream, Z_FULL_FLUSH) = Z_STREAM_END then
+          if deflate(ZStream, Z_FINISH) = Z_STREAM_END then
             Result := ZStream.total_out;
         finally
           deflateEnd(ZStream);
@@ -733,7 +736,7 @@ begin
           ZStream.avail_in := InSize;
           ZStream.next_out := OutBuff;
           ZStream.avail_out := OutSize;
-          if inflate(ZStream, Z_FULL_FLUSH) = Z_STREAM_END then
+          if inflate(ZStream, Z_FINISH) = Z_STREAM_END then
             Result := ZStream.total_out;
         finally
           inflateEnd(ZStream);
@@ -825,9 +828,12 @@ var
   LMD5Digest: TMD5Digest;
   LSHA1: TSHA1;
   LSHA1Digest: TSHA1Digest;
+  xxSeed32: XXH32_hash_t;
+  xxSeed64: XXH32_hash_t;
 begin
   Result := False;
-  case IndexText(Codec, ['crc32', 'adler32', 'crc64', 'md5', 'sha1']) of
+  case IndexText(Codec, ['crc32', 'adler32', 'crc64', 'md5', 'sha1', 'xxh32',
+    'xxh64', 'xxh128', 'xxh3', 'xxh3_128']) of
     0:
       if HashSize = SizeOf(Cardinal) then
       begin
@@ -859,6 +865,39 @@ begin
       begin
         LSHA1.Full(InBuff, InSize, LSHA1Digest);
         Move(LSHA1Digest, HashBuff^, HashSize);
+        Result := True;
+      end;
+    5:
+      if HashSize = SizeOf(XXH32_hash_t) then
+      begin
+        xxSeed32 := 0;
+        PXXH32_hash_t(HashBuff)^ := XXH32(InBuff, InSize, xxSeed32);
+        Result := True;
+      end;
+    6:
+      if HashSize = SizeOf(XXH64_hash_t) then
+      begin
+        xxSeed64 := 0;
+        PXXH64_hash_t(HashBuff)^ := XXH64(InBuff, InSize, xxSeed64);
+        Result := True;
+      end;
+    7:
+      if HashSize = SizeOf(XXH128_hash_t) then
+      begin
+        xxSeed64 := 0;
+        PXXH128_hash_t(HashBuff)^ := XXH128(InBuff, InSize, xxSeed64);
+        Result := True;
+      end;
+    8:
+      if HashSize = SizeOf(XXH64_hash_t) then
+      begin
+        PXXH64_hash_t(HashBuff)^ := XXH3_64bits(InBuff, InSize);
+        Result := True;
+      end;
+    9:
+      if HashSize = SizeOf(XXH128_hash_t) then
+      begin
+        PXXH128_hash_t(HashBuff)^ := XXH3_128bits(InBuff, InSize);
         Result := True;
       end;
   end;
@@ -898,7 +937,6 @@ function PrecompAddResource(FileName: PChar): Integer;
 var
   I: Integer;
   Exists: Boolean;
-  LResData: PResData;
 begin
   Result := -1;
   Exists := False;
@@ -913,18 +951,19 @@ begin
   end;
   if not Exists then
   begin
-    New(LResData);
-    LResData^.Name := ExtractFileName(FileName);
-    with TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone) do
+    with TFileStream.Create(PluginsPath + FileName, fmOpenRead or
+      fmShareDenyNone) do
       try
-        LResData^.Size := Size;
-        GetMem(LResData^.Data, LResData^.Size);
-        ReadBuffer(LResData^.Data^, LResData^.Size);
+        I := Length(Resources);
+        SetLength(Resources, Succ(I));
+        Resources[I].Name := ExtractFileName(FileName);
+        Resources[I].Size := Size;
+        GetMem(Resources[I].Data, Resources[I].Size);
+        ReadBuffer(Resources[I].Data^, Resources[I].Size);
+        Result := I;
       finally
         Free;
       end;
-    Insert(LResData^, Resources, Length(Resources));
-    Result := Pred(Length(Resources));
   end;
 end;
 

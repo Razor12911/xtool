@@ -60,8 +60,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][ZSTD_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        ZMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        ZMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
     end;
     Inc(X);
   end;
@@ -249,6 +249,7 @@ function ZSTDProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
 var
   Buffer: PByte;
   Params: String;
+  A, B: Integer;
   I: Integer;
   X: Integer;
   Res1: Integer;
@@ -323,8 +324,23 @@ begin
     if Result or (StreamInfo^.Status >= TStreamStatus.Predicted) then
       break;
   end;
-  if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
+  if Result and OPTIMISE_DEC and (StreamInfo^.Status <> TStreamStatus.Database)
+  then
+  begin
+    A := Pred(I);
+    for B := A downto 1 do
+    begin
+      Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo^.NewSize,
+        NewInput, StreamInfo^.NewSize, B);
+      if (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
+        StreamInfo^.OldSize) then
+        I := B
+      else
+        break;
+    end;
+  end
+  else if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted)
+    or (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
   begin
     Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
     Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,

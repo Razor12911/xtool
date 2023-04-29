@@ -483,9 +483,10 @@ begin
       Inc(Pos);
       continue;
     end;
-    if (Pos >= 2) and ((Input + Pos - 2)^ and $F = 8) and
+    if (Pos >= 3) and ((Input + Pos - 2)^ and $F = 8) and
       ((Input + Pos - 1)^ and $20 = 0) and
-      (EndianSwap(PWord(Input + Pos - 2)^) mod $1F = 0) then
+      (EndianSwap(PWord(Input + Pos - 2)^) mod $1F = 0) and
+      ((Input + Pos)^ and 7 <> $7) then
     begin
       WinBits := (Input + Pos - 2)^ shr 4;
       if WinBits = ZWinBits then
@@ -565,6 +566,8 @@ begin
           else
             SI.Status := TStreamStatus.None;
           SetBits(SI.Option, WinBits, 12, 3);
+          if not((Input + Pos)^ and 7 in [$4, $5]) then
+            SetBits(SI.Option, 1, 15, 1);
           for I := Low(CodecEnabled) to High(CodecEnabled) do
           begin
             if (I = ZLIB_CODEC) and (WinBits = 0) then
@@ -761,6 +764,7 @@ begin
           if (Res1 in [0, 2]) or (Res1 > 3) then
           begin
             Res2 := raw2hif_getoutlen(HR);
+            // ShowMessage('enc: ' + Res2.ToString);
             Output(Instance, Buffer, Res2);
             Inc(J, Res2);
             raw2hif_addbuf(HR, Buffer, R_WORKMEM);
@@ -785,8 +789,49 @@ begin
           StreamInfo^.OldSize, M = StreamInfo^.NewSize);
         if M = StreamInfo^.NewSize then
         begin
-          SetBits(StreamInfo^.Option, L, 5, 7);
-          Result := True;
+          if GetBits(StreamInfo^.Option, 15, 1) = 1 then
+          begin
+            HR := RefInst2[Instance];
+            I := 0;
+            J := 0;
+            M := 0;
+            CRC := 0;
+            Ptr := Funcs^.Storage(Instance, @M);
+            // ShowMessage('dec: ' + M.ToString);
+            hif2raw_Init(HR, L);
+            while True do
+            begin
+              Res1 := hif2raw_Loop(HR);
+              if (Res1 in [0, 2]) or (Res1 > 3) then
+              begin
+                Res2 := hif2raw_getoutlen(HR);
+                if Res2 > 0 then
+                  CRC := Hash32(CRC, Buffer, Res2);
+                hif2raw_addbuf(HR, Buffer, R_WORKMEM);
+                if Res1 = 0 then
+                  break;
+              end;
+              if Res1 = 1 then
+              begin
+                Res2 := Min(M - J, R_WORKMEM);
+                hif2raw_addbuf(HR, Ptr + J, Res2);
+                Inc(J, Res2);
+              end;
+              if Res1 = 3 then
+              begin
+                Res2 := Min(StreamInfo^.NewSize - I, R_WORKMEM);
+                hif2raw_addbuf(HR, PByte(NewInput) + I, Res2);
+                Inc(I, Res2);
+              end;
+            end;
+          end;
+          if (GetBits(StreamInfo^.Option, 15, 1) = 0) or
+            (CRC = Hash32(0, OldInput, StreamInfo^.OldSize)) then
+          begin
+            // ShowMessage('Verified!');
+            SetBits(StreamInfo^.Option, L, 5, 7);
+            Result := True;
+          end;
         end;
       end;
     PREFLATE_CODEC:

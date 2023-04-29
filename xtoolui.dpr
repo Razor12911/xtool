@@ -1,5 +1,7 @@
 library xtoolui;
 
+{$WEAKLINKRTTI ON}
+{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
 {$R *.res}
 
 uses
@@ -8,6 +10,7 @@ uses
   FMX.Types,
   FMX.Controls,
   FMX.StdCtrls,
+  FMX.TabControl,
   WinAPI.Windows,
   System.SysUtils,
   System.Types,
@@ -20,6 +23,7 @@ const
   PLUGIN_DATABASE = 0;
   PLUGIN_CONFIG = 1;
   PLUGIN_LIBRARY = 2;
+  PLUGIN_EXECUTABLE = 3;
 
 type
   PUIFuncs = ^TUIFuncs;
@@ -61,7 +65,9 @@ begin
     UIInitialised := True;
     Form1.Edit6.Text := GetIniString('UI', 'Plugins', '',
       ChangeFileExt(GetModuleName, '.ini'));
+    Form1.Edit28.Text := Form1.Edit6.Text;
     Form1.Edit6.OnChange := Form1.Edit6Change;
+    Form1.Edit28.OnChange := Form1.Edit6Change;
     { Form2.CheckBox3.Enabled := Funcs^.IsZlibLoaded;
       Form2.CheckBox1.Enabled := Funcs^.IsReflateLoaded;
       Form2.CheckBox2.Enabled := Funcs^.IsPreflateLoaded;
@@ -83,7 +89,8 @@ begin
       Form2.RadioButton2.Enabled := Funcs^.IsPackJPGLoaded;
       Form2.RadioButton3.Enabled := Funcs^.IsJoJpegLoaded;
       Form1.GroupBox5.Enabled := Funcs^.IsLZMALoaded; }
-    Form1.SpinBox4.Enabled := Funcs^.IsSrepAvailable;
+    if not Funcs^.IsSrepAvailable then
+      Form1.ComboBox5.Items.Delete(2);
     for I := Low(Methods) to High(Methods) do
     begin
       case Methods[I].FType of
@@ -110,10 +117,11 @@ begin
       end;
     end;
     for I := 0 to Form2.ComponentCount - 1 do
-    begin
       if Form2.Components[I] is TExpander then
         TExpander(Form2.Components[I]).IsExpanded := False;
-    end;
+    for I := 0 to Form1.ComponentCount - 1 do
+      if Form1.Components[I] is TTabControl then
+        TTabControl(Form1.Components[I]).TabIndex := 0;
     if Form2.ListBox2.Items.Count = 0 then
       Form2.Expander10.Visible := False;
   end;
@@ -150,5 +158,6 @@ end;
 exports XTLUI1, XTLUI2, XTLAddPlugin, XTLAddCodec;
 
 begin
+  FormatSettings := TFormatSettings.Invariant;
 
 end.

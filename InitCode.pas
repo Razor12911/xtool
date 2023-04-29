@@ -7,8 +7,7 @@ uses
   System.SysUtils;
 
 const
-  PluginsParam1 = '--basedir=';
-  PluginsParam2 = '-bd';
+  PluginsParam = '-bd';
 
 type
   PUIFuncs = ^TUIFuncs;
@@ -31,6 +30,7 @@ type
   end;
 
 var
+  DEBUG: Boolean = False;
   UILib: TLibImport;
   PluginsPath: String = '';
   XTLUI1: procedure;
@@ -65,6 +65,18 @@ var
 
 initialization
 
+IsLibrary := ExtractFileName(Utils.GetModuleName) <>
+  ExtractFileName(ParamStr(0));
+if IsLibrary then
+  exit;
+for I := 1 to ParamCount do
+begin
+  if (ParamStr(I) = '--debug') then
+  begin
+    DEBUG := True;
+    break;
+  end;
+end;
 Init;
 if UIDLLLoaded and (ParamCount = 0) then
   PluginsPath := IncludeTrailingBackSlash
@@ -72,14 +84,9 @@ if UIDLLLoaded and (ParamCount = 0) then
     ChangeFileExt(Utils.GetModuleName, 'ui.ini'))));
 for I := 1 to ParamCount do
 begin
-  if ParamStr(I).StartsWith(PluginsParam1) then
+  if ParamStr(I).StartsWith(PluginsParam) then
   begin
-    PluginsPath := ParamStr(I).Substring(PluginsParam1.Length);
-    break;
-  end;
-  if ParamStr(I).StartsWith(PluginsParam2) then
-  begin
-    PluginsPath := ParamStr(I).Substring(PluginsParam2.Length);
+    PluginsPath := ParamStr(I).Substring(PluginsParam.Length);
     break;
   end;
 end;

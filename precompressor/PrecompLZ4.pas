@@ -62,8 +62,8 @@ begin
     if (CompareText(S, LZ4Codecs[LZ4_CODEC]) = 0) and LZ4DLL.DLLLoaded then
     begin
       CodecEnabled[LZ4_CODEC] := True;
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
       if Funcs^.GetParam(Command, X, 'a') <> '' then
         LAcceleration := StrToInt(Funcs^.GetParam(Command, X, 'a'));
     end
@@ -75,8 +75,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][LZ4HC_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
     end
     else if (CompareText(S, LZ4Codecs[LZ4F_CODEC]) = 0) and LZ4DLL.DLLLoaded
     then
@@ -86,8 +86,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][LZ4F_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
       if Funcs^.GetParam(Command, X, 'b') <> '' then
         LBlockSize := StrToInt(Funcs^.GetParam(Command, X, 'b')) - 4;
       if Funcs^.GetParam(Command, X, 'd') <> '' then
@@ -232,34 +232,34 @@ begin
       (CodecEnabled[LZ4HC_CODEC] and (SOList[Instance][LZ4HC_CODEC].Count = 1))
     then
     begin
-      Y := LZ4_decompress_safe(Input + Pos, Buffer, SizeEx - Pos, LMaxSize);
-      if Abs(Y) > 256 then
+      if (Input + Pos)^ in [$F0 .. $F3] then
       begin
-        try
-          X := LZ4_decompress_generic(Input + Pos, Buffer, SizeEx - Pos, Abs(Y),
-            Integer(endOnOutputSize));
-        except
-          X := 0;
-        end;
-        // X := Abs(X);
-        Y := Abs(Y);
-        if (Round(X * 1.4) < Y) and (X < Y) and (X > 256) then
+        X := LZ4_decompress_generic(Input + Pos, Buffer, SizeEx - Pos, LMaxSize,
+          Integer(endOnOutputSize));
+        if X > 256 then
+          Y := LZ4_decompress_safe(Input + Pos, Buffer, X, LMaxSize)
+        else
+          Y := 0;
+        if Y > 256 then
         begin
-          Output(Instance, Buffer, Y);
-          SI.Position := Pos;
-          SI.OldSize := X;
-          SI.NewSize := Y;
-          SI.Option := 0;
-          if CodecEnabled[LZ4_CODEC] then
-            SetBits(SI.Option, LZ4_CODEC, 0, 5)
-          else
-            SetBits(SI.Option, LZ4HC_CODEC, 0, 5);
-          SI.Status := TStreamStatus.None;
-          Funcs^.LogScan1(LZ4Codecs[GetBits(SI.Option, 0, 5)], SI.Position,
-            SI.OldSize, SI.NewSize);
-          Add(Instance, @SI, nil, nil);
-          Inc(Pos, 256);
-          continue;
+          if (X < Y) and (X > 256) then
+          begin
+            Output(Instance, Buffer, Y);
+            SI.Position := Pos;
+            SI.OldSize := X;
+            SI.NewSize := Y;
+            SI.Option := 0;
+            if CodecEnabled[LZ4_CODEC] then
+              SetBits(SI.Option, LZ4_CODEC, 0, 5)
+            else
+              SetBits(SI.Option, LZ4HC_CODEC, 0, 5);
+            SI.Status := TStreamStatus.None;
+            Funcs^.LogScan1(LZ4Codecs[GetBits(SI.Option, 0, 5)], SI.Position,
+              SI.OldSize, SI.NewSize);
+            Add(Instance, @SI, nil, nil);
+            Inc(Pos, 256);
+            continue;
+          end;
         end;
       end;
     end;

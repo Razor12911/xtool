@@ -25,7 +25,7 @@ const
 
 const
   FLAC_LEVEL = 5;
-  J_WORKMEM = 262144;
+  J_WORKMEM = 65536;
 
 type
   PFlacEncCD = ^TFlacEncCD;
@@ -776,6 +776,7 @@ begin
     JOJPEG_CODEC:
       begin
         ctx := JJInst[Instance];
+        FillChar(ctx^, jojpeg_Size, 0);
         Buffer := Funcs^.Allocator(Instance, J_WORKMEM * 2);
         I := 0;
         J := 0;
@@ -789,14 +790,14 @@ begin
           while True do
           begin
             Res1 := jojpeg_Loop(ctx, jojpeg_Compress);
-            if (Res1 = jojpeg_enc_Input) then
+            if (Res1 = 1) then
             begin
               Res2 := Min(StreamInfo^.OldSize - I, J_WORKMEM);
               jojpeg_Addbuf(ctx, jojpeg_Compress, PByte(OldInput) + I, Res2,
                 jojpeg_enc_Input);
               Inc(I, Res2);
             end;
-            if (Res1 in [0, jojpeg_enc_Output1]) then
+            if (Res1 in [0, 2]) then
             begin
               Res2 := jojpeg_Getvalue(ctx, jojpeg_Compress, jojpeg_enc_Output1);
               Move(Buffer^, (PByte(NewInput) + J)^, Res2);
@@ -804,7 +805,7 @@ begin
               jojpeg_Addbuf(ctx, jojpeg_Compress, Buffer, J_WORKMEM,
                 jojpeg_enc_Output1);
             end;
-            if (Res1 = jojpeg_enc_Output2) or (Res1 = 0) then
+            if (Res1 = 3) or (Res1 = 0) then
             begin
               Res2 := jojpeg_Getvalue(ctx, jojpeg_Compress, jojpeg_enc_Output2);
               Output(Instance, Buffer + J_WORKMEM, Res2);
@@ -898,6 +899,7 @@ begin
     JOJPEG_CODEC:
       begin
         ctx := JJInst[Instance];
+        FillChar(ctx^, jojpeg_Size, 0);
         Buffer := Funcs^.Allocator(Instance, J_WORKMEM);
         I := 0;
         J := 0;

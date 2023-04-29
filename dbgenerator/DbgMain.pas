@@ -143,7 +143,7 @@ begin
       while Y > 0 do
       begin
         Inc(HashList[I].Size, Y);
-        HashList[I].Hash := Utils.Hash32(HashList[I].Hash, @Buffer[0], Y);
+        HashList[I].Hash := Utils.CRC32(HashList[I].Hash, @Buffer[0], Y);
         Dec(X, Y);
         Y := Stream.Read(Buffer[0], Min(X, BufferSize));
       end;
@@ -179,7 +179,6 @@ var
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
   Tasks: TArray<TTask>;
-  NStream: TArray<TMemoryStream>;
   InfoStore: TArray<TListEx<TEntryStruct>>;
 begin
   SetLength(SearchInfo, $10000);
@@ -199,12 +198,8 @@ begin
     BaseDir := ExtractFilePath(TPath.GetFullPath(Input1));
   LList := GetFileList([Input1], True);
   SetLength(Tasks, Options.Threads);
-  SetLength(Tasks, Options.Threads);
   for I := Low(Tasks) to High(Tasks) do
-  begin
     Tasks[I] := TTask.Create(I);
-    NStream[I] := TMemoryStream.Create;
-  end;
   for I := Low(LList) to High(LList) do
   begin
     if InRange(FileSize(LList[I]), MinSize1, Integer.MaxValue) then
@@ -219,14 +214,14 @@ begin
           J := MinSize1;
           LSInfo.CRCSize := J;
           LSInfo.ActualSize := FileSize(LList[I]);
-          LSInfo.CRC1 := Utils.Hash32(0, @Buffer[0], J);
+          LSInfo.CRC1 := Utils.CRC32(0, @Buffer[0], J);
           LSInfo.CRC2 := LSInfo.CRC1;
           while (J > 0) and (LSInfo.CRCSize < Options.ChunkSize) do
           begin
             J := Read(Buffer[0], Min(Options.ChunkSize - LSInfo.CRCSize,
               BufferSize));
             Inc(LSInfo.CRCSize, J);
-            LSInfo.CRC2 := Utils.Hash32(LSInfo.CRC2, @Buffer[0], J);
+            LSInfo.CRC2 := Utils.CRC32(LSInfo.CRC2, @Buffer[0], J);
           end;
           Insert(LSInfo, SearchInfo[A, B], Length(SearchInfo[A, B]));
           Inc(SearchCount[A, B]);
@@ -241,8 +236,6 @@ begin
       WriteLn(ErrOutput, Format('Skipped %s (Larger than %d)',
         [ReplaceText(LList[I], BaseDir, ''), Integer.MaxValue]));
   end;
-  for I := Low(Tasks) to High(Tasks) do
-    NStream[I].Free;
   DataStore := TDataStore1.Create(nil, True, Options.Threads,
     Options.ChunkSize);
   SetLength(InfoStore, Options.Threads);
@@ -284,12 +277,12 @@ begin
             if (SearchCount[C, D] > 0) then
             begin
               F := False;
-              CRC := Utils.Hash32(0, Ptr + Pos, MinSize1);
+              CRC := Utils.CRC32(0, Ptr + Pos, MinSize1);
               for Y := 0 to SearchCount[C, D] - 1 do
               begin
                 if (SearchInfo[C, D, Y].CRCSize <= (SizeEx - Pos)) then
                   if (CRC = SearchInfo[C, D, Y].CRC1) and
-                    (Utils.Hash32(CRC, Ptr + Pos + MinSize1, SearchInfo[C, D,
+                    (Utils.CRC32(CRC, Ptr + Pos + MinSize1, SearchInfo[C, D,
                     Y].CRCSize - MinSize1) = SearchInfo[C, D, Y].CRC2) then
                   begin
                     E.Position := DataStore.Position(X) + Pos;
@@ -328,7 +321,7 @@ begin
           Found2 := False;
           DataStore.ChangeInput(FStream);
           DataStore.Load;
-          Hash := Utils.Hash32(0, DataStore.Slot(0).Memory, MinSize2);
+          Hash := Utils.CRC32(0, DataStore.Slot(0).Memory, MinSize2);
           MStream.WriteBuffer(DataStore.Slot(0).Memory^, Integer.Size);
           MStream.WriteBuffer(PInteger(PByte(DataStore.Slot(0).Memory) +
             MinSize2 - Integer.Size)^, Integer.Size);
@@ -397,14 +390,11 @@ begin
     begin
       InfoStore[I].Free;
       Tasks[I].Free;
-      NStream[I].Free;
     end;
     DataStore.Free;
     OStream.Free;
     MStream.Free;
   end;
-  for I := Low(InfoStore) to High(InfoStore) do
-    Tasks[I].Free;
 end;
 
 end.

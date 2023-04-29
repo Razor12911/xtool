@@ -1,6 +1,6 @@
 { MIT License
 
-  Copyright (c) 2016-2022 Razor12911
+  Copyright (c) 2016-2023 Razor12911
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,14 @@ program xtool;
 {$R *.res}
 {$WEAKLINKRTTI ON}
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
+{$POINTERMATH ON}
+{$DEFINE UseFastMM}
 
 uses
+{$IFDEF UseFastMM}
+  FastMM4 in 'contrib\FastMM4-AVX\FastMM4.pas',
+  FastMM4Messages in 'contrib\FastMM4-AVX\FastMM4Messages.pas',
+{$ENDIF }
   WinAPI.Windows,
   System.SysUtils,
   System.StrUtils,
@@ -35,6 +41,7 @@ uses
   System.Types,
   System.Math,
   System.IOUtils,
+  System.SyncObjs,
   LibImport in 'common\LibImport.pas',
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
@@ -48,6 +55,7 @@ uses
   oObjects in 'contrib\ParseExpression\oObjects.pas',
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
+  XXHASHLIB in 'contrib\XXHASH4Delphi\XXHASHLIB.pas',
   InitCode in 'InitCode.pas',
   BrunsliDLL in 'imports\BrunsliDLL.pas',
   FLACDLL in 'imports\FLACDLL.pas',
@@ -265,15 +273,8 @@ begin
       for I := 1 to High(ParamStr_) do
         S := S + IfThen(ParamStr_[I].Contains(' '), '"' + ParamStr_[I] + '"',
           ParamStr_[I]) + ' ';
-      PrecompMain.Parse(ParamStr_, PrecompEnc);
       if LibType = 0 then
-      begin
-        WriteLine('Chunk size: ' + ConvertKB2TB(PrecompEnc.ChunkSize div 1024) +
-          ', ' + 'Threads: ' + PrecompEnc.Threads.ToString + ', ' + 'Depth: ' +
-          (PrecompEnc.Depth - 1).ToString);
-        WriteLine('');
-        Exec_(ParamStr(0), S, '');
-      end
+        Exec_(ParamStr(0), S, '')
       else
       begin
         LibList := TDirectory.GetFiles(LibPath, '*.dll',
@@ -288,11 +289,11 @@ begin
             if I = 1 then
               case LibType of
                 1:
-                  S := S + '"' + '-l4' + LibList[J] + '"' + ' ';
+                  S := S + '"' + '-lz4' + LibList[J] + '"' + ' ';
                 2:
-                  S := S + '"' + '-zs' + LibList[J] + '"' + ' ';
+                  S := S + '"' + '-zstd' + LibList[J] + '"' + ' ';
                 3:
-                  S := S + '"' + '-od' + LibList[J] + '"' + ' ';
+                  S := S + '"' + '-oodle' + LibList[J] + '"' + ' ';
               end;
           end;
           WriteLine('Library loaded: ' + ReplaceText(LibList[J],
@@ -301,6 +302,8 @@ begin
           Exec_(ParamStr(0), S, '');
         end;
       end;
+      WriteLine('Done!!!');
+      WriteLine('');
     end;
     exit;
   end;
@@ -336,12 +339,6 @@ begin
         try
           PrecompMain.Parse(ParamArg[0], PrecompEnc);
           PrecompMain.Encode(Input, Output, PrecompEnc);
-          if TBufferedStream(Output).Instance is TNullStream then
-          begin
-            WriteLine('Results: ' + ConvertKB2TB(Input.Size div 1024) + ' >> ' +
-              ConvertKB2TB(Output.Size div 1024));
-            WriteLine('');
-          end;
         finally
           Input.Free;
           Output.Free;
@@ -423,7 +420,7 @@ begin
         IOArchive.PrintHelp
       else
       begin
-        SetLength(StrArray, 0);
+        setlength(StrArray, 0);
         for I := 0 to High(ParamArg[1]) - 1 do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));
         Output := TBufferedStream.Create
@@ -440,7 +437,7 @@ begin
         IOExecute.PrintHelp
       else
       begin
-        SetLength(StrArray, 0);
+        setlength(StrArray, 0);
         for I := 2 to High(ParamArg[1]) do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));
         Input := TBufferedStream.Create(GetInStream(ParamArg[1, 0]), True,
@@ -505,7 +502,7 @@ begin
               end;
             XTOOL_EXEC:
               begin
-                SetLength(StrArray, 0);
+                setlength(StrArray, 0);
                 for I := 2 to High(ParamArg[1]) do
                   Insert(ParamArg[1, I], StrArray, Length(StrArray));
                 Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)
@@ -526,6 +523,8 @@ begin
     on E: Exception do
     begin
       WriteLine(E.ClassName + ': ' + E.Message);
+      if DEBUG then
+        ShowMessage(E.ClassName + ': ' + E.Message);
       ExitCode := 1;
     end;
   end;

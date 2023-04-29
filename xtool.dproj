@@ -152,6 +152,8 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="contrib\FastMM4-AVX\FastMM4.pas"/>
+        <DCCReference Include="contrib\FastMM4-AVX\FastMM4Messages.pas"/>
         <DCCReference Include="common\LibImport.pas"/>
         <DCCReference Include="common\Threading.pas"/>
         <DCCReference Include="common\Utils.pas"/>
@@ -165,6 +167,7 @@
         <DCCReference Include="contrib\ParseExpression\oObjects.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseClass.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
+        <DCCReference Include="contrib\XXHASH4Delphi\XXHASHLIB.pas"/>
         <DCCReference Include="InitCode.pas"/>
         <DCCReference Include="imports\BrunsliDLL.pas"/>
         <DCCReference Include="imports\FLACDLL.pas"/>
@@ -206,6 +209,7 @@
         <DCCReference Include="io\IODecode.pas"/>
         <DCCReference Include="io\IOUtils.pas"/>
         <None Include="changes.txt"/>
+        <None Include="contrib\FastMM4-AVX\FastMM4Options.inc"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -245,12 +249,30 @@
                 </DeployFile>
                 <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile"/>
                 <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
+                    <Platform Name="Win64">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="contrib\FastMM4-AVX\FastMM4Options.inc" Configuration="Release" Class="ProjectFile">
                     <Platform Name="Win64">
                         <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="Win32\Release\xtool.exe" Configuration="Release" Class="ProjectOutput"/>
+                <DeployFile LocalName="Win32\Release\xtool.exe" Configuration="Release" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>xtool.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win64\Release\xtool.exe" Configuration="Release" Class="ProjectOutput"/>
                 <DeployFile LocalName="Win64\Release\xtool.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">

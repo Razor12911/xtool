@@ -6,7 +6,17 @@ uses
   InitCode,
   Utils, LibImport,
   WinAPI.Windows,
-  System.SysUtils, System.Classes, System.Types;
+  System.SysUtils, System.Math, System.Classes, System.Types;
+
+const
+  FL2_DICTLOG_MIN = 20;
+{$IFDEF CPU32BITS}
+  FL2_DICTLOG_MAX = 27;
+{$ELSE}
+  FL2_DICTLOG_MAX = 30;
+{$ENDIF}
+  FL2_DICTSIZE_MIN = (1 shl FL2_DICTLOG_MIN);
+  FL2_DICTSIZE_MAX = (1 shl FL2_DICTLOG_MAX);
 
 type
   PFL2_inBuffer = ^FL2_inBuffer;
@@ -150,31 +160,28 @@ var
   DLLLoaded: boolean = False;
 
 type
-  TLZMACRec = record
-    Threads: Integer;
-    Level: Integer;
-    HighCompress: boolean;
-    procedure Parse(S: String);
-  end;
-
-  TLZMADRec = record
-    Threads: Integer;
-    procedure Parse(S: String);
-  end;
-
   TLZMACompressStream = class(TStream)
   private const
     FBufferSize = 65536;
   private
     FCtx: Pointer;
-    FProp: TLZMACRec;
+    FThreads, FLevel, FDictionary: Integer;
+    FHighCompress: boolean;
     FOutput: TStream;
     FBuffer: array [0 .. FBufferSize - 1] of Byte;
+    FInSize, FOutSize: Int64;
     FInitialized: boolean;
   public
-    constructor Create(AOutput: TStream; AConfig: String);
+    constructor Create(AOutput: TStream);
     destructor Destroy; override;
     function Write(const Buffer; Count: LongInt): LongInt; override;
+    procedure Flush;
+    property Threads: Integer read FThreads write FThreads;
+    property Level: Integer read FLevel write FLevel;
+    property Dictionary: Integer read FDictionary write FDictionary;
+    property HighCompress: boolean read FHighCompress write FHighCompress;
+    property InSize: Int64 read FInSize;
+    property OutSize: Int64 read FOutSize;
   end;
 
   TLZMADecompressStream = class(TStream)
@@ -182,14 +189,16 @@ type
     FBufferSize = 65536;
   private
     FCtx: Pointer;
-    FProp: TLZMADRec;
     FInp: FL2_inBuffer;
     FInput: TStream;
     FBuffer: array [0 .. FBufferSize - 1] of Byte;
+    FInSize, FOutSize: Int64;
   public
-    constructor Create(AInput: TStream; AConfig: String = '');
+    constructor Create(AInput: TStream);
     destructor Destroy; override;
     function Read(var Buffer; Count: Integer): Integer; override;
+    property InSize: Int64 read FInSize;
+    property OutSize: Int64 read FOutSize;
   end;
 
 implementation
@@ -197,76 +206,24 @@ implementation
 var
   Lib: TLibImport;
 
-procedure TLZMACRec.Parse(S: string);
-var
-  List: TStringDynArray;
-  I, J: Integer;
-begin
-  Threads := 1;
-  Level := 6;
-  HighCompress := False;
-  List := DecodeStr(S, ':');
-  for I := Low(List) to High(List) do
-  begin
-    if List[I].StartsWith('t', True) then
-      Threads := ConvertToThreads(List[I].Substring(1));
-    if List[I].StartsWith('l', True) then
-      Level := List[I].Substring(1).ToInteger;
-    if List[I].StartsWith('hi', True) then
-      HighCompress := List[I].Substring(2).ToBoolean;
-  end;
-end;
-
-procedure TLZMADRec.Parse(S: string);
-var
-  List: TStringDynArray;
-  I: Integer;
-begin
-  Threads := 1;
-  List := DecodeStr(S, ':');
-  for I := Low(List) to High(List) do
-  begin
-    if List[I].StartsWith('t', True) then
-      Threads := ConvertToThreads(List[I].Substring(1));
-  end;
-end;
-
-constructor TLZMACompressStream.Create(AOutput: TStream; AConfig: String);
-var
-  LConfig: String;
+constructor TLZMACompressStream.Create(AOutput: TStream);
 begin
   inherited Create;
-  LConfig := AConfig;
-  if LConfig = '' then
-    LConfig := 't50p';
-  FProp.Parse(LConfig);
+  FThreads := ConvertToThreads('50p');
+  FLevel := 6;
+  FDictionary := 0;
+  FHighCompress := False;
   FOutput := AOutput;
-  if FProp.Threads > 1 then
-    FCtx := FL2_createCStreamMt(FProp.Threads, 0)
-  else
-    FCtx := FL2_createCStream;
-  FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_highCompression,
-    Integer(FProp.HighCompress));
+  FInSize := 0;
+  FOutSize := 0;
   FInitialized := False;
 end;
 
 destructor TLZMACompressStream.Destroy;
-var
-  Oup: FL2_outBuffer;
-  Res: size_t;
 begin
+  Flush;
   if FInitialized then
-  begin
-    Oup.dst := @FBuffer[0];
-    Oup.size := FBufferSize;
-    Oup.pos := 0;
-    repeat
-      Res := FL2_endStream(FCtx, @Oup);
-      FOutput.WriteBuffer(FBuffer[0], Oup.pos);
-      Oup.pos := 0;
-    until Res = 0;
-  end;
-  FL2_freeCCtx(FCtx);
+    FL2_freeCCtx(FCtx);
   inherited Destroy;
 end;
 
@@ -278,7 +235,18 @@ begin
   Result := 0;
   if not FInitialized then
   begin
-    FL2_initCStream(FCtx, FProp.Level);
+    if FThreads > 1 then
+      FCtx := FL2_createCStreamMt(FThreads, 0)
+    else
+      FCtx := FL2_createCStream;
+    FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_highCompression,
+      Integer(FHighCompress));
+    FL2_CStream_setParameter(FCtx,
+      FL2_cParameter.FL2_p_compressionLevel, FLevel);
+    if FDictionary > 0 then
+      FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_dictionarySize,
+        FDictionary);
+    FL2_initCStream(FCtx, 0);
     FInitialized := True;
   end;
   Inp.src := PByte(@Buffer);
@@ -292,34 +260,44 @@ begin
     if not boolean(FL2_isError(FL2_compressStream(FCtx, @Oup, @Inp))) then
     begin
       FOutput.WriteBuffer(FBuffer[0], Oup.pos);
+      Inc(FOutSize, Oup.pos);
       Oup.pos := 0;
     end;
   end;
   Result := Inp.pos;
+  Inc(FInSize, Result);
 end;
 
-constructor TLZMADecompressStream.Create(AInput: TStream; AConfig: String);
+procedure TLZMACompressStream.Flush;
 var
-  LConfig: String;
-  LSize: Int64;
+  Oup: FL2_outBuffer;
+  Res: size_t;
+begin
+  if FInitialized then
+  begin
+    Oup.dst := @FBuffer[0];
+    Oup.size := FBufferSize;
+    Oup.pos := 0;
+    repeat
+      Res := FL2_endStream(FCtx, @Oup);
+      FOutput.WriteBuffer(FBuffer[0], Oup.pos);
+      Inc(FOutSize, Oup.pos);
+      Oup.pos := 0;
+    until Res = 0;
+  end;
+end;
+
+constructor TLZMADecompressStream.Create(AInput: TStream);
 begin
   inherited Create;
-  LConfig := AConfig;
-  if LConfig = '' then
-    LConfig := 't25p';
-  FProp.Parse(LConfig);
   FInput := AInput;
-  LSize := 0;
-  LSize := LSize.MaxValue;
-  if FProp.Threads > 1 then
-  begin
-    FCtx := FL2_createDStreamMt(FProp.Threads);
-    FL2_setDStreamMemoryLimitMt(FCtx, LSize);
-  end
-  else
-    FCtx := FL2_createDStream;
+  { FCtx := FL2_createDStream;
+    FL2_setDStreamMemoryLimitMt(FCtx, 0); }
+  FCtx := FL2_createDStream;
   FL2_initDStream(FCtx);
   FillChar(FInp, SizeOf(FL2_inBuffer), 0);
+  FInSize := 0;
+  FOutSize := 0;
 end;
 
 destructor TLZMADecompressStream.Destroy;

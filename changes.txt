@@ -1,3 +1,28 @@
+  ES_R45 (0.7.0)
+  - added ability to redirect base directory for plugins and libraries
+  - added restrictions to avoid errors with experimental codecs
+  - added optimize option to speed up the decoding process for zstd and oodle codecs
+  - added dictionary parameter for fast-lzma2
+  - added memory caching when decoding to alleviate speed bottleneck
+  - fixed bug with download feature for inputs in URL format
+  - fixed issues with exporting precompression database
+  - fixed issues with executable plugin support
+  - fixed issues advanced configuration based plugin support
+  - fixed potential decoding issue upon using plugin support functions
+  - fixed issues with deduplication feature
+  - fixed issues with jojpeg codec
+  - replaced crc32c with xxh3_128 to reduce collisions when using the database and deduplication feature
+  - replaced memory manager with FastMM4-AVX to improve scaling in multi threaded scenarios
+  - improved user interface
+  - improved oodle codec performance for 2.6.0+ libraries
+  - improved encoding speed when using internal codecs
+  - improved processing speed when depth is used
+  - removed fast lzma2 multi threaded decompression due to excessive memory requirements
+  - removed debugging information when using the patch function
+  - removed ability to toggle database feature and ability to export database files (now enabled by default)
+  - updated deduplication virtual memory allocation
+  - updated reflate codec to verify streams prone to data corruption
+
   ES_R44 (0.6.9)
   - added library checker (trial and error)
   - improved user interface

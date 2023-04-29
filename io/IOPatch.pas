@@ -211,7 +211,6 @@ begin
           Options.MaxSize) then
           continue;
     end;
-    ShowMessage(LFilename);
     LEntry.Op := TPatchOp.opMissing;
     LEntry.Filename := LList2[I];
     LEntry.Size := FileSize(BaseDir2 + LList2[I]);

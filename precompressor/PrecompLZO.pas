@@ -135,8 +135,8 @@ begin
         for I := Low(SOList) to High(SOList) do
           SOList[I][LZO1X_CODEC].Update
             ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
     end
     else if (CompareText(S, LZOCodecs[LZO2A_CODEC]) = 0) and LZODLL.DLLLoaded
     then
@@ -144,8 +144,8 @@ begin
       CodecEnabled[LZO2A_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'v') = '999' then
         LZO2AVariant := 999;
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
     end
     else if (CompareText(S, LZOCodecs[LZO1C_CODEC]) = 0) and LZODLL.DLLLoaded
     then
@@ -153,8 +153,8 @@ begin
       CodecEnabled[LZO1C_CODEC] := True;
       if Funcs^.GetParam(Command, X, 'v') = '999' then
         LZO1CVariant := 999;
-      if Funcs^.GetParam(Command, X, 'm') <> '' then
-        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 'm'));
+      if Funcs^.GetParam(Command, X, 's') <> '' then
+        LMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
     end;
     Inc(X);
   end;

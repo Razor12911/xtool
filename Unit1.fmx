@@ -3,8 +3,8 @@ object Form1: TForm1
   Top = 0
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = Single
-  Caption = 'XTool'
-  ClientHeight = 517
+  Caption = 'XTool - The Ultimate Repacking Tool'
+  ClientHeight = 486
   ClientWidth = 592
   Position = ScreenCenter
   StyleBook = StyleBook1
@@ -3349,680 +3349,2807 @@ object Form1: TForm1
           6C6C626172626F74746F6D627574746F6E085461624F72646572020000000000}
       end>
     Left = 472
-    Top = 72
+    Top = 264
   end
   object SaveDialog1: TSaveDialog
-    Left = 368
-    Top = 56
+    Left = 352
+    Top = 224
   end
   object OpenDialog1: TOpenDialog
-    Left = 208
-    Top = 96
+    Options = [ofHideReadOnly, ofPathMustExist, ofFileMustExist, ofEnableSizing]
+    Left = 400
+    Top = 232
   end
-  object Layout4: TLayout
-    Align = Bottom
-    Margins.Bottom = 8.000000000000000000
-    Position.Y = 487.000000000000000000
+  object TabControl1: TTabControl
+    Align = Client
     Size.Width = 592.000000000000000000
-    Size.Height = 22.000000000000000000
+    Size.Height = 486.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 3
-    object Button1: TButton
-      Align = Right
-      ModalResult = 1
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 16.000000000000000000
-      Position.X = 496.000000000000000000
-      Size.Width = 80.000000000000000000
+    TabIndex = 0
+    TabOrder = 7
+    TabPosition = PlatformDefault
+    Sizes = (
+      592s
+      464s
+      592s
+      464s
+      592s
+      464s)
+    object TabItem1: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = True
+      Size.Width = 99.000000000000000000
       Size.Height = 22.000000000000000000
       Size.PlatformDefault = False
-      TabOrder = 1
-      Text = 'Start'
-      OnClick = Button1Click
-    end
-    object Label5: TLabel
-      Align = Left
-      Margins.Left = 16.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 16.000000000000000000
-      Size.Width = 96.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Base directory'
-      TabOrder = 2
-    end
-    object Edit6: TEdit
-      Touch.InteractiveGestures = [LongTap, DoubleTap]
-      Align = Client
+      StyleLookup = ''
       TabOrder = 0
-      Size.Width = 368.000000000000000000
-      Size.Height = 22.000000000000000000
-      Size.PlatformDefault = False
-      object SearchEditButton5: TSearchEditButton
-        CanFocus = False
-        Cursor = crArrow
-        Size.Width = 28.000000000000000000
-        Size.Height = 16.000000000000000000
+      Text = 'Precompressor'
+      ExplicitSize.cx = 99.000000000000000000
+      ExplicitSize.cy = 22.000000000000000000
+      object VertScrollBox1: TVertScrollBox
+        Align = Client
+        Margins.Left = 8.000000000000000000
+        Margins.Top = 8.000000000000000000
+        Margins.Right = 8.000000000000000000
+        Margins.Bottom = 8.000000000000000000
+        Size.Width = 576.000000000000000000
+        Size.Height = 418.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 0
-        OnClick = SearchEditButton5Click
-      end
-    end
-  end
-  object PopupMenu1: TPopupMenu
-    Left = 368
-    Top = 450
-    object MenuItem1: TMenuItem
-      Text = 'MenuItem1'
-    end
-  end
-  object VertScrollBox1: TVertScrollBox
-    Align = Client
-    Margins.Left = 8.000000000000000000
-    Margins.Top = 8.000000000000000000
-    Margins.Right = 8.000000000000000000
-    Margins.Bottom = 8.000000000000000000
-    Size.Width = 576.000000000000000000
-    Size.Height = 471.000000000000000000
-    Size.PlatformDefault = False
-    TabOrder = 0
-    Viewport.Width = 576.000000000000000000
-    Viewport.Height = 471.000000000000000000
-    object GroupBox1: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Input'
-      TabOrder = 7
-      object Layout1: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Edit1: TEdit
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Client
-          TabOrder = 0
-          ReadOnly = True
+        Viewport.Width = 576.000000000000000000
+        Viewport.Height = 418.000000000000000000
+        object GroupBox1: TGroupBox
+          Align = Top
           Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
           Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 456.000000000000000000
-          Size.Height = 20.000000000000000000
+          Position.X = 8.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
           Size.PlatformDefault = False
-          object SearchEditButton1: TSearchEditButton
-            CanFocus = False
-            Cursor = crArrow
-            Size.Width = 28.000000000000000000
-            Size.Height = 14.000000000000000000
+          Text = 'Input'
+          TabOrder = 6
+          object Layout1: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
             Size.PlatformDefault = False
-            TabOrder = 0
-            OnClick = SearchEditButton1Click
+            TabOrder = 14
+            object Edit1: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton1: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton1Click
+              end
+            end
+            object ComboBox2: TComboBox
+              Align = Left
+              Items.Strings = (
+                'File'
+                'Directory'
+                'URL')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox2Change
+            end
           end
         end
-        object ComboBox2: TComboBox
-          Align = Left
-          Items.Strings = (
-            'File'
-            'Directory'
-            'URL')
-          ItemIndex = 0
+        object GroupBox2: TGroupBox
+          Align = Top
           Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
           Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
-          Size.Height = 20.000000000000000000
+          Position.Y = 108.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 90.000000000000000000
           Size.PlatformDefault = False
-          TabOrder = 1
-          OnChange = ComboBox2Change
-        end
-      end
-    end
-    object GroupBox2: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 108.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 90.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Options'
-      TabOrder = 3
-      object Layout3: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 15
-        object Label1: TLabel
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          Text = 'Chunk size (MB)'
-          TabOrder = 1
-        end
-        object SpinBox1: TSpinBox
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Left
+          Text = 'Options'
           TabOrder = 3
-          Cursor = crIBeam
-          DecimalDigits = 0
-          Min = 16.000000000000000000
-          Max = 1792.000000000000000000
-          Value = 16.000000000000000000
-          Increment = 16.000000000000000000
-          Position.X = 116.000000000000000000
-          Position.Y = 8.000000000000000000
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
+          object Layout3: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 15
+            object Label1: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Chunk size'
+              TabOrder = 3
+            end
+            object SpinBox1: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 5
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 16.000000000000000000
+              Max = 1792.000000000000000000
+              Value = 16.000000000000000000
+              Increment = 16.000000000000000000
+              Position.X = 96.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object Label2: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 184.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Threads'
+              TabOrder = 2
+            end
+            object SpinBox2: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 4
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 1.000000000000000000
+              Value = 1.000000000000000000
+              Position.X = 272.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object Label3: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 360.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Depth'
+              TabOrder = 1
+            end
+            object SpinBox3: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Max = 63.000000000000000000
+              Position.X = 448.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
+          object Layout2: TLayout
+            Align = Top
+            Position.Y = 52.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object CheckBox2: TCheckBox
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 244.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 110.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Skip verification'
+            end
+            object CheckBox6: TCheckBox
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 126.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 110.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Verbose'
+            end
+            object CheckBox1: TCheckBox
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 110.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 4
+              Text = 'Low memory'
+            end
+          end
         end
-        object Label2: TLabel
-          Align = Left
+        object GroupBox3: TGroupBox
+          Align = Top
           Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 224.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          Text = 'Threads'
-          TabOrder = 0
-        end
-        object SpinBox2: TSpinBox
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Left
-          TabOrder = 2
-          Cursor = crIBeam
-          DecimalDigits = 0
-          Min = 1.000000000000000000
-          Max = 1.000000000000000000
-          Value = 1.000000000000000000
-          Position.X = 332.000000000000000000
-          Position.Y = 8.000000000000000000
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-        end
-        object CheckBox1: TCheckBox
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 440.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 4
-          Text = 'Low memory'
-        end
-      end
-      object Layout2: TLayout
-        Align = Top
-        Position.Y = 52.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Label3: TLabel
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
           Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
+          Position.Y = 54.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
           Size.PlatformDefault = False
-          Text = 'Depth'
+          Text = 'Output (Optional)'
           TabOrder = 0
+          object Layout7: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Edit3: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton3: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton3Click
+              end
+            end
+            object ComboBox3: TComboBox
+              Align = Left
+              Items.Strings = (
+                'None'
+                'File')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox3Change
+            end
+          end
         end
-        object SpinBox3: TSpinBox
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Left
+        object GroupBox4: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 306.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Deduplication'
+          TabOrder = 2
+          object Layout6: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 12
+            object Label4: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 96.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Srep method'
+              TabOrder = 3
+            end
+            object SpinBox4: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 0
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 5.000000000000000000
+              Value = 3.000000000000000000
+              Position.X = 204.000000000000000000
+              Position.Y = 8.000000000000000000
+              Enabled = False
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object ComboBox5: TComboBox
+              Align = Left
+              Items.Strings = (
+                'Disabled'
+                'Internal'
+                'Srep')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox5Change
+            end
+            object ComboEdit1: TComboEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 4
+              ItemHeight = 19.000000000000000000
+              Items.Strings = (
+                '25GB'
+                '50GB'
+                '100GB'
+                '200GB'
+                '500GB')
+              ItemIndex = 2
+              Text = '100GB'
+              Position.X = 400.000000000000000000
+              Position.Y = 8.000000000000000000
+              Enabled = False
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object Label6: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 292.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Srep input'
+              TabOrder = 2
+            end
+          end
+        end
+        object GroupBox5: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 360.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Compression'
           TabOrder = 1
-          Cursor = crIBeam
-          DecimalDigits = 0
-          Max = 63.000000000000000000
-          Position.X = 116.000000000000000000
-          Position.Y = 8.000000000000000000
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
+          object Layout8: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Label7: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 96.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Compression level'
+              TabOrder = 0
+            end
+            object SpinBox7: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 1
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 10.000000000000000000
+              Value = 6.000000000000000000
+              Position.X = 204.000000000000000000
+              Position.Y = 8.000000000000000000
+              Enabled = False
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox4: TCheckBox
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Enable'
+              OnChange = CheckBox4Change
+            end
+            object Label21: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 292.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 100.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Dictionary'
+              TabOrder = 2
+            end
+            object ComboEdit2: TComboEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 4
+              ItemHeight = 19.000000000000000000
+              Items.Strings = (
+                'Auto'
+                '16MB'
+                '32MB'
+                '64MB'
+                '128MB'
+                '256MB'
+                '512MB'
+                '1024MB')
+              ItemIndex = 0
+              Text = 'Auto'
+              Position.X = 400.000000000000000000
+              Position.Y = 8.000000000000000000
+              Enabled = False
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+          end
         end
-        object CheckBox2: TCheckBox
-          Align = Left
+        object GroupBox6: TGroupBox
+          Align = Top
           Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 224.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 140.000000000000000000
-          Size.Height = 20.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 198.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
           Size.PlatformDefault = False
+          Text = 'Method'
+          TabOrder = 4
+          object Layout5: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Edit2: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object Button2: TButton
+              Align = Right
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 472.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              Text = 'Configure'
+              OnClick = Button2Click
+            end
+          end
+        end
+        object GroupBox8: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 252.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Library checker'
           TabOrder = 5
-          Text = 'Skip verification'
-        end
-        object CheckBox6: TCheckBox
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 372.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 140.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 4
-          Text = 'Verbose'
-        end
-      end
-    end
-    object GroupBox3: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 54.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Output'
-      TabOrder = 0
-      object Layout7: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Edit3: TEdit
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Client
-          TabOrder = 0
-          ReadOnly = True
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 456.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          object SearchEditButton3: TSearchEditButton
-            CanFocus = False
-            Cursor = crArrow
-            Size.Width = 28.000000000000000000
-            Size.Height = 14.000000000000000000
+          object Layout10: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
             Size.PlatformDefault = False
-            TabOrder = 0
-            OnClick = SearchEditButton3Click
+            TabOrder = 14
+            object Edit5: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Enabled = False
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton4: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton4Click
+              end
+            end
+            object ComboBox4: TComboBox
+              Align = Left
+              Items.Strings = (
+                'Disabled'
+                'LZ4'
+                'ZSTD'
+                'Oodle')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox4Change
+            end
           end
         end
-        object ComboBox3: TComboBox
-          Align = Left
-          Items.Strings = (
-            'File'
-            'None')
-          ItemIndex = 0
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 1
-          OnChange = ComboBox3Change
-        end
       end
-    end
-    object GroupBox4: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 360.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Deduplication'
-      TabOrder = 2
-      object Layout6: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
+      object Layout4: TLayout
+        Align = Bottom
+        Margins.Bottom = 8.000000000000000000
+        Position.Y = 434.000000000000000000
+        Size.Width = 592.000000000000000000
+        Size.Height = 22.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 12
-        object CheckBox3: TCheckBox
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 2
-          Text = 'Enable'
-        end
-        object Label4: TLabel
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 116.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          Text = 'Srep method'
-          TabOrder = 1
-        end
-        object SpinBox4: TSpinBox
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Left
-          TabOrder = 0
-          Cursor = crIBeam
-          DecimalDigits = 0
-          Max = 5.000000000000000000
-          Value = 3.000000000000000000
-          Position.X = 224.000000000000000000
-          Position.Y = 8.000000000000000000
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-        end
-      end
-    end
-    object GroupBox5: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 414.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Compression'
-      TabOrder = 1
-      object Layout8: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Label7: TLabel
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 116.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          Text = 'Compression level'
-          TabOrder = 0
-        end
-        object SpinBox7: TSpinBox
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Left
-          TabOrder = 1
-          Cursor = crIBeam
-          DecimalDigits = 0
-          Min = 1.000000000000000000
-          Max = 10.000000000000000000
-          Value = 6.000000000000000000
-          Position.X = 224.000000000000000000
-          Position.Y = 8.000000000000000000
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-        end
-        object CheckBox5: TCheckBox
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 332.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 160.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 2
-          Text = 'High compression mode'
-        end
-        object CheckBox4: TCheckBox
-          Align = Left
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 100.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 3
-          Text = 'Enable'
-        end
-      end
-    end
-    object GroupBox6: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 198.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Method'
-      TabOrder = 4
-      object Layout5: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Edit2: TEdit
-          Touch.InteractiveGestures = [LongTap, DoubleTap]
-          Align = Client
-          TabOrder = 0
-          ReadOnly = True
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 456.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-        end
-        object Button2: TButton
+        TabOrder = 2
+        object Button1: TButton
           Align = Right
-          Margins.Top = 8.000000000000000000
-          Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 472.000000000000000000
-          Position.Y = 8.000000000000000000
+          ModalResult = 1
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 16.000000000000000000
+          Position.X = 496.000000000000000000
           Size.Width = 80.000000000000000000
-          Size.Height = 20.000000000000000000
+          Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
-          Text = 'Configure'
-          OnClick = Button2Click
+          Text = 'Start'
+          OnClick = Button1Click
         end
-      end
-    end
-    object GroupBox7: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 306.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'Database'
-      TabOrder = 6
-      object Layout9: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 14
-        object Edit4: TEdit
+        object Label5: TLabel
+          Align = Left
+          Margins.Left = 16.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 16.000000000000000000
+          Size.Width = 96.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Base directory'
+          TabOrder = 2
+        end
+        object Edit6: TEdit
           Touch.InteractiveGestures = [LongTap, DoubleTap]
           Align = Client
           TabOrder = 0
-          ReadOnly = True
-          Enabled = False
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 456.000000000000000000
-          Size.Height = 20.000000000000000000
+          Size.Width = 368.000000000000000000
+          Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
-          object SearchEditButton2: TSearchEditButton
+          object SearchEditButton5: TSearchEditButton
             CanFocus = False
             Cursor = crArrow
             Size.Width = 28.000000000000000000
-            Size.Height = 14.000000000000000000
+            Size.Height = 16.000000000000000000
             Size.PlatformDefault = False
             TabOrder = 0
-            OnClick = SearchEditButton2Click
+            OnClick = SearchEditButton5Click
           end
-        end
-        object ComboBox1: TComboBox
-          Align = Left
-          Items.Strings = (
-            'Disabled'
-            'Internal'
-            'Generate'
-            'Load')
-          ItemIndex = 0
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 1
-          OnChange = ComboBox1Change
         end
       end
     end
-    object GroupBox8: TGroupBox
-      Align = Top
-      Margins.Left = 8.000000000000000000
-      Margins.Right = 8.000000000000000000
-      Position.X = 8.000000000000000000
-      Position.Y = 252.000000000000000000
-      Size.Width = 560.000000000000000000
-      Size.Height = 54.000000000000000000
+    object TabItem2: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 119.000000000000000000
+      Size.Height = 22.000000000000000000
       Size.PlatformDefault = False
-      Text = 'Library checker'
-      TabOrder = 5
-      object Layout10: TLayout
-        Align = Top
-        Margins.Top = 16.000000000000000000
-        Position.Y = 16.000000000000000000
-        Size.Width = 560.000000000000000000
-        Size.Height = 36.000000000000000000
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Data management'
+      ExplicitSize.cx = 119.000000000000000000
+      ExplicitSize.cy = 22.000000000000000000
+      object TabControl2: TTabControl
+        Align = Client
+        Size.Width = 592.000000000000000000
+        Size.Height = 464.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 14
-        object Edit5: TEdit
+        TabIndex = 0
+        TabOrder = 5
+        TabPosition = PlatformDefault
+        Sizes = (
+          592s
+          442s
+          592s
+          442s
+          592s
+          442s
+          592s
+          442s
+          592s
+          442s
+          592s
+          442s)
+        object TabItem8: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = True
+          Size.Width = 60.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Archive'
+          ExplicitSize.cx = 60.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object Layout19: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 1
+            object Button6: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button6Click
+            end
+          end
+          object VertScrollBox3: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox13: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 337.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Files'
+              TabOrder = 6
+              object Layout15: TLayout
+                Align = Client
+                Margins.Top = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 285.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 15
+                object Memo1: TMemo
+                  Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+                  DataDetectorTypes = []
+                  Align = Client
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 277.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 0
+                  Viewport.Width = 540.000000000000000000
+                  Viewport.Height = 273.000000000000000000
+                end
+              end
+              object Layout17: TLayout
+                Align = Bottom
+                Position.Y = 301.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Button3: TButton
+                  Align = Right
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 384.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  Text = 'Add file'
+                  OnClick = Button3Click
+                end
+                object Button4: TButton
+                  Align = Right
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 472.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 0
+                  Text = 'Add folder'
+                  OnClick = Button4Click
+                end
+                object Label11: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 225.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Wildcards can be used.'
+                  TabOrder = 2
+                end
+              end
+            end
+            object GroupBox14: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 337.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output'
+              TabOrder = 0
+              object Layout16: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit11: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton10: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton10Click
+                  end
+                end
+              end
+            end
+          end
+        end
+        object TabItem9: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = False
+          Size.Width = 70.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Database'
+          ExplicitSize.cx = 70.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object VertScrollBox7: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox28: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input'
+              TabOrder = 5
+              object Layout36: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit21: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton20: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton20Click
+                  end
+                end
+                object ComboBox19: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox19Change
+                end
+              end
+            end
+            object GroupBox29: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 108.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output'
+              TabOrder = 0
+              object Layout37: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit22: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton21: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton21Click
+                  end
+                end
+              end
+            end
+            object GroupBox30: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 162.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Options'
+              TabOrder = 2
+              object Layout38: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Label18: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Chunk size'
+                  TabOrder = 1
+                end
+                object SpinBox15: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 3
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 16.000000000000000000
+                  Max = 1792.000000000000000000
+                  Value = 16.000000000000000000
+                  Increment = 16.000000000000000000
+                  Position.X = 96.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+                object Label19: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 184.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Threads'
+                  TabOrder = 0
+                end
+                object SpinBox16: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 2
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 1.000000000000000000
+                  Max = 1.000000000000000000
+                  Value = 1.000000000000000000
+                  Position.X = 272.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+            object GroupBox31: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Source'
+              TabOrder = 8
+              object Layout39: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit23: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton22: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton22Click
+                  end
+                end
+                object ComboBox21: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox21Change
+                end
+              end
+            end
+            object GroupBox32: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 216.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Method'
+              TabOrder = 4
+              object Layout40: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit24: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+          end
+          object Layout41: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object Button10: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button10Click
+            end
+          end
+        end
+        object TabItem4: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = False
+          Size.Width = 43.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Find'
+          ExplicitSize.cx = 43.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object VertScrollBox2: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox10: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input'
+              TabOrder = 5
+              object Layout12: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit8: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton7: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton7Click
+                  end
+                end
+                object ComboBox7: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox7Change
+                end
+              end
+            end
+            object GroupBox11: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 108.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output (Optional)'
+              TabOrder = 0
+              object Layout13: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit9: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton8: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton8Click
+                  end
+                end
+                object ComboBox8: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'None'
+                    'File')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox8Change
+                end
+              end
+            end
+            object GroupBox12: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 162.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Options'
+              TabOrder = 2
+              object Layout14: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Label9: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Chunk size'
+                  TabOrder = 1
+                end
+                object SpinBox6: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 3
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 16.000000000000000000
+                  Max = 1792.000000000000000000
+                  Value = 16.000000000000000000
+                  Increment = 16.000000000000000000
+                  Position.X = 96.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+                object Label10: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 184.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Threads'
+                  TabOrder = 0
+                end
+                object SpinBox8: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 2
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 1.000000000000000000
+                  Max = 1.000000000000000000
+                  Value = 1.000000000000000000
+                  Position.X = 272.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+            object GroupBox9: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Source'
+              TabOrder = 8
+              object Layout11: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit7: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton6: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton6Click
+                  end
+                end
+                object ComboBox6: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox6Change
+                end
+              end
+            end
+          end
+          object Layout18: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object Button5: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button5Click
+            end
+          end
+        end
+        object TabItem5: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = False
+          Size.Width = 48.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Erase'
+          ExplicitSize.cx = 48.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object VertScrollBox4: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox15: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input'
+              TabOrder = 5
+              object Layout20: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit10: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton9: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton9Click
+                  end
+                end
+                object ComboBox9: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox9Change
+                end
+              end
+            end
+            object GroupBox16: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 108.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output (Optional)'
+              TabOrder = 0
+              object Layout21: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit12: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton11: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton11Click
+                  end
+                end
+                object ComboBox10: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'None'
+                    'File')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox10Change
+                end
+              end
+            end
+            object GroupBox17: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 162.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Options'
+              TabOrder = 2
+              object Layout22: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Label12: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Chunk size'
+                  TabOrder = 1
+                end
+                object SpinBox9: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 3
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 16.000000000000000000
+                  Max = 1792.000000000000000000
+                  Value = 16.000000000000000000
+                  Increment = 16.000000000000000000
+                  Position.X = 96.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+                object Label13: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 184.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Threads'
+                  TabOrder = 0
+                end
+                object SpinBox10: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 2
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 1.000000000000000000
+                  Max = 1.000000000000000000
+                  Value = 1.000000000000000000
+                  Position.X = 272.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+            object GroupBox18: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Source'
+              TabOrder = 8
+              object Layout23: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit13: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton12: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton12Click
+                  end
+                end
+                object ComboBox11: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox11Change
+                end
+              end
+            end
+          end
+          object Layout24: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object Button7: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button7Click
+            end
+          end
+        end
+        object TabItem6: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = False
+          Size.Width = 61.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Replace'
+          ExplicitSize.cx = 61.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object VertScrollBox5: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox19: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input (Original)'
+              TabOrder = 6
+              object Layout25: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit14: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton13: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton13Click
+                  end
+                end
+                object ComboBox12: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox12Change
+                end
+              end
+            end
+            object GroupBox20: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 162.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output (Optional)'
+              TabOrder = 0
+              object Layout26: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit15: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton14: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton14Click
+                  end
+                end
+                object ComboBox13: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'None'
+                    'File')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox13Change
+                end
+              end
+            end
+            object GroupBox21: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 216.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Options'
+              TabOrder = 2
+              object Layout27: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Label14: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Chunk size'
+                  TabOrder = 1
+                end
+                object SpinBox11: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 3
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 16.000000000000000000
+                  Max = 1792.000000000000000000
+                  Value = 16.000000000000000000
+                  Increment = 16.000000000000000000
+                  Position.X = 96.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+                object Label15: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 184.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Threads'
+                  TabOrder = 0
+                end
+                object SpinBox12: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 2
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 1.000000000000000000
+                  Max = 1.000000000000000000
+                  Value = 1.000000000000000000
+                  Position.X = 272.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+            object GroupBox22: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 108.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Source'
+              TabOrder = 9
+              object Layout28: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit16: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton15: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton15Click
+                  end
+                end
+                object ComboBox14: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox14Change
+                end
+              end
+            end
+            object GroupBox23: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input (New)'
+              TabOrder = 5
+              object Layout30: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit17: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton16: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton16Click
+                  end
+                end
+                object ComboBox15: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox15Change
+                end
+              end
+            end
+          end
+          object Layout29: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object Button8: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button8Click
+            end
+          end
+        end
+        object TabItem7: TTabItem
+          CustomIcon = <
+            item
+            end>
+          IsSelected = False
+          Size.Width = 49.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          StyleLookup = ''
+          TabOrder = 0
+          Text = 'Patch'
+          ExplicitSize.cx = 49.000000000000000000
+          ExplicitSize.cy = 22.000000000000000000
+          object VertScrollBox6: TVertScrollBox
+            Align = Client
+            Margins.Left = 8.000000000000000000
+            Margins.Top = 8.000000000000000000
+            Margins.Right = 8.000000000000000000
+            Margins.Bottom = 8.000000000000000000
+            Size.Width = 576.000000000000000000
+            Size.Height = 396.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 5
+            Viewport.Width = 576.000000000000000000
+            Viewport.Height = 396.000000000000000000
+            object GroupBox24: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Input'
+              TabOrder = 5
+              object Layout31: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit18: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 456.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton17: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton17Click
+                  end
+                end
+                object ComboBox16: TComboBox
+                  Align = Left
+                  Items.Strings = (
+                    'File'
+                    'Directory')
+                  ItemIndex = 0
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  TabOrder = 1
+                  OnChange = ComboBox16Change
+                end
+              end
+            end
+            object GroupBox25: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 108.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Output'
+              TabOrder = 0
+              object Layout32: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit19: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton18: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton18Click
+                  end
+                end
+              end
+            end
+            object GroupBox26: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 162.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Options'
+              TabOrder = 2
+              object Layout33: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Label17: TLabel
+                  Align = Left
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Position.X = 8.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  Text = 'Threads'
+                  TabOrder = 0
+                end
+                object SpinBox14: TSpinBox
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Left
+                  TabOrder = 1
+                  Cursor = crIBeam
+                  DecimalDigits = 0
+                  Min = 1.000000000000000000
+                  Max = 1.000000000000000000
+                  Value = 1.000000000000000000
+                  Position.X = 96.000000000000000000
+                  Position.Y = 8.000000000000000000
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 80.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                end
+              end
+            end
+            object GroupBox27: TGroupBox
+              Align = Top
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 54.000000000000000000
+              Size.Width = 560.000000000000000000
+              Size.Height = 54.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Source'
+              TabOrder = 8
+              object Layout34: TLayout
+                Align = Top
+                Margins.Top = 16.000000000000000000
+                Position.Y = 16.000000000000000000
+                Size.Width = 560.000000000000000000
+                Size.Height = 36.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 14
+                object Edit20: TEdit
+                  Touch.InteractiveGestures = [LongTap, DoubleTap]
+                  Align = Client
+                  TabOrder = 0
+                  ReadOnly = True
+                  Margins.Left = 8.000000000000000000
+                  Margins.Top = 8.000000000000000000
+                  Margins.Right = 8.000000000000000000
+                  Margins.Bottom = 8.000000000000000000
+                  Size.Width = 544.000000000000000000
+                  Size.Height = 20.000000000000000000
+                  Size.PlatformDefault = False
+                  object SearchEditButton19: TSearchEditButton
+                    CanFocus = False
+                    Cursor = crArrow
+                    Size.Width = 28.000000000000000000
+                    Size.Height = 14.000000000000000000
+                    Size.PlatformDefault = False
+                    TabOrder = 0
+                    OnClick = SearchEditButton19Click
+                  end
+                end
+              end
+            end
+          end
+          object Layout35: TLayout
+            Align = Bottom
+            Margins.Bottom = 8.000000000000000000
+            Position.Y = 412.000000000000000000
+            Size.Width = 592.000000000000000000
+            Size.Height = 22.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 2
+            object Button9: TButton
+              Align = Right
+              ModalResult = 1
+              Margins.Left = 8.000000000000000000
+              Margins.Right = 16.000000000000000000
+              Position.X = 496.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 22.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 0
+              Text = 'Start'
+              OnClick = Button9Click
+            end
+          end
+        end
+      end
+    end
+    object TabItem3: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 61.000000000000000000
+      Size.Height = 22.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Decode'
+      ExplicitSize.cx = 61.000000000000000000
+      ExplicitSize.cy = 22.000000000000000000
+      object VertScrollBox8: TVertScrollBox
+        Align = Client
+        Margins.Left = 8.000000000000000000
+        Margins.Top = 8.000000000000000000
+        Margins.Right = 8.000000000000000000
+        Margins.Bottom = 8.000000000000000000
+        Size.Width = 576.000000000000000000
+        Size.Height = 418.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 5
+        Viewport.Width = 576.000000000000000000
+        Viewport.Height = 418.000000000000000000
+        object GroupBox33: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Input'
+          TabOrder = 5
+          object Layout42: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Edit25: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 544.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton23: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton23Click
+              end
+            end
+          end
+        end
+        object GroupBox34: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 108.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Output'
+          TabOrder = 0
+          object Layout43: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Edit26: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton24: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton24Click
+              end
+            end
+            object ComboBox18: TComboBox
+              Align = Left
+              Items.Strings = (
+                'File'
+                'Directory')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox18Change
+            end
+          end
+        end
+        object GroupBox35: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 162.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Options'
+          TabOrder = 2
+          object Layout44: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Label16: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Threads'
+              TabOrder = 0
+            end
+            object SpinBox13: TSpinBox
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 1
+              Cursor = crIBeam
+              DecimalDigits = 0
+              Min = 1.000000000000000000
+              Max = 1.000000000000000000
+              Value = 1.000000000000000000
+              Position.X = 96.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+            end
+            object CheckBox7: TCheckBox
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 184.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 110.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'Verbose'
+            end
+          end
+        end
+        object GroupBox36: TGroupBox
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 54.000000000000000000
+          Size.Width = 560.000000000000000000
+          Size.Height = 54.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Source'
+          TabOrder = 8
+          object Layout45: TLayout
+            Align = Top
+            Margins.Top = 16.000000000000000000
+            Position.Y = 16.000000000000000000
+            Size.Width = 560.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 14
+            object Edit27: TEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Client
+              TabOrder = 0
+              ReadOnly = True
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 456.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              object SearchEditButton25: TSearchEditButton
+                CanFocus = False
+                Cursor = crArrow
+                Size.Width = 28.000000000000000000
+                Size.Height = 14.000000000000000000
+                Size.PlatformDefault = False
+                TabOrder = 0
+                OnClick = SearchEditButton25Click
+              end
+            end
+            object ComboBox17: TComboBox
+              Align = Left
+              Items.Strings = (
+                'File'
+                'Directory')
+              ItemIndex = 0
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 8.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 1
+              OnChange = ComboBox17Change
+            end
+          end
+        end
+      end
+      object Layout46: TLayout
+        Align = Bottom
+        Margins.Bottom = 8.000000000000000000
+        Position.Y = 434.000000000000000000
+        Size.Width = 592.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
+        object Button11: TButton
+          Align = Right
+          ModalResult = 1
+          Margins.Left = 8.000000000000000000
+          Margins.Right = 16.000000000000000000
+          Position.X = 496.000000000000000000
+          Size.Width = 80.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 1
+          Text = 'Start'
+          OnClick = Button11Click
+        end
+        object Label20: TLabel
+          Align = Left
+          Margins.Left = 16.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 16.000000000000000000
+          Size.Width = 96.000000000000000000
+          Size.Height = 22.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'Base directory'
+          TabOrder = 3
+        end
+        object Edit28: TEdit
           Touch.InteractiveGestures = [LongTap, DoubleTap]
           Align = Client
           TabOrder = 0
-          ReadOnly = True
-          Enabled = False
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Right = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Size.Width = 456.000000000000000000
-          Size.Height = 20.000000000000000000
+          Size.Width = 368.000000000000000000
+          Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
-          object SearchEditButton4: TSearchEditButton
+          object SearchEditButton26: TSearchEditButton
             CanFocus = False
             Cursor = crArrow
             Size.Width = 28.000000000000000000
-            Size.Height = 14.000000000000000000
+            Size.Height = 16.000000000000000000
             Size.PlatformDefault = False
             TabOrder = 0
-            OnClick = SearchEditButton4Click
+            OnClick = SearchEditButton5Click
           end
-        end
-        object ComboBox4: TComboBox
-          Align = Left
-          Items.Strings = (
-            'Disabled'
-            'LZ4'
-            'ZSTD'
-            'Oodle')
-          ItemIndex = 0
-          Margins.Left = 8.000000000000000000
-          Margins.Top = 8.000000000000000000
-          Margins.Bottom = 8.000000000000000000
-          Position.X = 8.000000000000000000
-          Position.Y = 8.000000000000000000
-          Size.Width = 80.000000000000000000
-          Size.Height = 20.000000000000000000
-          Size.PlatformDefault = False
-          TabOrder = 1
-          OnChange = ComboBox4Change
         end
       end
     end
+  end
+  object OpenDialog2: TOpenDialog
+    Options = [ofHideReadOnly, ofAllowMultiSelect, ofPathMustExist, ofFileMustExist, ofShareAware, ofEnableSizing]
+    Left = 264
+    Top = 253
+  end
+  object SaveDialog2: TSaveDialog
+    DefaultExt = 'xtl'
+    Filter = 'Database files (*.xtl)|*.xtl'
+    Left = 448
+    Top = 280
   end
 end

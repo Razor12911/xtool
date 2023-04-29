@@ -122,7 +122,7 @@ begin
 end;
 
 function ExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer;
-  var InSize, OutSize: Integer; Output: _ExecOutput): Boolean;
+  InSize, OutSize: Integer; Output: _ExecOutput): Boolean;
 
   function ProcessLib(Instance: Integer; Stdin, Stdout: THandle): Boolean;
   const
@@ -131,18 +131,20 @@ function ExecStdioProcess(Ctx: PExecCtx; InBuff: Pointer;
     Buffer: array [0 .. BufferSize - 1] of Byte;
     BytesRead: DWORD;
     X: Integer;
+    LOutSize: Integer;
   begin
     Result := False;
+    LOutSize := OutSize;
     try
       FileWriteBuffer(Stdin, InSize, InSize.Size);
-      FileWriteBuffer(Stdin, OutSize, OutSize.Size);
+      FileWriteBuffer(Stdin, LOutSize, LOutSize.Size);
       FileWriteBuffer(Stdin, InBuff^, InSize);
-      FileReadBuffer(Stdout, OutSize, OutSize.Size);
-      if OutSize <= 0 then
+      FileReadBuffer(Stdout, LOutSize, LOutSize.Size);
+      if LOutSize <= 0 then
         exit
       else
       begin
-        X := OutSize;
+        X := LOutSize;
         while X > 0 do
         begin
           BytesRead := Min(X, Length(Buffer));
@@ -636,16 +638,16 @@ begin
   SI.Option := StreamInfo.Option;
   if ExeDecode(X, Instance, Input, @SI, Funcs) then
   begin
-    Funcs^.LogRestore(PChar(Codec.Names[X]), nil, StreamInfo.OldSize,
-      StreamInfo.NewSize, Res1, True);
     Buffer := Funcs^.Allocator(Instance, CodecSize[Instance]);
     Res1 := CodecSize[Instance];
-    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
+    Funcs^.LogRestore(PChar(Codec.Names[X]), nil, StreamInfo.OldSize,
+      StreamInfo.NewSize, Res1, True);
     if GetBits(StreamInfo.Option, 31, 1) = 1 then
     begin
       Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
       Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
         Buffer + Res1, StreamInfo.OldSize);
+      Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
       if Res2 > 0 then
       begin
         Output(Instance, Buffer + Res1, StreamInfo.OldSize);
