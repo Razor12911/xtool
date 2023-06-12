@@ -1,3 +1,10 @@
+  ES_R47 (0.7.2)
+  - memory usage optimizations
+
+  ES_R46 (0.7.1)
+  - fixed issues with fast-lzma2 being unable to set correct compression level
+  - updated deflate stream scanner
+
   ES_R45 (0.7.0)
   - added ability to redirect base directory for plugins and libraries
   - added restrictions to avoid errors with experimental codecs

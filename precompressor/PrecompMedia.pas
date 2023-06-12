@@ -431,8 +431,8 @@ begin
     SetLength(dcd, Count);
     for X := Low(cctx) to High(cctx) do
     begin
-      cctx[X] := FLAC__stream_encoder_new;
-      dctx[X] := FLAC__stream_decoder_new;
+      cctx[X] := nil;
+      dctx[X] := nil;
       ccd[X].Output := TMemoryStreamEx.Create(False);
       dcd[X].Input := TMemoryStreamEx.Create(False);
       dcd[X].Output := TMemoryStreamEx.Create(False);
@@ -442,7 +442,7 @@ begin
   begin
     SetLength(JJInst, Count);
     for X := Low(JJInst) to High(JJInst) do
-      JJInst[X] := GetMemory(jojpeg_Size);
+      JJInst[X] := nil;
   end;
 end;
 
@@ -454,8 +454,10 @@ begin
   begin
     for X := Low(cctx) to High(cctx) do
     begin
-      FLAC__stream_encoder_delete(cctx[X]);
-      FLAC__stream_decoder_delete(dctx[X]);
+      if Assigned(cctx[X]) then
+        FLAC__stream_encoder_delete(cctx[X]);
+      if Assigned(dctx[X]) then
+        FLAC__stream_decoder_delete(dctx[X]);
       ccd[X].Output.Free;
       dcd[X].Input.Free;
       dcd[X].Output.Free;
@@ -463,7 +465,8 @@ begin
   end;
   if CodecAvailable[JOJPEG_CODEC] then
     for X := Low(JJInst) to High(JJInst) do
-      FreeMemory(JJInst[X]);
+      if Assigned(JJInst[X]) then
+        FreeMemory(JJInst[X]);
 end;
 
 function MediaParse(Command: PChar; Option: PInteger;
@@ -729,6 +732,8 @@ begin
       begin
         Params := 'l' + FlacLevel.ToString;
         Y := Integer.Size + PInteger(NewInput)^;
+        if not Assigned(cctx[Instance]) then
+          cctx[Instance] := FLAC__stream_encoder_new;
         Res := StreamInfo.NewSize - Y;
         Res := FlacEncode(cctx[Instance], @ccd[Instance], OldInput,
           StreamInfo^.OldSize, PByte(NewInput) + Y, Res, FlacLevel);
@@ -775,6 +780,8 @@ begin
       end;
     JOJPEG_CODEC:
       begin
+        if not Assigned(JJInst[Instance]) then
+          JJInst[Instance] := GetMemory(jojpeg_Size);
         ctx := JJInst[Instance];
         FillChar(ctx^, jojpeg_Size, 0);
         Buffer := Funcs^.Allocator(Instance, J_WORKMEM * 2);
@@ -851,6 +858,8 @@ begin
       begin
         Buffer := Funcs^.Allocator(Instance, StreamInfo.OldSize);
         Y := Integer.Size + PInteger(Input)^;
+        if not Assigned(dctx[Instance]) then
+          dctx[Instance] := FLAC__stream_decoder_new;
         Res := StreamInfo.OldSize;
         Res := FlacDecode(dctx[Instance], @dcd[Instance], PByte(Input) + Y,
           StreamInfo.NewSize - Y, Buffer + PInteger(Input)^, Res);
@@ -898,6 +907,8 @@ begin
       end;
     JOJPEG_CODEC:
       begin
+        if not Assigned(JJInst[Instance]) then
+          JJInst[Instance] := GetMemory(jojpeg_Size);
         ctx := JJInst[Instance];
         FillChar(ctx^, jojpeg_Size, 0);
         Buffer := Funcs^.Allocator(Instance, J_WORKMEM);

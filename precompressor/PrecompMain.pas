@@ -17,6 +17,7 @@ uses
 
 const
   XTOOL_PRECOMP = $304C5458;
+  XTOOL_BSIZE = 4194304;
 
 type
   PEncodeOptions = ^TEncodeOptions;
@@ -28,14 +29,16 @@ type
     LowMem: Boolean;
     DBaseFile, ExtractDir: String;
     CThreads, CLevel: Integer;
-    CDict: Integer;
+    CDict, COverlap: Integer;
+    CHighCompress: Boolean;
   end;
 
   PDecodeOptions = ^TDecodeOptions;
 
   TDecodeOptions = record
     Method: String;
-    CacheSize, Threads: Integer;
+    Threads: Integer;
+    CacheSize: Int64;
     Depth: Integer;
     DedupSysMem: Int64;
   end;
@@ -111,7 +114,9 @@ var
   VERBOSE: Boolean = False;
   EXTRACT: Boolean = False;
   NOVERIFY: Boolean = False;
-  COMPRESS: Boolean = False;
+  COMPRESS: Byte = 0;
+  EXTCOMP: String = '';
+  GPUMEM: Int64 = 0;
   NULLOUT: Boolean = False;
   DupSysMem: Int64 = 0;
   DecodeMemBlock: Int64 = 512 * 1024 * 1024;
@@ -119,6 +124,16 @@ var
   EncFreed: Boolean = False;
   ConTask: TTask;
   Stopwatch: TStopwatch;
+
+function ExtractExec(S: String): String;
+begin
+  Result := S.Substring(0, Pos('.exe', S) + 3);
+end;
+
+function ExtractParams(S: String): String;
+begin
+  Result := S.Substring(Pos('.exe', S) + 4);
+end;
 
 procedure PrintHelp;
 var
@@ -178,6 +193,17 @@ begin
         Options.Method := S;
       Inc(I);
     end;
+    S := ArgParse.AsString('-g', 0, '0');
+    S := ReplaceText(S, 'KB', '* 1024^1');
+    S := ReplaceText(S, 'MB', '* 1024^2');
+    S := ReplaceText(S, 'GB', '* 1024^3');
+    S := ReplaceText(S, 'K', '* 1024^1');
+    S := ReplaceText(S, 'M', '* 1024^2');
+    S := ReplaceText(S, 'G', '* 1024^3');
+    S := ReplaceText(S, 'p', '%');
+    S := ReplaceText(S, '%', '%*' + GPUSize.ToString);
+    GPUMEM := EnsureRange(Round(ExpParse.Evaluate(S)), 0,
+      Max(0, GPUSize - 512 * 1024 * 1024));
     S := ArgParse.AsString('-c', 0, '16mb');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
@@ -185,7 +211,8 @@ begin
     S := ReplaceText(S, 'K', '* 1024^1');
     S := ReplaceText(S, 'M', '* 1024^2');
     S := ReplaceText(S, 'G', '* 1024^3');
-    Options.ChunkSize := Max(4 * 1024 * 1024, Round(ExpParse.Evaluate(S)));
+    Options.ChunkSize := EnsureRange(Round(ExpParse.Evaluate(S)),
+      4 * 1024 * 1024, 2047 * 1024 * 1024);
     S := ArgParse.AsString('-t', 0, '50p');
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
@@ -197,7 +224,7 @@ begin
       S := ReplaceText(S, 'K', '* 1024^1');
       S := ReplaceText(S, 'M', '* 1024^2');
       S := ReplaceText(S, 'G', '* 1024^3');
-      DecodeMemBlock := Max(32 * 1024 * 1024, Round(ExpParse.Evaluate(S))); }
+      DecodeMemBlock := EnsureRange(Round(ExpParse.Evaluate(S)), 32 * 1024 * 1024, 2047 * 1024 * 1024); }
     StoreDD := -2;
     I := 0;
     while True do
@@ -244,14 +271,24 @@ begin
           begin
             List := DecodeStr(S, ':');
             Options.CThreads := Options.Threads;
-            Options.CLevel := StrToIntDef(List[0], 0);
+            Options.CHighCompress := List[0].Contains('x');
+            if List[0].Contains('x') then
+              Options.CLevel :=
+                StrToIntDef(Copy(List[0], 1, List[0].Length - 1), 0)
+            else
+              Options.CLevel := StrToIntDef(List[0], 0);
+            Options.COverlap := 2;
             for J := Low(List) to High(List) do
             begin
               if List[J].StartsWith('d', False) then
                 Options.CDict := EnsureRange(ConvertToBytes(List[J].Substring(1)
                   ), FL2_DICTSIZE_MIN, FL2_DICTSIZE_MAX);
+              if List[J].StartsWith('o', False) then
+                Options.COverlap :=
+                  EnsureRange(ConvertToBytes(List[J].Substring(1)),
+                  FL2_BLOCK_OVERLAP_MIN, FL2_BLOCK_OVERLAP_MAX);
             end;
-            COMPRESS := InRange(Options.CLevel, 1, 10);
+            COMPRESS := Byte(InRange(Options.CLevel, 1, 10));
           end;
         end;
       end;
@@ -264,6 +301,9 @@ begin
     Options.ExtractDir := ArgParse.AsString('-x');
     if Options.ExtractDir <> '' then
       EXTRACT := DirectoryExists(Options.ExtractDir);
+    EXTCOMP := ArgParse.AsString('-e');
+    if FileExists(ExpandPath(PluginsPath + ExtractExec(EXTCOMP), True)) then
+      COMPRESS := 2;
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -283,14 +323,27 @@ begin
   ExpParse := TExpressionParser.Create;
   try
     Options.Method := ArgParse.AsString('-m');
-    S := ArgParse.AsString('-c', 0, '64mb');
+    S := ArgParse.AsString('-g', 0, '0');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
     S := ReplaceText(S, 'GB', '* 1024^3');
     S := ReplaceText(S, 'K', '* 1024^1');
     S := ReplaceText(S, 'M', '* 1024^2');
     S := ReplaceText(S, 'G', '* 1024^3');
-    Options.CacheSize := Max(4 * 1024 * 1024, Round(ExpParse.Evaluate(S)));
+    S := ReplaceText(S, 'p', '%');
+    S := ReplaceText(S, '%', '%*' + GPUSize.ToString);
+    GPUMEM := EnsureRange(Round(ExpParse.Evaluate(S)), 0,
+      Max(0, GPUSize - 512 * 1024 * 1024));
+    S := ArgParse.AsString('-c', 0, '25p');
+    S := ReplaceText(S, 'KB', '* 1024^1');
+    S := ReplaceText(S, 'MB', '* 1024^2');
+    S := ReplaceText(S, 'GB', '* 1024^3');
+    S := ReplaceText(S, 'K', '* 1024^1');
+    S := ReplaceText(S, 'M', '* 1024^2');
+    S := ReplaceText(S, 'G', '* 1024^3');
+    S := ReplaceText(S, 'p', '%');
+    S := ReplaceText(S, '%', '%*' + GPUMEM.ToString);
+    Options.CacheSize := EnsureRange(Round(ExpParse.Evaluate(S)), 0, GPUSize);
     S := ArgParse.AsString('-t', 0, '50p');
     S := ReplaceText(S, 'p', '%');
     S := ReplaceText(S, '%', '%*' + CPUCount.ToString);
@@ -310,6 +363,7 @@ begin
       Options.DedupSysMem := -Options.DedupSysMem;
     SrepMemCfg := ArgParse.AsString('-sm', 0, '75p').ToLower;
     VERBOSE := ArgParse.AsBoolean('-v');
+    EXTCOMP := ArgParse.AsString('-e');
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -1592,7 +1646,7 @@ var
   DupIdx1, DupIdx2, DupCount: Integer;
   DupTyp: TDuplicate2;
   ErrStream: TStringStream;
-
+  LOutput, LCache: TStream;
   procedure SaveResources;
   var
     C, D: Integer;
@@ -1621,30 +1675,54 @@ var
     end;
   end;
 
+  procedure UpdateInfo;
+  begin
+    if NULLOUT then
+      if StoreDD > 0 then
+        EncInfo.SrepSize := TProcessStream(TBufferedStream(LOutput)
+          .Instance).OutSize;
+    if COMPRESS = 1 then
+      EncInfo.CompSize := TLZMACompressStream(Output).OutSize
+    else if COMPRESS = 2 then
+      EncInfo.CompSize := TProcessStream(TBufferedStream(Output)
+        .Instance).OutSize;
+  end;
+
 begin
   if (Depth = 0) then
   begin
+    LCache := nil;
+    if GPUMEM > 0 then
+      try
+        LCache := TGPUMemoryStream.Create(GPUMEM);
+      except
+        LCache := nil;
+      end;
+    if Assigned(LCache) then
+      LCache.Size := GPUMEM;
     ErrStream := TStringStream.Create;
     if NULLOUT then
     begin
       if StoreDD > 0 then
       begin
-        TempOutput := TBufferedStream.Create
+        LOutput := TBufferedStream.Create
           (TProcessStream.Create(ExpandPath(PluginsPath + 'srep.exe', True),
           '-m' + StoreDD.ToString + ' -s' + SrepInSize + ' - -', GetCurrentDir,
-          nil, Output, ErrStream), False, 4194304);
-        TProcessStream(TBufferedStream(TempOutput).Instance).Execute;
+          nil, Output, ErrStream), False, XTOOL_BSIZE);
+        TProcessStream(TBufferedStream(LOutput).Instance).Execute;
       end
       else
-        TempOutput := Output;
+        LOutput := Output;
     end
     else if StoreDD > -2 then
-      TempOutput := TBufferedStream.Create
+      LOutput := TBufferedStream.Create
         (TFileStream.Create
         (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-        '-dd.tmp')), fmCreate or fmShareDenyNone), False, 4194304)
+        '-dd.tmp')), fmCreate or fmShareDenyNone), False, XTOOL_BSIZE)
     else
-      TempOutput := Output;
+      LOutput := Output;
+    TempOutput := TBufferedStream.Create(TCacheWriteStream.Create(LOutput,
+      LCache), False, XTOOL_BSIZE);
   end
   else
     TempOutput := Output;
@@ -1886,12 +1964,7 @@ begin
       end;
       if Depth = 0 then
       begin
-        if NULLOUT then
-          if StoreDD > 0 then
-            EncInfo.SrepSize := TProcessStream(TBufferedStream(TempOutput)
-              .Instance).OutSize;
-        if COMPRESS then
-          EncInfo.CompSize := TLZMACompressStream(Output).OutSize;
+        UpdateInfo;
         TDataStore1(DataStore).LoadEx;
         if Length(Tasks) > 1 then
           WaitForAll(Tasks);
@@ -1959,18 +2032,21 @@ begin
       begin
         if StoreDD > 0 then
         begin
-          TBufferedStream(TempOutput).Flush;
-          TProcessStream(TBufferedStream(TempOutput).Instance)
-            .WriteBuffer(StoreDD, 0);
-          TProcessStream(TBufferedStream(TempOutput).Instance).Wait;
-          TProcessStream(TBufferedStream(TempOutput).Instance).Done;
           TempOutput.Free;
+          TBufferedStream(LOutput).Flush;
+          TProcessStream(TBufferedStream(LOutput).Instance)
+            .WriteBuffer(StoreDD, 0);
+          TProcessStream(TBufferedStream(LOutput).Instance).Wait;
+          TProcessStream(TBufferedStream(LOutput).Instance).Done;
+          UpdateInfo;
+          LOutput.Free;
         end;
       end
       else
       begin
-        S := TFileStream(TBufferedStream(TempOutput).Instance).FileName;
-        TBufferedStream(TempOutput).Flush;
+        S := TFileStream(TBufferedStream(LOutput).Instance).FileName;
+        TempOutput.Free;
+        TBufferedStream(LOutput).Flush;
         if StoreDD > 0 then
         begin
           with TProcessStream.Create(ExpandPath(PluginsPath + 'srep.exe', True),
@@ -1992,16 +2068,20 @@ begin
             end;
         end
         else
-          Output.CopyFrom(TBufferedStream(TempOutput).Instance, 0);
-        TempOutput.Free;
+          Output.CopyFrom(TBufferedStream(LOutput).Instance, 0);
+        LOutput.Free;
         DeleteFile(S);
       end;
     end
     else
+    begin
+      UpdateInfo;
+      TempOutput.Free;
       try
         EncFree;
       finally
       end;
+    end;
     S := 'Decompression memory is ';
     I := ErrStream.DataString.IndexOf(S);
     J := 0;
@@ -2077,7 +2157,7 @@ var
   DDList2: TArray<TDuplicate2>;
   DDCount2: Integer;
   DDIndex1, DDIndex2: Integer;
-  CacheSize: Integer;
+  CacheSize: Int64;
 
 procedure PrecompOutput2(Instance: Integer; const Buffer: Pointer;
   Size: Integer);
@@ -2241,17 +2321,30 @@ end;
 procedure DecInit(Input, Output: TStream; Options: PDecodeOptions);
 var
   I, J, K: Integer;
+  I64: Int64;
   B: Byte;
   Bytes: TBytes;
   UI32: UInt32;
   DupTyp: TDuplicate1;
   LResData: TResData;
+  LStream: TStream;
 begin
   GlobalSync := TCriticalSection.Create;
   SetLength(ThreadSync, Options^.Threads);
   for I := Low(ThreadSync) to High(ThreadSync) do
     ThreadSync[I] := TCriticalSection.Create;
   DupSysMem := Options^.DedupSysMem;
+  I64 := GPUMEM - Options^.CacheSize;
+  if I64 > 0 then
+  begin
+    try
+      LStream := TGPUMemoryStream.Create(I64);
+    except
+      I64 := 0;
+    end;
+    if I64 > 0 then
+      NStream.Add(LStream, I64);
+  end;
   NStream.Add(TypeInfo(TMemoryStream), CalcSysMem);
   NStream.Add(TypeInfo(TPrecompVMStream));
   Input.ReadBuffer(Options^.Depth, Options^.Depth.Size);
@@ -2377,6 +2470,7 @@ var
   UI32: UInt32;
   I, J: Integer;
   LStream: TProcessStream;
+  LCache: TStream;
   procedure LoadResources;
   var
     C, D: Integer;
@@ -2419,6 +2513,15 @@ begin
       DDIndex2 := 0;
     end;
     LogInt64 := 0;
+    LCache := nil;
+    if CacheSize > 0 then
+      try
+        LCache := TGPUMemoryStream.Create(CacheSize);
+      except
+        LCache := nil;
+      end;
+    if Assigned(LCache) then
+      LCache.Size := CacheSize;
   end;
   with ComVars2[Depth] do
   begin
@@ -2428,10 +2531,12 @@ begin
         True), '-d -s -mem' + SrepMemCfg + ' - -', GetCurrentDir, Input, nil);
       if not LStream.Execute then
         raise EReadError.CreateRes(@SReadError);
-      DecInput[Index] := TCacheStream.Create(LStream, CacheSize);
+      DecInput[Index] := TBufferedStream.Create(TCacheReadStream.Create(LStream,
+        LCache), True, XTOOL_BSIZE);
     end
     else if Depth = 0 then
-      DecInput[Index] := TCacheStream.Create(Input, CacheSize)
+      DecInput[Index] := TBufferedStream.Create(TCacheReadStream.Create(Input,
+        LCache), True, XTOOL_BSIZE)
     else
       DecInput[Index] := Input;
     DecOutput[Index] := Output;
@@ -2617,8 +2722,8 @@ var
       ' >> ' + ConvertKB2TB((EncInfo.InflSize + EncInfo.DupSize2) div 1024), '')
       + ' >> ' + ConvertKB2TB(EncInfo.InflSize div 1024) +
       IfThen(StoreDD > 0, ' >> ' + ConvertKB2TB((EncInfo.SrepSize) div 1024),
-      '') + IfThen(COMPRESS, ' >> ' + ConvertKB2TB((EncInfo.CompSize) div 1024),
-      '') + '      ';
+      '') + IfThen(COMPRESS > 0, ' >> ' + ConvertKB2TB((EncInfo.CompSize)
+      div 1024), '') + '      ';
     SetConsoleCursorPosition(FHandle, Coords);
     WriteConsole(FHandle, PChar(SL.Text), Length(SL.Text), ulLength, nil);
   end;
@@ -2695,38 +2800,83 @@ end;
 
 procedure Encode(Input, Output: TStream; Options: TEncodeOptions);
 var
-  Compressed: Boolean;
-  LOutput: TStream;
+  Compressed: Byte;
+  LInput, LOutput: TStream;
+  LCache: TStream;
 begin
+  LCache := nil;
+  { if GPUMEM > 0 then
+    try
+    LCache := TGPUMemoryStream.Create(GPUMEM);
+    except
+    LCache := nil;
+    end; }
+  if Assigned(LCache) then
+    LCache.Size := GPUMEM;
+  LInput := TCacheReadStream.Create(Input, LCache);
   NULLOUT := TBufferedStream(Output).Instance is TNullStream;
   FillChar(EncInfo, SizeOf(EncInfo), 0);
   ConTask := TTask.Create;
+  if GPUMEM > 0 then
+    WriteLn(ErrOutput, GPUName + ' (' + ConvertKB2TB(GPUMEM div 1024) +
+      ' loaded)');
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(EncodeStats);
   if not VERBOSE then
     ConTask.Start;
   try
-    EncInit(Input, Output, @Options);
+    EncInit(LInput, Output, @Options);
     Compressed := COMPRESS;
     Output.WriteBuffer(Compressed, Compressed.Size);
-    if COMPRESS then
+    if COMPRESS > 0 then
     begin
-      LOutput := TLZMACompressStream.Create(Output);
-      with LOutput as TLZMACompressStream do
-      begin
-        Threads := Options.CThreads;
-        Dictionary := Options.CDict;
+      case COMPRESS of
+        1:
+          begin
+            LOutput := TLZMACompressStream.Create(Output);
+            with LOutput as TLZMACompressStream do
+            begin
+              Level := Options.CLevel;
+              Threads := Options.CThreads;
+              Dictionary := Options.CDict;
+              Overlap := Options.COverlap;
+              HighCompress := Options.CHighCompress
+            end;
+          end;
+        2:
+          begin
+            LOutput := TBufferedStream.Create
+              (TProcessStream.Create(ExpandPath(PluginsPath +
+              ExtractExec(EXTCOMP), True), ExtractParams(EXTCOMP),
+              GetCurrentDir, nil, Output), False, XTOOL_BSIZE);
+            TProcessStream(TBufferedStream(LOutput).Instance).Execute;
+          end;
       end;
     end
     else
       LOutput := Output;
-    EncData(Input, LOutput, 0, 0);
+    EncData(LInput, LOutput, 0, 0);
   finally
-    if COMPRESS then
+    if COMPRESS > 0 then
     begin
-      TLZMACompressStream(LOutput).Flush;
-      EncInfo.CompSize := TLZMACompressStream(LOutput).OutSize;
+      case COMPRESS of
+        1:
+          TLZMACompressStream(LOutput).Flush;
+        2:
+          begin
+            TBufferedStream(LOutput).Flush;
+            TProcessStream(TBufferedStream(LOutput).Instance)
+              .WriteBuffer(StoreDD, 0);
+            TProcessStream(TBufferedStream(LOutput).Instance).Wait;
+            TProcessStream(TBufferedStream(LOutput).Instance).Done;
+          end;
+      end;
+      if COMPRESS = 1 then
+        EncInfo.CompSize := TLZMACompressStream(LOutput).OutSize
+      else if COMPRESS = 2 then
+        EncInfo.CompSize := TProcessStream(TBufferedStream(LOutput)
+          .Instance).OutSize;
       LOutput.Free;
     end;
     try
@@ -2740,15 +2890,19 @@ begin
     EncodeStats;
   ConTask.Wait;
   ConTask.Free;
+  LInput.Free;
 end;
 
 procedure Decode(Input, Output: TStream; Options: TDecodeOptions);
 var
-  Compressed: Boolean;
+  Compressed: Byte;
   LInput: TStream;
 begin
   FillChar(EncInfo, SizeOf(EncInfo), 0);
   ConTask := TTask.Create;
+  if GPUMEM > 0 then
+    WriteLn(ErrOutput, GPUName + ' (' + ConvertKB2TB(GPUMEM div 1024) +
+      ' loaded)');
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(DecodeStats);
@@ -2758,14 +2912,29 @@ begin
   try
     DecInit(Input, Output, @Options);
     Input.ReadBuffer(Compressed, Compressed.Size);
-    if Compressed then
+    if Compressed = 1 then
       LInput := TLZMADecompressStream.Create(Input)
+    else if Compressed = 2 then
+    begin
+      LInput := TProcessStream.Create
+        (ExpandPath(PluginsPath + ExtractExec(EXTCOMP), True),
+        ExtractParams(EXTCOMP), GetCurrentDir, Input);
+      TProcessStream(LInput).Execute;
+    end
     else
       LInput := Input;
     DecChunk(LInput, Output, 0, 0);
   finally
-    if Compressed then
+    if Compressed > 0 then
+    begin
+      if Compressed = 2 then
+        with LInput as TProcessStream do
+        begin
+          Wait;
+          Done;
+        end;
       LInput.Free;
+    end;
     try
       NStream.Free;
       DecFree;

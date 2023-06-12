@@ -18,6 +18,9 @@ const
   FL2_DICTSIZE_MIN = (1 shl FL2_DICTLOG_MIN);
   FL2_DICTSIZE_MAX = (1 shl FL2_DICTLOG_MAX);
 
+  FL2_BLOCK_OVERLAP_MIN = 0;
+  FL2_BLOCK_OVERLAP_MAX = 14;
+
 type
   PFL2_inBuffer = ^FL2_inBuffer;
 
@@ -165,7 +168,7 @@ type
     FBufferSize = 65536;
   private
     FCtx: Pointer;
-    FThreads, FLevel, FDictionary: Integer;
+    FThreads, FLevel, FDictionary, FOverlap: Integer;
     FHighCompress: boolean;
     FOutput: TStream;
     FBuffer: array [0 .. FBufferSize - 1] of Byte;
@@ -180,6 +183,7 @@ type
     property Level: Integer read FLevel write FLevel;
     property Dictionary: Integer read FDictionary write FDictionary;
     property HighCompress: boolean read FHighCompress write FHighCompress;
+    property Overlap: Integer read FOverlap write FOverlap;
     property InSize: Int64 read FInSize;
     property OutSize: Int64 read FOutSize;
   end;
@@ -213,6 +217,7 @@ begin
   FLevel := 6;
   FDictionary := 0;
   FHighCompress := False;
+  FOverlap := -1;
   FOutput := AOutput;
   FInSize := 0;
   FOutSize := 0;
@@ -246,6 +251,9 @@ begin
     if FDictionary > 0 then
       FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_dictionarySize,
         FDictionary);
+    if FOverlap >= 0 then
+      FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_overlapFraction,
+        FOverlap);
     FL2_initCStream(FCtx, 0);
     FInitialized := True;
   end;

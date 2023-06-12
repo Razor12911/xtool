@@ -43,6 +43,7 @@ uses
   System.IOUtils,
   System.SyncObjs,
   LibImport in 'common\LibImport.pas',
+  OpenCL in 'common\OpenCL.pas',
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
   FuncHook in 'contrib\Delphi_MemoryModule\FuncHook.pas',
@@ -260,7 +261,25 @@ begin
       Result := ParamArg[I, J];
 end;
 
+var
+
+  MS: TMemoryStream;
+  GS: TGPUMemoryStream;
+  FS: TFileStream;
+
 begin
+  { MS := TMemoryStream.Create;
+    MS.LoadFromFile('1.mp4');
+    FS := TFileStream.Create('2.mp4', fmCreate);
+    GS := TGPUMemoryStream.Create(60 * 1024 * 1024);
+    GS.Size := 60 * 1024 * 1024;
+    with TCacheWriteStream.Create(FS, GS) do
+    begin
+    WriteBuffer(MS.Memory^, MS.Size);
+    Free;
+    end;
+    FS.Free;
+    ShowMessage(''); }
   FormatSettings := TFormatSettings.Invariant;
   if not CheckInstance('XToolUI_Check') then
     ProgramInfo;
@@ -420,7 +439,7 @@ begin
         IOArchive.PrintHelp
       else
       begin
-        setlength(StrArray, 0);
+        SetLength(StrArray, 0);
         for I := 0 to High(ParamArg[1]) - 1 do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));
         Output := TBufferedStream.Create
@@ -437,7 +456,7 @@ begin
         IOExecute.PrintHelp
       else
       begin
-        setlength(StrArray, 0);
+        SetLength(StrArray, 0);
         for I := 2 to High(ParamArg[1]) do
           Insert(ParamArg[1, I], StrArray, Length(StrArray));
         Input := TBufferedStream.Create(GetInStream(ParamArg[1, 0]), True,
@@ -502,7 +521,7 @@ begin
               end;
             XTOOL_EXEC:
               begin
-                setlength(StrArray, 0);
+                SetLength(StrArray, 0);
                 for I := 2 to High(ParamArg[1]) do
                   Insert(ParamArg[1, I], StrArray, Length(StrArray));
                 Output := TBufferedStream.Create(GetOutStream(ParamArgSafe(1, 1)

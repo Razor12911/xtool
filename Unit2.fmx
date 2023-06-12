@@ -1200,7 +1200,7 @@ object Form2: TForm2
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
               TabOrder = 2
-              Text = 'JoJpeg (Experimental)'
+              Text = 'JoJpeg'
             end
           end
         end

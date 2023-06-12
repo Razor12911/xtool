@@ -293,11 +293,7 @@ begin
       for X := Low(ZStream1[W]) to High(ZStream1[W]) do
         for Y := Low(ZStream1[W, X]) to High(ZStream1[W, X]) do
           for Z := Low(ZStream1[W, X, Y]) to High(ZStream1[W, X, Y]) do
-          begin
             FillChar(ZStream1[W, X, Y, Z], SizeOf(z_stream), 0);
-            deflateInit2(ZStream1[W, X, Y, Z], X, Z_DEFLATED, -(Z + 8), Y,
-              Z_DEFAULT_STRATEGY);
-          end;
   end;
   if CodecAvailable[REFLATE_CODEC] then
   begin
@@ -305,8 +301,8 @@ begin
     SetLength(RefInst2, Count);
     for X := Low(RefInst1) to High(RefInst1) do
     begin
-      RefInst1[X] := raw2hif_Alloc;
-      RefInst2[X] := hif2raw_Alloc;
+      RefInst1[X] := nil;
+      RefInst2[X] := nil;
     end;
   end;
   if not BoolArray(CodecAvailable, False) then
@@ -314,10 +310,7 @@ begin
     SetLength(ZStream2, Count);
     for X := Low(ZStream2) to High(ZStream2) do
       for Y := Low(ZStream2[X]) to High(ZStream2[X]) do
-      begin
         FillChar(ZStream2[X, Y], SizeOf(z_stream), 0);
-        inflateInit2(ZStream2[X, Y], -(Y + 8));
-      end;
     for X := Low(SOList) to High(SOList) do
       for Y := Low(SOList[X]) to High(SOList[X]) do
       begin
@@ -349,21 +342,25 @@ begin
       for X := Low(ZStream1[W]) to High(ZStream1[W]) do
         for Y := Low(ZStream1[W, X]) to High(ZStream1[W, X]) do
           for Z := Low(ZStream1[W, X, Y]) to High(ZStream1[W, X, Y]) do
-            deflateEnd(ZStream1[W, X, Y, Z]);
+            if Assigned(ZStream1[W, X, Y, Z].zalloc) then
+              deflateEnd(ZStream1[W, X, Y, Z]);
   end;
   if CodecAvailable[REFLATE_CODEC] then
   begin
     for X := Low(RefInst1) to High(RefInst1) do
     begin
-      raw2hif_Free(RefInst1[X]);
-      hif2raw_Free(RefInst2[X]);
+      if Assigned(RefInst1[X]) then
+        raw2hif_Free(RefInst1[X]);
+      if Assigned(RefInst2[X]) then
+        hif2raw_Free(RefInst2[X]);
     end;
   end;
   if not BoolArray(CodecAvailable, False) then
   begin
     for X := Low(ZStream2) to High(ZStream2) do
       for Y := Low(ZStream2[X]) to High(ZStream2[X]) do
-        inflateEnd(ZStream2[X, Y]);
+        if Assigned(ZStream2[X, Y].zalloc) then
+          inflateEnd(ZStream2[X, Y]);
   end;
 end;
 
@@ -446,6 +443,9 @@ begin
   else if BoolArray(CodecEnabled, False) then
     if Assigned(Add) then
       exit;
+  for I := Low(ZStream2[Instance]) to High(ZStream2[Instance]) do
+    if not Assigned(ZStream2[Instance, I].zalloc) then
+      inflateInit2(ZStream2[Instance, I], -(I + 8));
   Pos := 0;
   Buffer := Funcs^.Allocator(Instance, Z_WORKMEM);
   IsZlib := False;
@@ -532,7 +532,7 @@ begin
           Res := inflate(ZStream^, Z_BLOCK);
           if not(Res in [Z_OK, Z_STREAM_END]) then
           begin
-            if (Res <> Z_DATA_ERROR) and (LastIn >= Z_MINSIZE) then
+            if { (Res <> Z_DATA_ERROR) and } (LastIn >= Z_MINSIZE) then
               Res := Z_STREAM_END;
             break;
           end;
@@ -696,6 +696,9 @@ begin
             (GetBits(StreamInfo^.Option, 12, 3) + 8).ToString;
           ZStream := @ZStream1[Instance, L, M,
             GetBits(StreamInfo^.Option, 12, 3)];
+          if not Assigned(ZStream^.zalloc) then
+            deflateInit2(ZStream^, L, Z_DEFLATED,
+              -(GetBits(StreamInfo^.Option, 12, 3) + 8), M, Z_DEFAULT_STRATEGY);
           if not Result then
           begin
             ZStream^.next_in := NewInput;
@@ -746,6 +749,8 @@ begin
       begin
         Buffer := Funcs^.Allocator(Instance, R_WORKMEM * 2);
         J := 0;
+        if not Assigned(RefInst1[Instance]) then
+          RefInst1[Instance] := raw2hif_Alloc;
         HR := RefInst1[Instance];
         if StreamInfo^.Status >= TStreamStatus.Predicted then
           L := GetBits(StreamInfo^.Option, 5, 7)
@@ -764,7 +769,6 @@ begin
           if (Res1 in [0, 2]) or (Res1 > 3) then
           begin
             Res2 := raw2hif_getoutlen(HR);
-            // ShowMessage('enc: ' + Res2.ToString);
             Output(Instance, Buffer, Res2);
             Inc(J, Res2);
             raw2hif_addbuf(HR, Buffer, R_WORKMEM);
@@ -791,13 +795,14 @@ begin
         begin
           if GetBits(StreamInfo^.Option, 15, 1) = 1 then
           begin
+            if not Assigned(RefInst2[Instance]) then
+              RefInst2[Instance] := hif2raw_Alloc;
             HR := RefInst2[Instance];
             I := 0;
             J := 0;
             M := 0;
             CRC := 0;
             Ptr := Funcs^.Storage(Instance, @M);
-            // ShowMessage('dec: ' + M.ToString);
             hif2raw_Init(HR, L);
             while True do
             begin
@@ -828,7 +833,6 @@ begin
           if (GetBits(StreamInfo^.Option, 15, 1) = 0) or
             (CRC = Hash32(0, OldInput, StreamInfo^.OldSize)) then
           begin
-            // ShowMessage('Verified!');
             SetBits(StreamInfo^.Option, L, 5, 7);
             Result := True;
           end;
@@ -889,6 +893,9 @@ begin
         Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'w' +
           (GetBits(StreamInfo.Option, 12, 3) + 8).ToString;
         ZStream := @ZStream1[Instance, L, M, GetBits(StreamInfo.Option, 12, 3)];
+        if not Assigned(ZStream^.zalloc) then
+          deflateInit2(ZStream^, L, Z_DEFLATED,
+            -(GetBits(StreamInfo.Option, 12, 3) + 8), M, Z_DEFAULT_STRATEGY);
         ZStream^.next_in := Input;
         ZStream^.avail_in := StreamInfo.NewSize;
         deflateReset(ZStream^);
@@ -910,6 +917,8 @@ begin
     REFLATE_CODEC:
       begin
         Buffer := Funcs^.Allocator(Instance, R_WORKMEM);
+        if not Assigned(RefInst2[Instance]) then
+          RefInst2[Instance] := hif2raw_Alloc;
         HR := RefInst2[Instance];
         I := 0;
         J := 0;

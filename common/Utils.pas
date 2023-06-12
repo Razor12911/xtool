@@ -3,7 +3,7 @@ unit Utils;
 interface
 
 uses
-  Threading, SynCommons,
+  Threading, OpenCL, SynCommons,
   WinAPI.Windows, WinAPI.PsAPI,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.AnsiStrings, System.StrUtils, System.IniFiles, System.IOUtils,
@@ -136,7 +136,9 @@ type
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     procedure Clear;
     function Add(AStreamType: Pointer; MaxSize: Int64 = FMaxStreamSize)
-      : Integer;
+      : Integer overload;
+    function Add(AStream: TStream; MaxSize: Int64 = FMaxStreamSize)
+      : Integer overload;
     procedure Update(Index: Integer; MaxSize: Int64);
     function MaxSize(Index: Integer): NativeInt;
   end;
@@ -278,19 +280,71 @@ type
     property OutSize: Int64 read FOutSize;
   end;
 
-  TCacheStream = class(TStream)
+  TCacheReadStream = class(TStream)
+  private const
+    FBufferSize = 4 * 1024 * 1024;
   private
-    FStream: TStream;
+    FSync: TSynLocker;
+    FOwnStream: Boolean;
+    FInput, FCache: TStream;
+    FBuffer: Pointer;
     FTask: TTask;
-    FMemory: PByte;
     FPosition1, FPosition2: Int64;
-    FAvaiSize, FMaxSize: Integer;
+    FAvaiSize, FMaxSize: Int64;
     FDone: Boolean;
     procedure CacheMemory;
   public
-    constructor Create(Stream: TStream; Size: Integer = 16 * 1024 * 1024);
+    constructor Create(Input, Cache: TStream; AOwnStream: Boolean = True);
     destructor Destroy; override;
     function Read(var Buffer; Count: Integer): Integer; override;
+  end;
+
+  TCacheWriteStream = class(TStream)
+  private const
+    FBufferSize = 4 * 1024 * 1024;
+  private
+    FSync: TSynLocker;
+    FOwnStream: Boolean;
+    FOutput, FCache: TStream;
+    FBuffer: Pointer;
+    FTask: TTask;
+    FPosition1, FPosition2: Int64;
+    FUsedSize, FMaxSize: Int64;
+    FDone: Boolean;
+    procedure CacheMemory;
+  public
+    constructor Create(Output, Cache: TStream; AOwnStream: Boolean = True);
+    destructor Destroy; override;
+    function Write(const Buffer; Count: LongInt): LongInt; override;
+  end;
+
+  TGPUMemoryStream = class(TStream)
+  private
+    FInitialized: Boolean;
+    FStatus: CL_int;
+    FCtxProps: array [0 .. 2] of PCL_context_properties;
+    FPlatCount: CL_uint;
+    FPlatform: PCL_platform_id;
+    FContext: PCL_context;
+    FCommandQueue: PCL_command_queue;
+    FDevCount: CL_int;
+    FDevices: TArray<PCL_device_id>;
+    FDeviceName: array [0 .. 1023] of AnsiChar;
+    FDeviceSize: CL_ulong;
+    FMemory: PCL_mem;
+    FMaxSize: NativeInt;
+    FSize, FPosition: NativeInt;
+    procedure CheckError(Status: CL_int = CL_SUCCESS);
+  public
+    constructor Create(ASize: NativeInt); overload;
+    destructor Destroy; override;
+    procedure SetSize(const NewSize: Int64); override;
+    procedure SetSize(NewSize: LongInt); override;
+    function Read(var Buffer; Count: LongInt): LongInt; override;
+    function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    function DeviceName: String;
+    function DeviceSize: Int64;
   end;
 
   TDataStore = class(TObject)
@@ -503,6 +557,10 @@ function ExecStdioSync(Executable, CommandLine, WorkDir: string;
 function GetCmdStr(CommandLine: String; Index: Integer;
   KeepQuotes: Boolean = False): string;
 function GetCmdCount(CommandLine: String): Integer;
+
+var
+  GPUName: String;
+  GPUSize: Int64;
 
 implementation
 
@@ -948,6 +1006,19 @@ begin
   SetLength(FStreams, FCount);
   LTypeData := GetTypeData(AStreamType);
   FStreams[Pred(FCount)].Instance := TStream(LTypeData^.ClassType.Create);
+  FStreams[Pred(FCount)].Instance.Position := 0;
+  FStreams[Pred(FCount)].Instance.Size := 0;
+  FStreams[Pred(FCount)].Position := 0;
+  FStreams[Pred(FCount)].Size := 0;
+  FStreams[Pred(FCount)].MaxSize := EnsureRange(MaxSize, 0, FMaxStreamSize);
+end;
+
+function TArrayStream.Add(AStream: TStream; MaxSize: Int64): Integer;
+begin
+  Result := FCount;
+  Inc(FCount);
+  SetLength(FStreams, FCount);
+  FStreams[Pred(FCount)].Instance := AStream;
   FStreams[Pred(FCount)].Instance.Position := 0;
   FStreams[Pred(FCount)].Instance.Size := 0;
   FStreams[Pred(FCount)].Position := 0;
@@ -1850,37 +1921,60 @@ begin
   Result := WaitForSingleObject(FProcessInfo.hProcess, 0) = WAIT_TIMEOUT;
 end;
 
-constructor TCacheStream.Create(Stream: TStream; Size: Integer);
+constructor TCacheReadStream.Create(Input, Cache: TStream; AOwnStream: Boolean);
 begin
   inherited Create;
-  FStream := Stream;
-  GetMem(FMemory, Size);
+  FSync.Init;
+  FOwnStream := AOwnStream;
+  FInput := Input;
+  FCache := Cache;
   FPosition1 := 0;
   FPosition2 := 0;
   FAvaiSize := 0;
-  FMaxSize := Size;
+  if Assigned(FCache) then
+    FMaxSize := FCache.Size
+  else
+    FMaxSize := 0;
   FDone := False;
   FTask := TTask.Create;
   FTask.Perform(CacheMemory);
-  FTask.Start;
+  if FMaxSize > 0 then
+  begin
+    GetMem(FBuffer, FBufferSize);
+    FTask.Start;
+  end;
 end;
 
-destructor TCacheStream.Destroy;
+destructor TCacheReadStream.Destroy;
 begin
   FDone := True;
-  FTask.Wait;
+  if FMaxSize > 0 then
+  begin
+    FTask.Wait;
+    FreeMem(FBuffer);
+  end;
   FTask.Free;
-  FreeMem(FMemory);
+  if FOwnStream then
+    if FMaxSize > 0 then
+      FCache.Free;
+  FSync.Done;
   inherited Destroy;
 end;
 
-procedure TCacheStream.CacheMemory;
+procedure TCacheReadStream.CacheMemory;
 var
-  I: Integer;
+  I: Int64;
 begin
   AtomicExchange(I, FAvaiSize);
-  I := FStream.Read((FMemory + FPosition1 mod FMaxSize)^,
-    Min(FMaxSize - I, FMaxSize - (FPosition1 mod FMaxSize)));
+  I := FInput.Read(FBuffer^, Min(FBufferSize, Min(FMaxSize - I,
+    FMaxSize - (FPosition1 mod FMaxSize))));
+  FSync.Lock;
+  try
+    FCache.Position := FPosition1 mod FMaxSize;
+    FCache.WriteBuffer(FBuffer^, I);
+  finally
+    FSync.UnLock;
+  end;
   while (I > 0) and (FDone = False) do
   begin
     Inc(FPosition1, I);
@@ -1892,16 +1986,28 @@ begin
       if FDone then
         exit;
     end;
-    I := FStream.Read((FMemory + FPosition1 mod FMaxSize)^,
-      Min(FMaxSize - I, FMaxSize - (FPosition1 mod FMaxSize)));
+    I := FInput.Read(FBuffer^, Min(FBufferSize, Min(FMaxSize - I,
+      FMaxSize - (FPosition1 mod FMaxSize))));
+    FSync.Lock;
+    try
+      FCache.Position := FPosition1 mod FMaxSize;
+      FCache.WriteBuffer(FBuffer^, I);
+    finally
+      FSync.UnLock;
+    end;
   end;
   FDone := True;
 end;
 
-function TCacheStream.Read(var Buffer; Count: Integer): Integer;
+function TCacheReadStream.Read(var Buffer; Count: Integer): Integer;
 var
-  I: Integer;
+  I: Int64;
 begin
+  if FMaxSize <= 0 then
+  begin
+    Result := FInput.Read(Buffer, Count);
+    exit;
+  end;
   if Count <= 0 then
     exit(0);
   AtomicExchange(I, FAvaiSize);
@@ -1914,9 +2020,283 @@ begin
         break;
     end;
   Result := Min(Count, Min(I, FMaxSize - (FPosition2 mod FMaxSize)));
-  Move((FMemory + FPosition2 mod FMaxSize)^, Buffer, Result);
+  FSync.Lock;
+  try
+    FCache.Position := FPosition2 mod FMaxSize;
+    FCache.ReadBuffer(Buffer, Result);
+  finally
+    FSync.UnLock;
+  end;
   Inc(FPosition2, Result);
   AtomicDecrement(FAvaiSize, Result);
+end;
+
+constructor TCacheWriteStream.Create(Output, Cache: TStream;
+  AOwnStream: Boolean);
+begin
+  inherited Create;
+  FSync.Init;
+  FOwnStream := AOwnStream;
+  FOutput := Output;
+  FCache := Cache;
+  FPosition1 := 0;
+  FPosition2 := 0;
+  FUsedSize := 0;
+  if Assigned(FCache) then
+    FMaxSize := FCache.Size
+  else
+    FMaxSize := 0;
+  FDone := False;
+  FTask := TTask.Create;
+  FTask.Perform(CacheMemory);
+  if FMaxSize > 0 then
+  begin
+    GetMem(FBuffer, FBufferSize);
+    FTask.Start;
+  end;
+end;
+
+destructor TCacheWriteStream.Destroy;
+var
+  I: Int64;
+begin
+  if FMaxSize > 0 then
+  begin
+    AtomicExchange(I, FUsedSize);
+    while I > 0 do
+    begin
+      Sleep(1);
+      AtomicExchange(I, FUsedSize);
+    end;
+  end;
+  FDone := True;
+  if FMaxSize > 0 then
+  begin
+    FTask.Wait;
+    FreeMem(FBuffer);
+  end;
+  FTask.Free;
+  if FOwnStream then
+    if FMaxSize > 0 then
+      FCache.Free;
+  FSync.Done;
+  inherited Destroy;
+end;
+
+procedure TCacheWriteStream.CacheMemory;
+var
+  I: Int64;
+begin
+  AtomicExchange(I, FUsedSize);
+  I := Min(FBufferSize, Min(I, FMaxSize - (FPosition1 mod FMaxSize)));
+  FSync.Lock;
+  try
+    FCache.Position := FPosition1 mod FMaxSize;
+    FCache.ReadBuffer(FBuffer^, I);
+  finally
+    FSync.UnLock;
+  end;
+  FOutput.WriteBuffer(FBuffer^, I);
+  while True do
+  begin
+    Inc(FPosition1, I);
+    I := AtomicDecrement(FUsedSize, I);
+    while (I = 0) and (FDone = False) do
+    begin
+      Sleep(1);
+      AtomicExchange(I, FUsedSize);
+    end;
+    I := Min(FBufferSize, Min(I, FMaxSize - (FPosition1 mod FMaxSize)));
+    FSync.Lock;
+    try
+      FCache.Position := FPosition1 mod FMaxSize;
+      FCache.ReadBuffer(FBuffer^, I);
+    finally
+      FSync.UnLock;
+    end;
+    FOutput.WriteBuffer(FBuffer^, I);
+    if FDone and (FPosition1 = FPosition2) then
+      break;
+  end;
+end;
+
+function TCacheWriteStream.Write(const Buffer; Count: LongInt): LongInt;
+var
+  I: Int64;
+begin
+  if FMaxSize <= 0 then
+  begin
+    FOutput.WriteBuffer(Buffer, Count);
+    exit(Count);
+  end;
+  if Count <= 0 then
+    exit(0);
+  AtomicExchange(I, FUsedSize);
+  if I = FMaxSize then
+    while True do
+    begin
+      Sleep(1);
+      AtomicExchange(I, FUsedSize);
+      if (I < FMaxSize) then
+        break;
+    end;
+  Result := Min(Count, Min(FMaxSize - I, FMaxSize - (FPosition2 mod FMaxSize)));
+  FSync.Lock;
+  try
+    FCache.Position := FPosition2 mod FMaxSize;
+    FCache.WriteBuffer(Buffer, Result);
+  finally
+    FSync.UnLock;
+  end;
+  Inc(FPosition2, Result);
+  AtomicIncrement(FUsedSize, Result);
+end;
+
+constructor TGPUMemoryStream.Create(ASize: NativeInt);
+begin
+  inherited Create;
+  FInitialized := False;
+  if not OpenCL.DLLLoaded then
+    raise Exception.CreateFmt('OpenCL: %s', ['opencl.dll could not be loaded']);
+  FStatus := clGetPlatformIDs(0, nil, @FPlatCount);
+  CheckError;
+  FStatus := clGetPlatformIDs(FPlatCount, @FPlatform, nil);
+  CheckError;
+  FCtxProps[0] := PCL_context_properties(CL_CONTEXT_PLATFORM_INFO);
+  FCtxProps[1] := PCL_context_properties(FPlatform);
+  FCtxProps[2] := nil;
+  FContext := clCreateContextFromType(@FCtxProps, CL_DEVICE_TYPE_GPU, nil, nil,
+    @FStatus);
+  CheckError;
+  FStatus := clGetContextInfo(FContext, CL_CONTEXT_DEVICES, 0, nil, @FDevCount);
+  CheckError;
+  if FDevCount <= 0 then
+    CheckError(CL_DEVICE_NOT_AVAILABLE);
+  SetLength(FDevices, FDevCount);
+  FStatus := clGetContextInfo(FContext, CL_CONTEXT_DEVICES, FDevCount,
+    @FDevices[0], nil);
+  CheckError;
+  FillChar(FDeviceName, sizeof(FDeviceName), #0);
+  FStatus := clGetDeviceInfo(FDevices[0], CL_DEVICE_NAME, sizeof(FDeviceName),
+    @FDeviceName[0], nil);
+  CheckError;
+  FStatus := clGetDeviceInfo(FDevices[0], CL_DEVICE_GLOBAL_MEM_SIZE,
+    sizeof(FDeviceSize), @FDeviceSize, nil);
+  CheckError;
+  FCommandQueue := clCreateCommandQueue(FContext, FDevices[0], 0, @FStatus);
+  CheckError;
+  FMemory := clCreateBuffer(FContext, CL_MEM_ALLOC_HOST_PTR or
+    CL_MEM_READ_WRITE, ASize, nil, @FStatus);
+  CheckError;
+  FInitialized := True;
+  FMaxSize := ASize;
+  FPosition := 0;
+  FSize := 0;
+end;
+
+destructor TGPUMemoryStream.Destroy;
+begin
+  if FInitialized then
+  begin
+    clReleaseMemObject(FMemory);
+    clReleaseCommandQueue(FCommandQueue);
+    clReleaseContext(FContext);
+  end;
+  inherited Destroy;
+end;
+
+procedure TGPUMemoryStream.SetSize(NewSize: LongInt);
+begin
+  SetSize(Int64(NewSize));
+end;
+
+procedure TGPUMemoryStream.SetSize(const NewSize: Int64);
+var
+  OldPosition: NativeInt;
+begin
+  OldPosition := FPosition;
+  if NewSize <= FMaxSize then
+    FSize := NewSize;
+  if OldPosition > NewSize then
+    Seek(0, soEnd);
+end;
+
+function TGPUMemoryStream.Read(var Buffer; Count: LongInt): LongInt;
+begin
+  Result := 0;
+  if not FInitialized then
+    exit;
+  if (FPosition >= 0) and (Count >= 0) then
+  begin
+    if FSize - FPosition > 0 then
+    begin
+      if FSize > Count + FPosition then
+        Result := Count
+      else
+        Result := FSize - FPosition;
+      FStatus := clEnqueueReadBuffer(FCommandQueue, FMemory, CL_TRUE, FPosition,
+        Result, @Buffer, 0, nil, nil);
+      Inc(FPosition, Result);
+    end;
+  end;
+end;
+
+function TGPUMemoryStream.Write(const Buffer; Count: LongInt): LongInt;
+var
+  FCount: LongInt;
+begin
+  Result := 0;
+  if not FInitialized then
+    exit;
+  FCount := Count;
+  if FPosition + FCount > FMaxSize then
+    FCount := FMaxSize - FPosition;
+  if (FPosition >= 0) and (FCount >= 0) then
+  begin
+    FStatus := clEnqueueWriteBuffer(FCommandQueue, FMemory, CL_TRUE, FPosition,
+      FCount, @Buffer, 0, nil, nil);
+    CheckError;
+    Inc(FPosition, FCount);
+    if FPosition > FSize then
+      FSize := FPosition;
+    Result := FCount;
+  end;
+end;
+
+function TGPUMemoryStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+  case Origin of
+    soBeginning:
+      FPosition := Offset;
+    soCurrent:
+      Inc(FPosition, Offset);
+    soEnd:
+      FPosition := FSize + Offset;
+  end;
+  Result := Min(FPosition, FMaxSize);
+end;
+
+procedure TGPUMemoryStream.CheckError(Status: CL_int);
+var
+  LStatus: CL_int;
+begin
+  if Status <> CL_SUCCESS then
+    LStatus := Status
+  else
+    LStatus := FStatus;
+  if LStatus = CL_SUCCESS then
+    exit;
+  raise Exception.CreateFmt('OpenCL: %s', [OpenCL.GetErrString(LStatus)]);
+end;
+
+function TGPUMemoryStream.DeviceName: String;
+begin
+  Result := String(FDeviceName);
+end;
+
+function TGPUMemoryStream.DeviceSize: Int64;
+begin
+  Result := FDeviceSize;
 end;
 
 constructor TDataStore1.Create(AInput: TStream; ADynamic: Boolean;
@@ -3897,6 +4277,25 @@ begin
   Result := 0;
   while GetCmdStr(CommandLine, Result, True) <> '' do
     Inc(Result);
+end;
+
+var
+  LGPU: TGPUMemoryStream;
+
+initialization
+
+GPUName := '';
+GPUSize := 0;
+try
+  LGPU := TGPUMemoryStream.Create(65536);
+  with LGPU do
+    try
+      GPUName := DeviceName;
+      GPUSize := DeviceSize;
+    finally
+      Free;
+    end;
+except
 end;
 
 end.

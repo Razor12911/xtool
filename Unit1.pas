@@ -242,6 +242,10 @@ type
     Label3: TLabel;
     SpinBox3: TSpinBox;
     CheckBox6: TCheckBox;
+    Label8: TLabel;
+    ComboEdit3: TComboEdit;
+    Label22: TLabel;
+    ComboEdit4: TComboEdit;
     procedure FormShow(Sender: TObject);
     procedure SearchEditButton1Click(Sender: TObject);
     procedure SearchEditButton3Click(Sender: TObject);
@@ -379,7 +383,9 @@ begin
   Insert('-t' + SpinBox13.Text, CmdStr, Length(CmdStr));
   if CheckBox7.IsChecked then
     Insert('-v', CmdStr, Length(CmdStr));
-  Insert('--basedir=' + Edit6.Text, CmdStr, Length(CmdStr));
+  Insert('-g' + ReplaceText(ReplaceText(ComboEdit4.Text, '%', 'p'), ' ', ''),
+    CmdStr, Length(CmdStr));
+  Insert('-bd' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit25.Text, CmdStr, Length(CmdStr));
   case DecodeMode of
     0:
@@ -408,14 +414,19 @@ begin
     Insert('-dd' + IfThen(SpinBox4.Enabled, SpinBox4.Text, ''), CmdStr,
       Length(CmdStr));
   if ComboEdit1.Enabled then
-    Insert('-SI' + ComboEdit1.Text, CmdStr, Length(CmdStr));
+    Insert('-SI' + ReplaceText(ComboEdit1.Text, ' ', ''), CmdStr,
+      Length(CmdStr));
   if CheckBox4.IsChecked then
   begin
     S := '';
     if not ComboEdit2.Text.StartsWith('Auto', False) then
-      S := ':d' + ReplaceText(ComboEdit2.Text, ' ', '');
-    Insert('-l' + SpinBox7.Text + S, CmdStr, Length(CmdStr));
+      S := S + ':d' + ReplaceText(ComboEdit2.Text, ' ', '');
+    // S := S + ':o8';
+    Insert('-l' + SpinBox7.Text + IfThen(SameText(ComboEdit2.Text, 'Auto'), '',
+      'x') + S, CmdStr, Length(CmdStr));
   end;
+  Insert('-g' + ReplaceText(ReplaceText(ComboEdit3.Text, '%', 'p'), ' ', ''),
+    CmdStr, Length(CmdStr));
   Insert('-bd' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit1.Text, CmdStr, Length(CmdStr));
   if ComboBox3.ItemIndex = 1 then

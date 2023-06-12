@@ -71,8 +71,8 @@ begin
     SetLength(dctx, Count);
     for X := Low(cctx) to High(cctx) do
     begin
-      cctx[X] := ZSTD_createCCtx;
-      dctx[X] := ZSTD_createDCtx;
+      cctx[X] := nil;
+      dctx[X] := nil;
     end;
   end;
   SetLength(Options, 0);
@@ -95,8 +95,10 @@ begin
   begin
     for X := Low(cctx) to High(cctx) do
     begin
-      ZSTD_freeCCtx(cctx[X]);
-      ZSTD_freeDCtx(dctx[X]);
+      if Assigned(cctx[X]) then
+        ZSTD_freeCCtx(cctx[X]);
+      if Assigned(dctx[X]) then
+        ZSTD_freeDCtx(dctx[X]);
     end;
   end;
 end;
@@ -150,7 +152,11 @@ begin
     Buffer := Funcs^.Allocator(Instance, Y);
     case X of
       ZSTD_CODEC:
-        Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Y, Input, X);
+        begin
+          if not Assigned(dctx[Instance]) then
+            dctx[Instance] := ZSTD_createDCtx;
+          Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Y, Input, X);
+        end;
     end;
     if (Y > DI1.OldSize) then
     begin
@@ -188,6 +194,8 @@ begin
         if Z <= 0 then
           Z := ZMaxSize;
         Buffer := Funcs^.Allocator(Instance, Z);
+        if not Assigned(dctx[Instance]) then
+          dctx[Instance] := ZSTD_createDCtx;
         Y := ZSTD_decompressDCtx(dctx[Instance], Buffer, Z, Input + Pos, X);
         // Y := ZSTD_decompress_usingDDict(dctx[Instance], Buffer, Z, Input + Pos, X, ddict);
         if (X < Y) then
@@ -231,8 +239,12 @@ begin
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
   case X of
     ZSTD_CODEC:
-      Res := ZSTD_decompressDCtx(dctx[Instance], Buffer, StreamInfo^.NewSize,
-        Input, StreamInfo^.OldSize);
+      begin
+        if not Assigned(dctx[Instance]) then
+          dctx[Instance] := ZSTD_createDCtx;
+        Res := ZSTD_decompressDCtx(dctx[Instance], Buffer, StreamInfo^.NewSize,
+          Input, StreamInfo^.OldSize);
+      end;
   end;
   if Res > StreamInfo^.OldSize then
   begin
@@ -285,6 +297,8 @@ begin
           { ZSTD_CCtx_reset(cctx[Instance], ZSTD_reset_session_and_parameters);
             ZSTD_CCtx_setParameter(cctx[Instance], ZSTD_c_strategy, 5);
             ZSTD_CCtx_setParameter(cctx[Instance], ZSTD_c_compressionLevel, I); }
+          if not Assigned(cctx[Instance]) then
+            cctx[Instance] := ZSTD_createCCtx;
           if not Result then
             Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer,
               StreamInfo^.NewSize, NewInput, StreamInfo^.NewSize, I);
@@ -330,6 +344,8 @@ begin
     A := Pred(I);
     for B := A downto 1 do
     begin
+      if not Assigned(cctx[Instance]) then
+        cctx[Instance] := ZSTD_createCCtx;
       Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo^.NewSize,
         NewInput, StreamInfo^.NewSize, B);
       if (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
@@ -379,10 +395,14 @@ begin
   Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString;
   case X of
     ZSTD_CODEC:
-      Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo.NewSize,
-        Input, StreamInfo.NewSize, GetBits(StreamInfo.Option, 5, 7));
-    { Res1 := ZSTD_compress_usingCDict(cctx[Instance], Buffer,
-      StreamInfo.NewSize, Input, StreamInfo.NewSize, cdict); }
+      begin
+        if not Assigned(cctx[Instance]) then
+          cctx[Instance] := ZSTD_createCCtx;
+        Res1 := ZSTD_compressCCtx(cctx[Instance], Buffer, StreamInfo.NewSize,
+          Input, StreamInfo.NewSize, GetBits(StreamInfo.Option, 5, 7));
+        { Res1 := ZSTD_compress_usingCDict(cctx[Instance], Buffer,
+          StreamInfo.NewSize, Input, StreamInfo.NewSize, cdict); }
+      end;
   end;
   Funcs^.LogRestore(ZSTDCodecs[GetBits(StreamInfo.Option, 0, 5)], PChar(Params),
     StreamInfo.OldSize, StreamInfo.NewSize, Res1, True);
