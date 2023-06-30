@@ -242,10 +242,6 @@ type
     Label3: TLabel;
     SpinBox3: TSpinBox;
     CheckBox6: TCheckBox;
-    Label8: TLabel;
-    ComboEdit3: TComboEdit;
-    Label22: TLabel;
-    ComboEdit4: TComboEdit;
     procedure FormShow(Sender: TObject);
     procedure SearchEditButton1Click(Sender: TObject);
     procedure SearchEditButton3Click(Sender: TObject);
@@ -383,8 +379,6 @@ begin
   Insert('-t' + SpinBox13.Text, CmdStr, Length(CmdStr));
   if CheckBox7.IsChecked then
     Insert('-v', CmdStr, Length(CmdStr));
-  Insert('-g' + ReplaceText(ReplaceText(ComboEdit4.Text, '%', 'p'), ' ', ''),
-    CmdStr, Length(CmdStr));
   Insert('-bd' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit25.Text, CmdStr, Length(CmdStr));
   case DecodeMode of
@@ -425,8 +419,6 @@ begin
     Insert('-l' + SpinBox7.Text + IfThen(SameText(ComboEdit2.Text, 'Auto'), '',
       'x') + S, CmdStr, Length(CmdStr));
   end;
-  Insert('-g' + ReplaceText(ReplaceText(ComboEdit3.Text, '%', 'p'), ' ', ''),
-    CmdStr, Length(CmdStr));
   Insert('-bd' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit1.Text, CmdStr, Length(CmdStr));
   if ComboBox3.ItemIndex = 1 then

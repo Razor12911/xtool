@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2020/06/16 10:18:17.000.397,=rtl.dcp</Transaction>
+    <Transaction>2020/06/16 10:18:43.000.119,D:\Users\YW\Documents\Embarcadero\Studio\Projects\Package1.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\pkglibc.dproj</Transaction>
+    <Transaction>2020/06/16 10:22:07.000.080,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 10:22:24.000.216,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\libc\Unit1.pas=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 10:22:42.000.105,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\libc\pkglibc.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\pkglibc.dproj</Transaction>
+    <Transaction>2020/06/16 10:23:03.000.712,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\libc\libc.pas=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\libc\Unit1.pas</Transaction>
+    <Transaction>2022/04/15 10:09:52.000.440,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\LIBC\libucrt.pas</Transaction>
+    <Transaction>2022/04/15 12:22:21.000.777,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\LIBC\libgcc.pas</Transaction>
+    <Transaction>2022/04/17 16:36:03.763,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\LIBC\libgcc.pas=</Transaction>
+    <Transaction>2022/04/17 16:36:03.813,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\LIBC\libucrt.pas=</Transaction>
+  </Transactions>
+</BorlandProject>

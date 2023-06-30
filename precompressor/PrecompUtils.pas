@@ -201,9 +201,9 @@ type
   end;
 
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
-    Size: Integer);
+    Size: Integer)cdecl;
   _PrecompAdd = procedure(Instance: Integer; Info: PStrInfo1; Codec: PChar;
-    DepthInfo: PDepthInfo);
+    DepthInfo: PDepthInfo)cdecl;
 
   _PrecompInit = function(Command: PChar; Count: Integer;
     Funcs: PPrecompFuncs): Boolean;
@@ -476,7 +476,7 @@ begin
     FSuffix1));
   if FileExists(FFilename) then
     DeleteFile(FFilename);
-{$IFDEF WIN32}
+{$IFDEF CPU32BITS}
   FStream := TFileStream.Create(FFilename, fmCreate);
 {$ELSE}
   FStream := TSharedMemoryStream.Create

@@ -3,7 +3,7 @@ unit Utils;
 interface
 
 uses
-  Threading, OpenCL, SynCommons,
+  Threading, OpenCL, SynCommons, lz4lib, ZSTDLib,
   WinAPI.Windows, WinAPI.PsAPI,
   System.SysUtils, System.Classes, System.SyncObjs, System.Math, System.Types,
   System.AnsiStrings, System.StrUtils, System.IniFiles, System.IOUtils,
@@ -11,6 +11,12 @@ uses
   System.Net.HttpClient,
   System.Generics.Defaults, System.Generics.Collections;
 
+const
+{$IFDEF CPU32BITS}
+  MEM_LIMIT = 1792 * 1024 * 1024;
+{$ELSE}
+  MEM_LIMIT = Int64.MaxValue;
+{$ENDIF}
 procedure ShowMessage(Msg: string; Caption: string = '');
 procedure WriteLine(S: String);
 function GetModuleName: string;
@@ -45,16 +51,6 @@ procedure SetBits(var Data: UInt64; Value: Int64; Index: TInt64_BitIndex;
   Count: TInt64_BitCount); overload;
 
 type
-  PDynArrayRec = ^TDynArrayRec;
-
-  TDynArrayRec = packed record
-{$IFDEF CPUX64}
-    _Padding: LongInt;
-{$ENDIF}
-    RefCnt: LongInt;
-    Length: NativeInt;
-  end;
-
   TListEx<T> = class(TList<T>)
   private
     FIndex: Integer;
@@ -280,26 +276,53 @@ type
     property OutSize: Int64 read FOutSize;
   end;
 
+  TStoreStream = class(TMemoryStreamEx)
+  protected
+    FOnFull: TStreamProc;
+  public
+    constructor Create(ASize: NativeInt); overload;
+    destructor Destroy; override;
+    function Write(const Buffer; Count: Integer): Integer; override;
+    procedure Flush;
+    property OnFull: TStreamProc read FOnFull write FOnFull;
+  end;
+
+  TCacheCompression = (ccNone, ccLZ4, ccZSTD);
+
   TCacheReadStream = class(TStream)
+  protected
+    function FCallback(ASize: Int64): Boolean;
+    procedure FOnFull(Stream: TStream);
   private const
     FBufferSize = 4 * 1024 * 1024;
   private
     FSync: TSynLocker;
     FOwnStream: Boolean;
     FInput, FCache: TStream;
-    FBuffer: Pointer;
+    FStorage1: TStoreStream;
+    FStorage2: TMemoryStreamEx;
+    FCompBuffer: Pointer;
+    FCompBufferSize: Integer;
     FTask: TTask;
     FPosition1, FPosition2: Int64;
-    FAvaiSize, FMaxSize: Int64;
+    FUsedSize, FMaxSize: Int64;
     FDone: Boolean;
+    FComp: TCacheCompression;
+    FCCtx: ZSTD_CCtx;
+    FDCtx: ZSTD_DCtx;
+    FCached: Int64;
     procedure CacheMemory;
   public
-    constructor Create(Input, Cache: TStream; AOwnStream: Boolean = True);
+    constructor Create(Input, Cache: TStream; AOwnStream: Boolean = True;
+      AComp: TCacheCompression = ccNone);
     destructor Destroy; override;
     function Read(var Buffer; Count: Integer): Integer; override;
+    function Cached(Compressed: PInt64): Int64;
   end;
 
   TCacheWriteStream = class(TStream)
+  protected
+    procedure FOnFull(Stream: TStream);
   private const
     FBufferSize = 4 * 1024 * 1024;
   private
@@ -307,15 +330,24 @@ type
     FOwnStream: Boolean;
     FOutput, FCache: TStream;
     FBuffer: Pointer;
+    FStorage: TStoreStream;
+    FCompBuffer: Pointer;
+    FCompBufferSize: Integer;
     FTask: TTask;
     FPosition1, FPosition2: Int64;
     FUsedSize, FMaxSize: Int64;
     FDone: Boolean;
+    FComp: TCacheCompression;
+    FCCtx: ZSTD_CCtx;
+    FDCtx: ZSTD_DCtx;
+    FCached: Int64;
     procedure CacheMemory;
   public
-    constructor Create(Output, Cache: TStream; AOwnStream: Boolean = True);
+    constructor Create(Output, Cache: TStream; AOwnStream: Boolean = True;
+      AComp: TCacheCompression = ccNone);
     destructor Destroy; override;
     function Write(const Buffer; Count: LongInt): LongInt; override;
+    function Cached(Compressed: PInt64): Int64;
   end;
 
   TGPUMemoryStream = class(TStream)
@@ -484,9 +516,9 @@ function GenerateGUID: string;
 function CalculateEntropy(Buffer: Pointer; BufferSize: Integer): Single;
 
 function CopyStream(AStream1, AStream2: TStream; ASize: Int64 = Int64.MaxValue;
-  ACallback: TProc<Int64> = nil): Int64;
+  ACallback: TFunc<Int64, Boolean> = nil): Int64;
 procedure CopyStreamEx(AStream1, AStream2: TStream; ASize: Int64;
-  ACallback: TProc<Int64> = nil);
+  ACallback: TFunc<Int64, Boolean> = nil);
 
 function EndianSwap(A: Single): Single; overload;
 function EndianSwap(A: double): double; overload;
@@ -1156,7 +1188,7 @@ begin
   if FileExists(FPath) then
     FBaseDir := ExtractFilePath(TPath.GetFullPath(FPath))
   else if DirectoryExists(FPath) then
-    FBaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(FPath))
+    FBaseDir := IncludeTrailingPathDelimiter(TPath.GetFullPath(FPath))
   else
     FBaseDir := ExtractFilePath(TPath.GetFullPath(FPath));
   FList := GetFileList([FPath], True);
@@ -1258,7 +1290,7 @@ constructor TDirOutputStream.Create(const APath: String);
 begin
   inherited Create;
   FState := TState.oNone;
-  FPath := IncludeTrailingBackSlash(TPath.GetFullPath(APath));
+  FPath := IncludeTrailingPathDelimiter(TPath.GetFullPath(APath));
   FStream := nil;
 end;
 
@@ -1921,7 +1953,42 @@ begin
   Result := WaitForSingleObject(FProcessInfo.hProcess, 0) = WAIT_TIMEOUT;
 end;
 
-constructor TCacheReadStream.Create(Input, Cache: TStream; AOwnStream: Boolean);
+constructor TStoreStream.Create(ASize: NativeInt);
+begin
+  inherited Create(False, GetMemory(ASize), ASize);
+end;
+
+destructor TStoreStream.Destroy;
+begin
+  if Assigned(FOnFull) then
+    if Size > 0 then
+      FOnFull(Self);
+  if Assigned(FMemory) then
+    FreeMemory(FMemory);
+  inherited Destroy;
+end;
+
+function TStoreStream.Write(const Buffer; Count: Integer): Integer;
+begin
+  if FSize = FMaxSize then
+  begin
+    if Assigned(FOnFull) then
+      FOnFull(Self);
+    Size := 0;
+  end;
+  Result := inherited Write(Buffer, Count);
+end;
+
+procedure TStoreStream.Flush;
+begin
+  if Assigned(FOnFull) then
+    if Size > 0 then
+      FOnFull(Self);
+  Size := 0;
+end;
+
+constructor TCacheReadStream.Create(Input, Cache: TStream; AOwnStream: Boolean;
+  AComp: TCacheCompression);
 begin
   inherited Create;
   FSync.Init;
@@ -1930,17 +1997,35 @@ begin
   FCache := Cache;
   FPosition1 := 0;
   FPosition2 := 0;
-  FAvaiSize := 0;
+  FUsedSize := 0;
   if Assigned(FCache) then
     FMaxSize := FCache.Size
   else
     FMaxSize := 0;
   FDone := False;
+  FComp := AComp;
   FTask := TTask.Create;
   FTask.Perform(CacheMemory);
-  if FMaxSize > 0 then
+  if FMaxSize > FBufferSize then
   begin
-    GetMem(FBuffer, FBufferSize);
+    FStorage1 := TStoreStream.Create(FBufferSize);
+    FStorage1.OnFull := FOnFull;
+    FStorage2 := TMemoryStreamEx.Create(False, GetMemory(FBufferSize),
+      FBufferSize);
+    case FComp of
+      ccLZ4:
+        FCompBufferSize := LZ4_compressBound(FBufferSize);
+      ccZSTD:
+        begin
+          FCCtx := ZSTD_createCCtx;
+          FDCtx := ZSTD_createDCtx;
+          FCompBufferSize := ZSTD_compressBound(FBufferSize);
+        end;
+    else
+      FCompBufferSize := FBufferSize;
+    end;
+    if FComp > ccNone then
+      GetMem(FCompBuffer, FCompBufferSize);
     FTask.Start;
   end;
 end;
@@ -1948,91 +2033,181 @@ end;
 destructor TCacheReadStream.Destroy;
 begin
   FDone := True;
-  if FMaxSize > 0 then
+  if FMaxSize > FBufferSize then
   begin
     FTask.Wait;
-    FreeMem(FBuffer);
+    case FComp of
+      ccZSTD:
+        begin
+          ZSTD_freeCCtx(FCCtx);
+          ZSTD_freeDCtx(FDCtx);
+        end;
+    end;
+    FStorage1.Free;
+    if Assigned(FStorage2.Memory) then
+      FreeMemory(FStorage2.Memory);
+    FStorage2.Free;
+    if FComp > ccNone then
+      FreeMem(FCompBuffer);
   end;
   FTask.Free;
   if FOwnStream then
-    if FMaxSize > 0 then
+    if FMaxSize > FBufferSize then
       FCache.Free;
   FSync.Done;
   inherited Destroy;
 end;
 
 procedure TCacheReadStream.CacheMemory;
-var
-  I: Int64;
 begin
-  AtomicExchange(I, FAvaiSize);
-  I := FInput.Read(FBuffer^, Min(FBufferSize, Min(FMaxSize - I,
-    FMaxSize - (FPosition1 mod FMaxSize))));
-  FSync.Lock;
-  try
-    FCache.Position := FPosition1 mod FMaxSize;
-    FCache.WriteBuffer(FBuffer^, I);
-  finally
-    FSync.UnLock;
-  end;
-  while (I > 0) and (FDone = False) do
-  begin
-    Inc(FPosition1, I);
-    I := AtomicIncrement(FAvaiSize, I);
-    while I = FMaxSize do
-    begin
-      Sleep(1);
-      AtomicExchange(I, FAvaiSize);
-      if FDone then
-        exit;
-    end;
-    I := FInput.Read(FBuffer^, Min(FBufferSize, Min(FMaxSize - I,
-      FMaxSize - (FPosition1 mod FMaxSize))));
-    FSync.Lock;
-    try
-      FCache.Position := FPosition1 mod FMaxSize;
-      FCache.WriteBuffer(FBuffer^, I);
-    finally
-      FSync.UnLock;
-    end;
-  end;
+  CopyStream(FInput, FStorage1, Int64.MaxValue, FCallback);
+  FStorage1.Flush;
   FDone := True;
 end;
 
 function TCacheReadStream.Read(var Buffer; Count: Integer): Integer;
 var
   I: Int64;
+  J: Integer;
+
+  procedure DoRead;
+  begin
+    J := I;
+    if (FPosition2 mod FMaxSize) + FCompBufferSize >= FMaxSize then
+      FCache.ReadBuffer(FStorage2.Memory^, I)
+    else
+    begin
+      if FComp > ccNone then
+      begin
+        FCache.ReadBuffer(J, J.Size);
+        FCache.ReadBuffer(FCompBuffer^, J);
+        I := J.Size + J;
+      end;
+      case FComp of
+        ccLZ4:
+          J := LZ4_decompress_safe(FCompBuffer, FStorage2.Memory, J,
+            FCompBufferSize);
+        ccZSTD:
+          J := ZSTD_decompressDCtx(FDCtx, FStorage2.Memory, FCompBufferSize,
+            FCompBuffer, J);
+      else
+        FCache.ReadBuffer(FStorage2.Memory^, I);
+      end;
+    end;
+    FStorage2.Size := J;
+    AtomicDecrement(FCached, J);
+  end;
+
 begin
-  if FMaxSize <= 0 then
+  if FMaxSize <= FBufferSize then
   begin
     Result := FInput.Read(Buffer, Count);
     exit;
   end;
   if Count <= 0 then
     exit(0);
-  AtomicExchange(I, FAvaiSize);
-  if I = 0 then
-    while True do
-    begin
-      Sleep(1);
-      AtomicExchange(I, FAvaiSize);
-      if (I > 0) or ((I = 0) and FDone) then
-        break;
+  if FStorage2.Position = FStorage2.Size then
+  begin
+    AtomicExchange(I, FUsedSize);
+    if I = 0 then
+      while True do
+      begin
+        Sleep(1);
+        AtomicExchange(I, FUsedSize);
+        if (I > 0) or ((I = 0) and FDone) then
+          break;
+      end;
+    I := Min(FBufferSize, Min(I, FMaxSize - (FPosition2 mod FMaxSize)));
+    if I <= 0 then
+      exit(0);
+    FSync.Lock;
+    try
+      FCache.Position := FPosition2 mod FMaxSize;
+      DoRead;
+    finally
+      FSync.UnLock;
     end;
-  Result := Min(Count, Min(I, FMaxSize - (FPosition2 mod FMaxSize)));
-  FSync.Lock;
-  try
-    FCache.Position := FPosition2 mod FMaxSize;
-    FCache.ReadBuffer(Buffer, Result);
-  finally
-    FSync.UnLock;
+    Inc(FPosition2, I);
+    AtomicDecrement(FUsedSize, I);
+    FStorage2.Position := 0;
   end;
-  Inc(FPosition2, Result);
-  AtomicDecrement(FAvaiSize, Result);
+  Result := FStorage2.Read(Buffer, Count);
+end;
+
+function TCacheReadStream.FCallback(ASize: Int64): Boolean;
+begin
+  Result := FDone = False;
+end;
+
+procedure TCacheReadStream.FOnFull(Stream: TStream);
+var
+  I: Int64;
+  J, X, Y: Integer;
+  Ptr: PByte;
+begin
+  X := 0;
+  while X < Stream.Size do
+  begin
+    repeat
+      AtomicExchange(I, FUsedSize);
+      while I = FMaxSize do
+      begin
+        Sleep(1);
+        AtomicExchange(I, FUsedSize);
+        if FDone then
+          break;
+      end;
+      I := Min(Stream.Size - X, Min(FMaxSize - I,
+        FMaxSize - (FPosition1 mod FMaxSize)));
+      Sleep(1);
+    until I > 0;
+    AtomicIncrement(FCached, I);
+    Ptr := PByte(TStoreStream(Stream).Memory) + X;
+    Inc(X, I);
+    FSync.Lock;
+    try
+      FCache.Position := FPosition1 mod FMaxSize;
+      if (FPosition1 mod FMaxSize) + FCompBufferSize >= FMaxSize then
+        FCache.WriteBuffer(Ptr^, I)
+      else
+      begin
+        case FComp of
+          ccLZ4:
+            J := LZ4_compress_fast(Pointer(Ptr), FCompBuffer, I,
+              FCompBufferSize, 1);
+          ccZSTD:
+            J := ZSTD_compressCCtx(FCCtx, FCompBuffer, FCompBufferSize,
+              Pointer(Ptr), I, 1);
+        else
+          FCache.WriteBuffer(Ptr^, I);
+        end;
+        if FComp > ccNone then
+        begin
+          FCache.WriteBuffer(J, J.Size);
+          FCache.WriteBuffer(FCompBuffer^, J);
+          I := J.Size + J;
+        end;
+      end;
+    finally
+      FSync.UnLock;
+    end;
+    Inc(FPosition1, I);
+    AtomicIncrement(FUsedSize, I);
+  end;
+end;
+
+function TCacheReadStream.Cached(Compressed: PInt64): Int64;
+begin
+  AtomicExchange(Result, FUsedSize);
+  if Assigned(Compressed) then
+    if FComp > ccNone then
+      Compressed^ := FCached
+    else
+      Compressed^ := 0;
 end;
 
 constructor TCacheWriteStream.Create(Output, Cache: TStream;
-  AOwnStream: Boolean);
+  AOwnStream: Boolean; AComp: TCacheCompression);
 begin
   inherited Create;
   FSync.Init;
@@ -2047,37 +2222,56 @@ begin
   else
     FMaxSize := 0;
   FDone := False;
+  FComp := AComp;
   FTask := TTask.Create;
   FTask.Perform(CacheMemory);
-  if FMaxSize > 0 then
+  if FMaxSize > FBufferSize then
   begin
     GetMem(FBuffer, FBufferSize);
+    FStorage := TStoreStream.Create(FBufferSize);
+    FStorage.OnFull := FOnFull;
+    case FComp of
+      ccLZ4:
+        FCompBufferSize := LZ4_compressBound(FBufferSize);
+      ccZSTD:
+        begin
+          FCCtx := ZSTD_createCCtx;
+          FDCtx := ZSTD_createDCtx;
+          FCompBufferSize := ZSTD_compressBound(FBufferSize);
+        end;
+    else
+      FCompBufferSize := FBufferSize;
+    end;
+    if FComp > ccNone then
+      GetMem(FCompBuffer, FCompBufferSize);
     FTask.Start;
   end;
+  FCached := 0;
 end;
 
 destructor TCacheWriteStream.Destroy;
 var
   I: Int64;
 begin
-  if FMaxSize > 0 then
+  if FMaxSize > FBufferSize then
   begin
-    AtomicExchange(I, FUsedSize);
-    while I > 0 do
-    begin
-      Sleep(1);
-      AtomicExchange(I, FUsedSize);
-    end;
-  end;
-  FDone := True;
-  if FMaxSize > 0 then
-  begin
+    FStorage.Free;
+    FDone := True;
     FTask.Wait;
+    case FComp of
+      ccZSTD:
+        begin
+          ZSTD_freeCCtx(FCCtx);
+          ZSTD_freeDCtx(FDCtx);
+        end;
+    end;
     FreeMem(FBuffer);
+    if FComp > ccNone then
+      FreeMem(FCompBuffer);
   end;
   FTask.Free;
   if FOwnStream then
-    if FMaxSize > 0 then
+    if FMaxSize > FBufferSize then
       FCache.Free;
   FSync.Done;
   inherited Destroy;
@@ -2086,17 +2280,36 @@ end;
 procedure TCacheWriteStream.CacheMemory;
 var
   I: Int64;
-begin
-  AtomicExchange(I, FUsedSize);
-  I := Min(FBufferSize, Min(I, FMaxSize - (FPosition1 mod FMaxSize)));
-  FSync.Lock;
-  try
-    FCache.Position := FPosition1 mod FMaxSize;
-    FCache.ReadBuffer(FBuffer^, I);
-  finally
-    FSync.UnLock;
+  J: Integer;
+
+  procedure DoRead;
+  begin
+    J := I;
+    if (FPosition1 mod FMaxSize) + FCompBufferSize >= FMaxSize then
+      FCache.ReadBuffer(FBuffer^, I)
+    else
+    begin
+      if FComp > ccNone then
+      begin
+        FCache.ReadBuffer(J, J.Size);
+        FCache.ReadBuffer(FCompBuffer^, J);
+        I := J.Size + J;
+      end;
+      case FComp of
+        ccLZ4:
+          J := LZ4_decompress_safe(FCompBuffer, FBuffer, J, FCompBufferSize);
+        ccZSTD:
+          J := ZSTD_decompressDCtx(FDCtx, FBuffer, FCompBufferSize,
+            FCompBuffer, J);
+      else
+        FCache.ReadBuffer(FBuffer^, I);
+      end;
+    end;
+    AtomicDecrement(FCached, J);
   end;
-  FOutput.WriteBuffer(FBuffer^, I);
+
+begin
+  I := 0;
   while True do
   begin
     Inc(FPosition1, I);
@@ -2110,46 +2323,94 @@ begin
     FSync.Lock;
     try
       FCache.Position := FPosition1 mod FMaxSize;
-      FCache.ReadBuffer(FBuffer^, I);
+      DoRead;
     finally
       FSync.UnLock;
     end;
-    FOutput.WriteBuffer(FBuffer^, I);
+    FOutput.WriteBuffer(FBuffer^, J);
     if FDone and (FPosition1 = FPosition2) then
       break;
   end;
 end;
 
 function TCacheWriteStream.Write(const Buffer; Count: LongInt): LongInt;
-var
-  I: Int64;
 begin
-  if FMaxSize <= 0 then
+  if FMaxSize < FBufferSize then
   begin
     FOutput.WriteBuffer(Buffer, Count);
     exit(Count);
   end;
   if Count <= 0 then
     exit(0);
-  AtomicExchange(I, FUsedSize);
-  if I = FMaxSize then
-    while True do
-    begin
-      Sleep(1);
+  Result := FStorage.Write(Buffer, Count);
+end;
+
+procedure TCacheWriteStream.FOnFull(Stream: TStream);
+var
+  I: Int64;
+  J, X, Y: Integer;
+  Ptr: PByte;
+begin
+  X := 0;
+  while X < Stream.Size do
+  begin
+    repeat
       AtomicExchange(I, FUsedSize);
-      if (I < FMaxSize) then
-        break;
+      if I = FMaxSize then
+        while True do
+        begin
+          Sleep(1);
+          AtomicExchange(I, FUsedSize);
+          if (I < FMaxSize) then
+            break;
+        end;
+      I := Min(Stream.Size - X, Min(FMaxSize - I,
+        FMaxSize - (FPosition2 mod FMaxSize)));
+      Sleep(1);
+    until I > 0;
+    AtomicIncrement(FCached, I);
+    Ptr := PByte(TStoreStream(Stream).Memory) + X;
+    Inc(X, I);
+    FSync.Lock;
+    try
+      FCache.Position := FPosition2 mod FMaxSize;
+      if (FPosition2 mod FMaxSize) + FCompBufferSize >= FMaxSize then
+        FCache.WriteBuffer(Ptr^, I)
+      else
+      begin
+        case FComp of
+          ccLZ4:
+            J := LZ4_compress_fast(Pointer(Ptr), FCompBuffer, I,
+              FCompBufferSize, 1);
+          ccZSTD:
+            J := ZSTD_compressCCtx(FCCtx, FCompBuffer, FCompBufferSize,
+              Pointer(Ptr), I, 1);
+        else
+          FCache.WriteBuffer(Ptr^, I);
+        end;
+        if FComp > ccNone then
+        begin
+          FCache.WriteBuffer(J, J.Size);
+          FCache.WriteBuffer(FCompBuffer^, J);
+          I := J.Size + J;
+        end;
+      end;
+    finally
+      FSync.UnLock;
     end;
-  Result := Min(Count, Min(FMaxSize - I, FMaxSize - (FPosition2 mod FMaxSize)));
-  FSync.Lock;
-  try
-    FCache.Position := FPosition2 mod FMaxSize;
-    FCache.WriteBuffer(Buffer, Result);
-  finally
-    FSync.UnLock;
+    Inc(FPosition2, I);
+    AtomicIncrement(FUsedSize, I);
   end;
-  Inc(FPosition2, Result);
-  AtomicIncrement(FUsedSize, Result);
+end;
+
+function TCacheWriteStream.Cached(Compressed: PInt64): Int64;
+begin
+  AtomicExchange(Result, FUsedSize);
+  if Assigned(Compressed) then
+    if FComp > ccNone then
+      Compressed^ := FCached
+    else
+      Compressed^ := 0;
 end;
 
 constructor TGPUMemoryStream.Create(ASize: NativeInt);
@@ -3084,7 +3345,7 @@ begin
 end;
 
 function CopyStream(AStream1, AStream2: TStream; ASize: Int64;
-  ACallback: TProc<Int64>): Int64;
+  ACallback: TFunc<Int64, Boolean>): Int64;
 const
   FBufferSize = 65536;
 var
@@ -3102,14 +3363,15 @@ begin
     AStream2.WriteBuffer(FBuff[0], I);
     Dec(FSize, I);
     if Assigned(ACallback) then
-      ACallback(ASize - FSize);
+      if not ACallback(ASize - FSize) then
+        break;
     Result := ASize - FSize;
     I := AStream1.Read(FBuff[0], Min(FBufferSize, FSize));
   end;
 end;
 
 procedure CopyStreamEx(AStream1, AStream2: TStream; ASize: Int64;
-  ACallback: TProc<Int64>);
+  ACallback: TFunc<Int64, Boolean>);
 const
   FBufferSize = 65536;
 var
@@ -3127,7 +3389,8 @@ begin
     AStream2.WriteBuffer(FBuff[0], I);
     Dec(FSize, I);
     if Assigned(ACallback) then
-      ACallback(ASize - FSize);
+      if not ACallback(ASize - FSize) then
+        break;
     I := Min(FBufferSize, FSize);
     AStream1.ReadBuffer(FBuff[0], I);
   end;
@@ -3159,106 +3422,6 @@ begin
   C[7] := d[0];
 end;
 
-{$IFDEF PUREPASCAL}
-
-function EndianSwap(A: Int64): Int64;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IFDEF win64}
-  mov rax, rcx
-  {$ELSE}
-  mov rax, rdi
-  {$ENDIF win64}
-  bswap rax
-  {$ELSE}
-  mov edx, A.Int64Rec.Lo
-  mov eax, A.Int64Rec.Hi
-  bswap edx
-  bswap eax
-  {$ENDIF}
-end;
-
-function EndianSwap(A: UInt64): UInt64;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IFDEF win64}
-  mov rax, rcx
-  {$ELSE}
-  mov rax, rdi
-  {$ENDIF win64}
-  bswap rax
-  {$ELSE}
-  mov edx, A.Int64Rec.Lo
-  mov eax, A.Int64Rec.Hi
-  bswap edx
-  bswap eax
-  {$ENDIF}
-end;
-
-function EndianSwap(A: Int32): Int32;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IF DEFINED(WIN64)}
-  mov eax, ecx
-  {$ELSE}
-  mov eax, edi
-  {$ENDIF}
-  bswap eax
-  {$ELSEIF DEFINED(CPUX86)}
-  bswap eax
-  {$ENDIF}
-end;
-
-function EndianSwap(A: UInt32): UInt32;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IF DEFINED(WIN64)}
-  mov eax, ecx
-  {$ELSE}
-  mov eax, edi
-  {$ENDIF}
-  bswap eax
-  {$ELSEIF DEFINED(CPUX86)}
-  bswap eax
-  {$ENDIF}
-end;
-
-function EndianSwap(A: Int16): Int16;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IF DEFINED(WIN64)}
-  mov ax, cx
-  {$ELSE}
-  mov ax, di
-  {$ENDIF}
-  rol ax,8
-  {$ELSEIF DEFINED(CPUX86)}
-  rol ax,8
-  {$ENDIF}
-end;
-
-function EndianSwap(A: UInt16): UInt16;
-asm
-  {$IF DEFINED(CPUX64)}
-  .NOFRAME
-  {$IF DEFINED(WIN64)}
-  mov ax, cx
-  {$ELSE}
-  mov ax, di
-  {$ENDIF}
-  rol ax,8
-  {$ELSEIF DEFINED(CPUX86)}
-  rol ax,8
-  {$ENDIF}
-end;
-
-{$ELSE}
-
 function EndianSwap(A: Int64): Int64;
 var
   C: array [0 .. 7] of Byte absolute Result;
@@ -3328,7 +3491,6 @@ begin
   C[0] := d[1];
   C[1] := d[0];
 end;
-{$ENDIF}
 
 function BinarySearch(SrcMem: Pointer; SrcPos, SrcSize: NativeInt;
   SearchMem: Pointer; SearchSize: NativeInt; var ResultPos: NativeInt): Boolean;

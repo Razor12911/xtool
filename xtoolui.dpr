@@ -87,10 +87,11 @@ begin
       Funcs^.IsPackJPGLoaded or Funcs^.IsJoJpegLoaded;
       Form2.RadioButton1.Enabled := Funcs^.IsBrunsliLoaded;
       Form2.RadioButton2.Enabled := Funcs^.IsPackJPGLoaded;
-      Form2.RadioButton3.Enabled := Funcs^.IsJoJpegLoaded;
-      Form1.GroupBox5.Enabled := Funcs^.IsLZMALoaded; }
+      Form2.RadioButton3.Enabled := Funcs^.IsJoJpegLoaded; }
+    Form1.GroupBox5.Enabled := Funcs^.IsLZMALoaded;
     if not Funcs^.IsSrepAvailable then
       Form1.ComboBox5.Items.Delete(2);
+    Form1.ComboBox5.ItemIndex := 0;
     for I := Low(Methods) to High(Methods) do
     begin
       case Methods[I].FType of

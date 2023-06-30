@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2020/06/16 01:28:10.000.042,=rtl.dcp</Transaction>
+    <Transaction>2020/06/16 01:28:41.000.583,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\ZSTD.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\Package1.dproj</Transaction>
+    <Transaction>2020/06/16 01:28:54.000.792,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 01:29:04.000.967,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\ZSTDLib.pas=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 08:05:04.000.477,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 08:05:13.000.496,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\libc.pas=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas</Transaction>
+    <Transaction>2020/06/16 13:10:08.000.869,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\libc.pas=</Transaction>
+    <Transaction>2020/06/16 14:00:05.000.919,=pkglibc.dcp</Transaction>
+    <Transaction>2020/06/18 14:33:14.000.515,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas</Transaction>
+    <Transaction>2020/06/18 14:33:33.000.922,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\Unit1.pas=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\ZSTDStream.pas</Transaction>
+    <Transaction>2020/12/24 22:59:00.000.255,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd148\ZSTD.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd148\ZSTD148.dproj</Transaction>
+    <Transaction>2021/01/25 20:51:35.000.742,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd148\ZSTDStream.pas=</Transaction>
+    <Transaction>2021/01/25 20:51:44.000.149,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd148\ZSTD.pas</Transaction>
+    <Transaction>2021/04/19 22:24:34.000.284,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd149\ZSTD148.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd149\ZSTD149.dproj</Transaction>
+    <Transaction>2021/05/20 22:52:35.000.767,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd150\ZSTD150.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd150\ZSTD149.dproj</Transaction>
+    <Transaction>2022/03/08 17:01:53.000.619,D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\ZSTD4Delphi.dproj=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\ZSTD150.dproj</Transaction>
+    <Transaction>2022/03/09 19:37:43.000.296,=D:\Users\YW\Documents\Embarcadero\Studio\Projects\YWLIB\zstd\zstd4delphi.c</Transaction>
+  </Transactions>
+	<ProjectSortOrder AutoSort="0" SortType="0">
+    <File Path="ZSTD.pas"/>
+    <File Path="zstd4delphi.c"/>
+    <File Path="ZSTDLib.pas"/>
+    <File Path="pkglibc.dcp"/>
+    <File Path="rtl.dcp"/>
+  </ProjectSortOrder>
+</BorlandProject>

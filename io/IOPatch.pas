@@ -131,7 +131,7 @@ begin
   if FileExists(Input1) then
     BaseDir1 := ExtractFilePath(TPath.GetFullPath(Input1))
   else if DirectoryExists(Input1) then
-    BaseDir1 := IncludeTrailingBackSlash(TPath.GetFullPath(Input1))
+    BaseDir1 := IncludeTrailingPathDelimiter(TPath.GetFullPath(Input1))
   else
     BaseDir1 := ExtractFilePath(TPath.GetFullPath(Input1));
   LList1 := GetFileList([Input1], True);
@@ -140,7 +140,7 @@ begin
   if FileExists(Input2) then
     BaseDir2 := ExtractFilePath(TPath.GetFullPath(Input2))
   else if DirectoryExists(Input2) then
-    BaseDir2 := IncludeTrailingBackSlash(TPath.GetFullPath(Input2))
+    BaseDir2 := IncludeTrailingPathDelimiter(TPath.GetFullPath(Input2))
   else
     BaseDir2 := ExtractFilePath(TPath.GetFullPath(Input2));
   LList2 := GetFileList([Input2], True);
@@ -223,7 +223,7 @@ begin
     end;
     Delete(LList2, I, 1);
   end;
-  TempDir := IncludeTrailingBackSlash(GetCurrentDir) +
+  TempDir := IncludeTrailingPathDelimiter(GetCurrentDir) +
     LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
     '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF1));
   if not DirectoryExists(TempDir) then
@@ -250,7 +250,7 @@ begin
           Y := AtomicIncrement(J);
           while Y < Z do
           begin
-            S1 := IncludeTrailingBackSlash(TempDir) + Y.ToHexString +
+            S1 := IncludeTrailingPathDelimiter(TempDir) + Y.ToHexString +
               XTOOL_MAPSUF3;
             if C then
               S2 := Input1
@@ -296,7 +296,7 @@ begin
     begin
       while I >= K do
         Sleep(10);
-      LFilename := IncludeTrailingBackSlash(TempDir) + I.ToHexString +
+      LFilename := IncludeTrailingPathDelimiter(TempDir) + I.ToHexString +
         XTOOL_MAPSUF3;
       if FileExists(LFilename) then
       begin
@@ -357,10 +357,10 @@ begin
   if FileExists(Output) then
     BaseDir := ExtractFilePath(TPath.GetFullPath(Output))
   else if DirectoryExists(Output) then
-    BaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(Output))
+    BaseDir := IncludeTrailingPathDelimiter(TPath.GetFullPath(Output))
   else
     BaseDir := ExtractFilePath(TPath.GetFullPath(Output));
-  S1 := IncludeTrailingBackSlash(GetCurrentDir) +
+  S1 := IncludeTrailingPathDelimiter(GetCurrentDir) +
     LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
     '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF3));
   SStream0 := TSharedMemoryStream.Create

@@ -1,3 +1,6 @@
+  ES_R48 (0.7.3)
+  - minor bug fixes
+
   ES_R47 (0.7.2)
   - memory usage optimizations
 

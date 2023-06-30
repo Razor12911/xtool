@@ -97,7 +97,7 @@ begin
     if FileExists(Input[I]) then
       BaseDir := ExtractFilePath(TPath.GetFullPath(Input[I]))
     else if DirectoryExists(Input[I]) then
-      BaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(Input[I]))
+      BaseDir := IncludeTrailingPathDelimiter(TPath.GetFullPath(Input[I]))
     else
       BaseDir := ExtractFilePath(TPath.GetFullPath(Input[I]));
     LList := GetFileList([Input[I]], True);
@@ -136,7 +136,7 @@ var
   LBytes: TBytes;
   FStream: TFileStream;
 begin
-  BaseDir := IncludeTrailingBackSlash(Output);
+  BaseDir := IncludeTrailingPathDelimiter(Output);
   Input.ReadBuffer(I, I.Size);
   while I >= 0 do
   begin

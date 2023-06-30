@@ -46,6 +46,8 @@ uses
   OpenCL in 'common\OpenCL.pas',
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
+  libc in 'contrib\LIBC\libc.pas',
+  lz4lib in 'contrib\LZ4Delphi\lz4lib.pas',
   FuncHook in 'contrib\Delphi_MemoryModule\FuncHook.pas',
   MemoryModule in 'contrib\Delphi_MemoryModule\MemoryModule.pas',
   MemoryModuleHook in 'contrib\Delphi_MemoryModule\MemoryModuleHook.pas',
@@ -57,6 +59,7 @@ uses
   ParseClass in 'contrib\ParseExpression\ParseClass.pas',
   ParseExpr in 'contrib\ParseExpression\ParseExpr.pas',
   XXHASHLIB in 'contrib\XXHASH4Delphi\XXHASHLIB.pas',
+  ZSTDLib in 'contrib\ZSTD4Delphi\ZSTDLib.pas',
   InitCode in 'InitCode.pas',
   BrunsliDLL in 'imports\BrunsliDLL.pas',
   FLACDLL in 'imports\FLACDLL.pas',
@@ -262,18 +265,33 @@ begin
 end;
 
 var
-
-  MS: TMemoryStream;
+  I64: Int64;
+  MS, MS2: TMemoryStream;
   GS: TGPUMemoryStream;
   FS: TFileStream;
 
 begin
   { MS := TMemoryStream.Create;
-    MS.LoadFromFile('1.mp4');
-    FS := TFileStream.Create('2.mp4', fmCreate);
-    GS := TGPUMemoryStream.Create(60 * 1024 * 1024);
-    GS.Size := 60 * 1024 * 1024;
-    with TCacheWriteStream.Create(FS, GS) do
+    MS.LoadFromFile('UI.sb');
+    MS2 := TMemoryStream.Create;
+    MS2.Size := MS.Size;
+    GS := TGPUMemoryStream.Create(3 * 1024 * 1024);
+    GS.Size := 3 * 1024 * 1024;
+    with TCacheReadStream.Create(MS, GS, True, ccLZ4) do
+    begin
+    ReadBuffer(MS2.Memory^, MS2.Size);
+    Free;
+    end;
+    FS.Free;
+    MS2.SaveToFile('UI2.sb');
+    ShowMessage('');
+    exit;
+    MS := TMemoryStream.Create;
+    MS.LoadFromFile('UI.sb');
+    FS := TFileStream.Create('UI.sb2', fmCreate);
+    GS := TGPUMemoryStream.Create(5 * 1024 * 1024);
+    GS.Size := 5 * 1024 * 1024;
+    with TCacheWriteStream.Create(FS, GS, True, ccLZ4) do
     begin
     WriteBuffer(MS.Memory^, MS.Size);
     Free;

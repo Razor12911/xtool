@@ -123,7 +123,7 @@ begin
   if FileExists(Input1) then
     BaseDir := ExtractFilePath(TPath.GetFullPath(Input1))
   else if DirectoryExists(Input1) then
-    BaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(Input1))
+    BaseDir := IncludeTrailingPathDelimiter(TPath.GetFullPath(Input1))
   else
     BaseDir := ExtractFilePath(TPath.GetFullPath(Input1));
   LList := GetFileList([Input1], True);
@@ -235,7 +235,7 @@ begin
     if FileExists(Input2) then
       BaseDir := ExtractFilePath(TPath.GetFullPath(Input2))
     else if DirectoryExists(Input2) then
-      BaseDir := IncludeTrailingBackSlash(TPath.GetFullPath(Input2))
+      BaseDir := IncludeTrailingPathDelimiter(TPath.GetFullPath(Input2))
     else
       BaseDir := ExtractFilePath(TPath.GetFullPath(Input2));
     LList := GetFileList([Input2], True);

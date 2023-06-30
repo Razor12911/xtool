@@ -3589,7 +3589,7 @@ object Form1: TForm1
               Size.Width = 110.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 2
+              TabOrder = 1
               Text = 'Skip verification'
             end
             object CheckBox6: TCheckBox
@@ -3615,50 +3615,8 @@ object Form1: TForm1
               Size.Width = 110.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 5
+              TabOrder = 3
               Text = 'Low memory'
-            end
-            object Label8: TLabel
-              Align = Left
-              Margins.Left = 8.000000000000000000
-              Margins.Top = 8.000000000000000000
-              Margins.Bottom = 8.000000000000000000
-              Position.X = 362.000000000000000000
-              Position.Y = 8.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 20.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'GPU'
-              TabOrder = 1
-            end
-            object ComboEdit3: TComboEdit
-              Touch.InteractiveGestures = [LongTap, DoubleTap]
-              Align = Left
-              TabOrder = 4
-              ItemHeight = 19.000000000000000000
-              Items.Strings = (
-                '0%'
-                '10%'
-                '25%'
-                '50%'
-                '75%'
-                '64MB'
-                '128MB'
-                '256MB'
-                '512MB'
-                '1GB'
-                '2GB'
-                '4GB')
-              ItemIndex = 0
-              Text = '0%'
-              Position.X = 450.000000000000000000
-              Position.Y = 8.000000000000000000
-              Margins.Left = 8.000000000000000000
-              Margins.Top = 8.000000000000000000
-              Margins.Bottom = 8.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 20.000000000000000000
-              Size.PlatformDefault = False
             end
           end
         end
@@ -6041,7 +5999,7 @@ object Form1: TForm1
             object SpinBox13: TSpinBox
               Touch.InteractiveGestures = [LongTap, DoubleTap]
               Align = Left
-              TabOrder = 2
+              TabOrder = 1
               Cursor = crIBeam
               DecimalDigits = 0
               Min = 1.000000000000000000
@@ -6066,50 +6024,8 @@ object Form1: TForm1
               Size.Width = 110.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 5
+              TabOrder = 3
               Text = 'Verbose'
-            end
-            object Label22: TLabel
-              Align = Left
-              Margins.Left = 8.000000000000000000
-              Margins.Top = 8.000000000000000000
-              Margins.Bottom = 8.000000000000000000
-              Position.X = 302.000000000000000000
-              Position.Y = 8.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 20.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'GPU'
-              TabOrder = 1
-            end
-            object ComboEdit4: TComboEdit
-              Touch.InteractiveGestures = [LongTap, DoubleTap]
-              Align = Left
-              TabOrder = 4
-              ItemHeight = 19.000000000000000000
-              Items.Strings = (
-                '0%'
-                '10%'
-                '25%'
-                '50%'
-                '75%'
-                '64MB'
-                '128MB'
-                '256MB'
-                '512MB'
-                '1GB'
-                '2GB'
-                '4GB')
-              ItemIndex = 0
-              Text = '0%'
-              Position.X = 390.000000000000000000
-              Position.Y = 8.000000000000000000
-              Margins.Left = 8.000000000000000000
-              Margins.Top = 8.000000000000000000
-              Margins.Bottom = 8.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 20.000000000000000000
-              Size.PlatformDefault = False
             end
           end
         end

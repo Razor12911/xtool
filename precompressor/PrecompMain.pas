@@ -66,13 +66,15 @@ procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
   Status: Boolean)cdecl;
 procedure PrecompLogPatch2(OldSize, NewSize, PatchSize: Integer;
   Status: Boolean)cdecl;
+procedure PrecompLogReprocess(Method: PChar; Size1, Size2, Size3: Integer;
+  Status: Boolean)cdecl;
 
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
-  Size: Integer);
+  Size: Integer)cdecl;
 procedure PrecompOutput2(Instance: Integer; const Buffer: Pointer;
-  Size: Integer);
+  Size: Integer)cdecl;
 procedure PrecompOutput3(Instance: Integer; const Buffer: Pointer;
-  Size: Integer);
+  Size: Integer)cdecl;
 procedure PrecompAddStream(Instance: Integer; Info: PStrInfo1; Codec: PChar;
   DepthInfo: PDepthInfo)cdecl;
 procedure PrecompTransfer(Instance: Integer; Codec: PChar)cdecl;
@@ -98,6 +100,7 @@ type
     DupCount: Integer;
     InSize, InflSize, SrepSize, CompSize: Int64;
     SrepMem: Integer;
+    CachedComp, CachedUsed: Int64;
   end;
 
 var
@@ -114,6 +117,7 @@ var
   VERBOSE: Boolean = False;
   EXTRACT: Boolean = False;
   NOVERIFY: Boolean = False;
+  REPROCESS: String = '';
   COMPRESS: Byte = 0;
   EXTCOMP: String = '';
   GPUMEM: Int64 = 0;
@@ -140,31 +144,30 @@ var
   I, J: Integer;
   S: string;
 begin
-  WriteLn(ErrOutput, 'precomp - data precompressor');
-  WriteLn(ErrOutput, '');
-  WriteLn(ErrOutput, 'Usage:');
-  WriteLn(ErrOutput, '  xtool precomp [parameters] input output');
-  WriteLn(ErrOutput, '');
-  WriteLn(ErrOutput, '');
-  WriteLn(ErrOutput, 'Parameters:');
-  WriteLn(ErrOutput,
+  WriteLine('precomp - data precompressor');
+  WriteLine('');
+  WriteLine('Usage:');
+  WriteLine('  xtool precomp [parameters] input output');
+  WriteLine('');
+  WriteLine('');
+  WriteLine('Parameters:');
+  WriteLine(
     '  -m#  - codecs to use for precompression (separate with "+" if more than one)');
-  WriteLn(ErrOutput, '  -c#  - scanning range of precompressor [16mb]');
-  WriteLn(ErrOutput, '  -t#  - number of working threads [50p]');
-  WriteLn(ErrOutput, '  -d#  - scan depth [0]');
-  WriteLn(ErrOutput, '  -dd  - use stream deduplication');
-  WriteLn(ErrOutput,
+  WriteLine('  -c#  - scanning range of precompressor [16mb]');
+  WriteLine('  -t#  - number of working threads [50p]');
+  WriteLine('  -d#  - scan depth [0]');
+  WriteLine('  -dd  - use stream deduplication');
+  WriteLine(
     '  -l#  - compress data using fast lzma2 (separate params with ":")');
-  WriteLn(ErrOutput, '               d# - dictionary size');
-  WriteLn(ErrOutput, '  -lm  - low memory mode');
-  WriteLn(ErrOutput, '  -s   - skip stream verification');
-  WriteLn(ErrOutput, '  -v   - enables verbose');
-  WriteLn(ErrOutput, '  -df# - set xdelta threshold to accept streams [5p]');
-  WriteLn(ErrOutput, '  -x#  - extract streams to directory path');
-  WriteLn(ErrOutput,
-    '  -dm# - deduplication memory usage limit (#=size) [75p]');
-  WriteLn(ErrOutput, '  -sm# - srep memory usage limit (#=size) [75p]');
-  WriteLn(ErrOutput, '');
+  WriteLine('               d# - dictionary size');
+  WriteLine('  -lm  - low memory mode');
+  WriteLine('  -s   - skip stream verification');
+  WriteLine('  -v   - enables verbose');
+  WriteLine('  -df# - set xdelta threshold to accept streams [5p]');
+  WriteLine('  -x#  - extract streams to directory path');
+  WriteLine('  -dm# - deduplication memory usage limit (#=size) [75p]');
+  WriteLine('  -sm# - srep memory usage limit (#=size) [75p]');
+  WriteLine('');
 end;
 
 procedure Parse(ParamArg: TArray<string>; out Options: TEncodeOptions);
@@ -211,6 +214,8 @@ begin
     S := ReplaceText(S, 'K', '* 1024^1');
     S := ReplaceText(S, 'M', '* 1024^2');
     S := ReplaceText(S, 'G', '* 1024^3');
+    if GPUMEM > MEM_LIMIT then
+      GPUMEM := MEM_LIMIT;
     Options.ChunkSize := EnsureRange(Round(ExpParse.Evaluate(S)),
       4 * 1024 * 1024, 2047 * 1024 * 1024);
     S := ArgParse.AsString('-t', 0, '50p');
@@ -304,6 +309,8 @@ begin
     EXTCOMP := ArgParse.AsString('-e');
     if FileExists(ExpandPath(PluginsPath + ExtractExec(EXTCOMP), True)) then
       COMPRESS := 2;
+    REPROCESS := ReplaceStr(ArgParse.AsString('-r'), SPrecompSep3,
+      SPrecompSep2);
   finally
     ArgParse.Free;
     ExpParse.Free;
@@ -528,11 +535,11 @@ begin
       S := '(%d >> %d)';
     if (OutSize > 0) and (Position < DataStore.Size(0)) and
       (MemOutput1[0].Position - CurPos1[0] = OutSize) then
-      WriteLn(ErrOutput, Format('[%d] Actual %s stream found at %s ' + S,
+      WriteLine(Format('[%d] Actual %s stream found at %s ' + S,
         [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
         InSize, OutSize]))
     else
-      WriteLn(ErrOutput, Format('[%d] Possible %s stream located at %s ' + S,
+      WriteLine(Format('[%d] Possible %s stream located at %s ' + S,
         [CurDepth[0], Codec, (DataStore.Position(0) + Position).ToHexString,
         InSize, OutSize]));
   end;
@@ -548,8 +555,8 @@ begin
     S := '(%d)'
   else
     S := '(%d >> %d)';
-  WriteLn(ErrOutput, Format('[%d] Confirmed %s stream at %s ' + S,
-    [CurDepth[0], Codec, LogInt64.ToHexString, InSize, OutSize]));
+  WriteLine(Format('[%d] Confirmed %s stream at %s ' + S, [CurDepth[0], Codec,
+    LogInt64.ToHexString, InSize, OutSize]));
 end;
 
 procedure PrecompLogProcess(Codec, Method: PChar; Size1, Size2, Size3: Integer;
@@ -573,8 +580,8 @@ begin
       S2 := '[%d] Processing %s stream at %s ' + S1 +
         IfThen(String(Method) <> '', ' using ' + String(Method), '') +
         ' has failed';
-    WriteLn(ErrOutput, Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString,
-      Size1, Size2, Size3]));
+    WriteLine(Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString, Size1,
+      Size2, Size3]));
   end;
   if EXTRACT and (CurDepth[0] = 0) then
   begin
@@ -608,8 +615,8 @@ begin
   else
     S2 := '[%d] Restoring %s stream at %s ' + S1 + IfThen(String(Method) <> '',
       ' using ' + String(Method), '') + ' has failed';
-  WriteLn(ErrOutput, Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString,
-    Size1, Size2, Size3]));
+  WriteLine(Format(S2, [CurDepth[0], Codec, LogInt64.ToHexString, Size1,
+    Size2, Size3]));
 end;
 
 procedure PrecompLogPatch1(OldSize, NewSize, PatchSize: Integer;
@@ -623,8 +630,8 @@ begin
     S := '[%d] - Patched stream at %s (%d >> %d) [%d] successfully'
   else
     S := '[%d] - Patching stream at %s (%d >> %d) [%d] has failed';
-  WriteLn(ErrOutput, Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize,
-    NewSize, PatchSize]));
+  WriteLine(Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize, NewSize,
+    PatchSize]));
 end;
 
 procedure PrecompLogPatch2(OldSize, NewSize, PatchSize: Integer;
@@ -638,8 +645,44 @@ begin
     S := '[%d] - Patched stream at %s (%d >> %d) [%d] successfully'
   else
     S := '[%d] - Patching stream at %s (%d >> %d) [%d] has failed';
-  WriteLn(ErrOutput, Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize,
-    NewSize, PatchSize]));
+  WriteLine(Format(S, [CurDepth[0], LogInt64.ToHexString, OldSize, NewSize,
+    PatchSize]));
+end;
+
+procedure PrecompLogReprocess(Method: PChar; Size1, Size2, Size3: Integer;
+  Status: Boolean);
+var
+  S1, S2: String;
+begin
+  if VERBOSE then
+  begin
+    if Size2 < 0 then
+      S1 := '(%d)'
+    else if Size3 < 0 then
+      S1 := '(%d >> %d)'
+    else
+      S1 := '(%d >> %d >> %d)';
+    if Status then
+      S2 := '[%d] Reprocessed stream at %s ' + S1 + IfThen(String(Method) <> '',
+        ' using ' + String(Method), '') + ' successfully'
+    else
+      S2 := '[%d] Reprocessing stream at %s ' + S1 +
+        IfThen(String(Method) <> '', ' using ' + String(Method), '') +
+        ' has failed';
+    WriteLine(Format(S2, [CurDepth[0], LogInt64.ToHexString, Size1,
+      Size2, Size3]));
+  end;
+  if EXTRACT and (CurDepth[0] = 0) then
+  begin
+    S1 := '%s_%s.raw';
+    with TFileStream.Create(ExtDir + Format(S1, [LogInt64.ToHexString]),
+      fmCreate) do
+      try
+        WriteBuffer(LogPtr^, Size1);
+      finally
+        Free;
+      end;
+  end;
 end;
 
 procedure PrecompOutput1(Instance: Integer; const Buffer: Pointer;
@@ -1087,6 +1130,36 @@ var
   LValid: Boolean;
   LCodec: Byte;
   LOption: Integer;
+
+  function Reproc(Method: String): Boolean;
+  var
+    Buffer: Pointer;
+    Res: Integer;
+  begin
+    Result := False;
+    with ComVars1[Depth] do
+    begin
+      Buffer := PrecompAllocator(ThreadIndex, SI1.NewSize);
+      Res := PrecompCompress(PChar(Method),
+        PByte(MemOutput1[ThreadIndex].Memory) + SI2.StorePosition, SI1.NewSize,
+        Buffer, SI1.NewSize, nil, 0);
+      if (Res > 0) and (Res < SI1.OldSize) then
+      begin
+        ThreadSync[ThreadIndex].Acquire;
+        try
+          Move(Buffer^, (PByte(DataStore.Slot(ThreadIndex).Memory) +
+            SI2.ActualPosition)^, Res);
+          FillChar((PByte(DataStore.Slot(ThreadIndex).Memory) +
+            SI2.ActualPosition + Res)^, SI1.OldSize - Res, 0);
+          Result := True;
+        finally
+          ThreadSync[ThreadIndex].Release;
+        end;
+      end;
+      PrecompLogReprocess(PChar(Method), SI1.OldSize, SI1.NewSize, Res, Result);
+    end;
+  end;
+
 begin
   Result := False;
   with ComVars1[Depth] do
@@ -1119,6 +1192,12 @@ begin
     try
       if NOVERIFY and not(SI2.Codec in [5]) then
         Result := True
+      else if (REPROCESS <> '') and not(SI2.Codec in [5]) then
+      begin
+        Result := False;
+        if Reproc(REPROCESS) then
+          AtomicIncrement(EncInfo.Processed);
+      end
       else
         Result := Codecs[SI2.Codec].Process(Index, Depth,
           PByte(DataStore.Slot(ThreadIndex).Memory) + SI2.ActualPosition,
@@ -1296,14 +1375,13 @@ begin
     if InRange(Y, Low(InfoStore1), High(InfoStore1)) then
     begin
       if VERBOSE then
-        WriteLn(ErrOutput,
-          Format('[%d] Performing scan from block %s to %s (%d)',
+        WriteLine(Format('[%d] Performing scan from block %s to %s (%d)',
           [W, DataStore.Position(0).ToHexString,
           (DataStore.Position(0) + Pred(DataStore.Size(0))).ToHexString,
           DataStore.Size(0)]));
       Scan1(Y, W);
       if VERBOSE then
-        WriteLn(ErrOutput, '');
+        WriteLine('');
       if W = 0 then
       begin
         Scanned1[Y] := True;
@@ -1334,8 +1412,7 @@ begin
       else
         Z := Y;
       if VERBOSE and (InfoStore1[Z].Count > 0) then
-        WriteLn(ErrOutput,
-          Format('[%d] Processing streams on block %s to %s (%d)',
+        WriteLine(Format('[%d] Processing streams on block %s to %s (%d)',
           [W, DataStore.Position(0).ToHexString,
           (DataStore.Position(0) + Pred(DataStore.Size(0))).ToHexString,
           DataStore.Size(0)]));
@@ -1362,7 +1439,7 @@ begin
       while not BoolArray(Helping, False) do
         Sleep(10);
       if VERBOSE and (InfoStore1[Z].Count > 0) then
-        WriteLn(ErrOutput, '');
+        WriteLine('');
       if W = 0 then
       begin
         if Z < -1 then
@@ -1392,7 +1469,8 @@ begin
   for I := Low(ThreadSync) to High(ThreadSync) do
     ThreadSync[I] := TCriticalSection.Create;
   I := XTOOL_PRECOMP;
-  Output.WriteBuffer(I, I.Size);
+  if REPROCESS = '' then
+    Output.WriteBuffer(I, I.Size);
   if UseDB then
   begin
     SetLength(DBInfo, $10000);
@@ -1505,7 +1583,8 @@ begin
     end;
   end;
   ExtDir := IncludeTrailingBackSlash(Options^.ExtractDir);
-  Output.WriteBuffer(Options^.Depth, Options^.Depth.Size);
+  if REPROCESS = '' then
+    Output.WriteBuffer(Options^.Depth, Options^.Depth.Size);
   DoScan2 := True;
   for J := 0 to ExternalMethods.Count - 1 do
   begin
@@ -1558,23 +1637,26 @@ begin
       else
         S := S + SPrecompSep1 + ExternalMethods[J];
   end;
-  Bytes := BytesOf(S);
-  B := Length(Bytes);
-  Output.WriteBuffer(B, B.Size);
-  Output.WriteBuffer(Bytes[0], B);
-  I := Length(Resources);
-  Output.WriteBuffer(I, I.Size);
-  for J := Low(Resources) to High(Resources) do
+  if REPROCESS = '' then
   begin
-    Bytes := BytesOf(Resources[J].Name);
+    Bytes := BytesOf(S);
     B := Length(Bytes);
     Output.WriteBuffer(B, B.Size);
     Output.WriteBuffer(Bytes[0], B);
-    Output.WriteBuffer(Resources[J].Size, Resources[J].Size.Size);
-    Output.WriteBuffer(Resources[J].Data^, Resources[J].Size);
+    I := Length(Resources);
+    Output.WriteBuffer(I, I.Size);
+    for J := Low(Resources) to High(Resources) do
+    begin
+      Bytes := BytesOf(Resources[J].Name);
+      B := Length(Bytes);
+      Output.WriteBuffer(B, B.Size);
+      Output.WriteBuffer(Bytes[0], B);
+      Output.WriteBuffer(Resources[J].Size, Resources[J].Size.Size);
+      Output.WriteBuffer(Resources[J].Data^, Resources[J].Size);
+    end;
+    ResCount := Length(Resources);
+    Output.WriteBuffer(StoreDD, StoreDD.Size);
   end;
-  ResCount := Length(Resources);
-  Output.WriteBuffer(StoreDD, StoreDD.Size);
 end;
 
 procedure EncFree;
@@ -1721,8 +1803,7 @@ begin
         '-dd.tmp')), fmCreate or fmShareDenyNone), False, XTOOL_BSIZE)
     else
       LOutput := Output;
-    TempOutput := TBufferedStream.Create(TCacheWriteStream.Create(LOutput,
-      LCache), False, XTOOL_BSIZE);
+    TempOutput := TCacheWriteStream.Create(LOutput, LCache, True, ccZSTD);
   end
   else
     TempOutput := Output;
@@ -1882,8 +1963,11 @@ begin
           MemStream[I].Position := 0;
           MemStream[I].WriteBuffer(StreamCount, StreamCount.Size);
           MemStream[I].WriteBuffer(BlockSize, BlockSize.Size);
-          SaveResources;
-          TempOutput.WriteBuffer(MemStream[I].Memory^, I64);
+          if REPROCESS = '' then
+          begin
+            SaveResources;
+            TempOutput.WriteBuffer(MemStream[I].Memory^, I64);
+          end;
           if Depth = 0 then
             Inc(EncInfo.InflSize, I64);
           InfoStore1[I].Index := LastIndex;
@@ -1950,7 +2034,8 @@ begin
             UI32 := Max(DataStore.Size(I) - LastPos, 0)
           else
             UI32 := 0;
-          TempOutput.WriteBuffer(UI32, UI32.Size);
+          if REPROCESS = '' then
+            TempOutput.WriteBuffer(UI32, UI32.Size);
           if UI32 > 0 then
             TempOutput.WriteBuffer
               ((PByte(DataStore.Slot(I).Memory) + LastPos)^, UI32);
@@ -1958,6 +2043,9 @@ begin
             Inc(EncInfo.InflSize, UI32 + UI32.Size);
         until LastIndex = InfoStore1[I].Count;
         LastStream := Max(LastStream - DataStore.Size(I), 0);
+        if Depth = 0 then
+          EncInfo.CachedUsed := TCacheWriteStream(TempOutput)
+            .Cached(@EncInfo.CachedComp);
         if Depth = 0 then
           if I > 0 then
             TDataStore1(DataStore).LoadEx;
@@ -1972,11 +2060,18 @@ begin
       else
         break;
     end;
-    SaveResources;
-    StreamCount := StreamCount.MinValue;
-    TempOutput.WriteBuffer(StreamCount, StreamCount.Size);
+    if REPROCESS = '' then
+    begin
+      SaveResources;
+      StreamCount := StreamCount.MinValue;
+      TempOutput.WriteBuffer(StreamCount, StreamCount.Size);
+    end;
     if Depth = 0 then
+    begin
       Inc(EncInfo.InflSize, StreamCount.Size);
+      EncInfo.CachedUsed := TCacheWriteStream(TempOutput)
+        .Cached(@EncInfo.CachedComp);
+    end;
   end;
   if Depth = 0 then
   begin
@@ -2148,6 +2243,8 @@ begin
     Result := Max(0, Abs(DupSysMem) - GetUsedProcessMemory(GetCurrentProcess))
   else
     Result := Max(0, DupSysMem - GetUsedSystemMemory);
+  if Result > MEM_LIMIT then
+    Result := MEM_LIMIT;
 end;
 
 var
@@ -2531,12 +2628,10 @@ begin
         True), '-d -s -mem' + SrepMemCfg + ' - -', GetCurrentDir, Input, nil);
       if not LStream.Execute then
         raise EReadError.CreateRes(@SReadError);
-      DecInput[Index] := TBufferedStream.Create(TCacheReadStream.Create(LStream,
-        LCache), True, XTOOL_BSIZE);
+      DecInput[Index] := TCacheReadStream.Create(LStream, LCache, True, ccZSTD);
     end
     else if Depth = 0 then
-      DecInput[Index] := TBufferedStream.Create(TCacheReadStream.Create(Input,
-        LCache), True, XTOOL_BSIZE)
+      DecInput[Index] := TCacheReadStream.Create(Input, LCache, True, ccZSTD)
     else
       DecInput[Index] := Input;
     DecOutput[Index] := Output;
@@ -2681,7 +2776,7 @@ var
 
   procedure Update;
   var
-    I: Integer;
+    I, J: Integer;
     TS: TTimeSpan;
     CreationTime, ExitTime, KernelTime, UserTime: TFileTime;
     TT: TSystemTime;
@@ -2690,10 +2785,19 @@ var
     GetProcessTimes(GetCurrentProcess, CreationTime, ExitTime, KernelTime,
       UserTime);
     FileTimeToSystemTime(TFileTime(Int64(UserTime) + Int64(KernelTime)), TT);
-    SL[0] := 'Streams: ' + EncInfo.Processed.ToString + ' / ' +
+    if GPUMEM > 0 then
+    begin
+      SL[0] := GPUName + ' (' + ConvertKB2TB(EncInfo.CachedUsed div 1024) + ') '
+        + IfThen(EncInfo.CachedComp > 0,
+        '[' + ConvertKB2TB(EncInfo.CachedComp div 1024) + ']', '') + '     ';
+      I := 1;
+    end
+    else
+      I := 0;
+    SL[I] := 'Streams: ' + EncInfo.Processed.ToString + ' / ' +
       EncInfo.Count.ToString;
     TS := Stopwatch.Elapsed;
-    SL[1] := 'Time: ' + Format('%0:.2d:%1:.2d:%2:.2d',
+    SL[I + 1] := 'Time: ' + Format('%0:.2d:%1:.2d:%2:.2d',
       [TS.Hours + TS.Days * 24, TS.Minutes, TS.Seconds]) + ' (CPU ' +
       Format('%0:.2d:%1:.2d:%2:.2d', [TT.wHour + Pred(TT.wDay) * 24, TT.wMinute,
       TT.wSecond]) + ')';
@@ -2701,23 +2805,23 @@ var
     I64 := I64 div 1024;
     if StoreDD > -2 then
     begin
-      I := 4;
-      SL[2] := 'Duplicates: ' + EncInfo.DupCount.ToString + ' (' +
+      J := I + 4;
+      SL[I + 2] := 'Duplicates: ' + EncInfo.DupCount.ToString + ' (' +
         ConvertKB2TB(EncInfo.DecMem2 div 1024) + ') [' +
         ConvertKB2TB(EncInfo.DupSize1 div 1024) + ' >> ' +
         ConvertKB2TB(EncInfo.DupSize2 div 1024) + ']     ';
       if StoreDD > 0 then
       begin
-        I := 5;
-        SL[3] := 'Srep decompression memory: ' +
+        J := I + 5;
+        SL[I + 3] := 'Srep decompression memory: ' +
           ConvertKB2TB(EncInfo.SrepMem * 1024) + ' [' +
           ConvertKB2TB((EncInfo.SrepMem * 1024) + (EncInfo.DecMem3 div 1024)) +
           IfThen(EncInfo.DecMem3 > 0, '*', '') + ']     ';
       end;
     end
     else
-      I := 3;
-    SL[I] := 'Size: ' + ConvertKB2TB(EncInfo.InSize div 1024) +
+      J := I + 3;
+    SL[J] := 'Size: ' + ConvertKB2TB(EncInfo.InSize div 1024) +
       IfThen(StoreDD > -2,
       ' >> ' + ConvertKB2TB((EncInfo.InflSize + EncInfo.DupSize2) div 1024), '')
       + ' >> ' + ConvertKB2TB(EncInfo.InflSize div 1024) +
@@ -2734,6 +2838,8 @@ begin
   Coords.X := 0;
   Coords.Y := SBInfo.dwCursorPosition.Y;
   SL := TStringList.Create;
+  if GPUMEM > 0 then
+    SL.Add('Streams: 0 / 0');
   SL.Add('Streams: 0 / 0');
   SL.Add('Time: 00:00:00');
   if StoreDD > -2 then
@@ -2817,9 +2923,6 @@ begin
   NULLOUT := TBufferedStream(Output).Instance is TNullStream;
   FillChar(EncInfo, SizeOf(EncInfo), 0);
   ConTask := TTask.Create;
-  if GPUMEM > 0 then
-    WriteLn(ErrOutput, GPUName + ' (' + ConvertKB2TB(GPUMEM div 1024) +
-      ' loaded)');
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(EncodeStats);
@@ -2828,7 +2931,8 @@ begin
   try
     EncInit(LInput, Output, @Options);
     Compressed := COMPRESS;
-    Output.WriteBuffer(Compressed, Compressed.Size);
+    if REPROCESS = '' then
+      Output.WriteBuffer(Compressed, Compressed.Size);
     if COMPRESS > 0 then
     begin
       case COMPRESS of
@@ -2901,8 +3005,7 @@ begin
   FillChar(EncInfo, SizeOf(EncInfo), 0);
   ConTask := TTask.Create;
   if GPUMEM > 0 then
-    WriteLn(ErrOutput, GPUName + ' (' + ConvertKB2TB(GPUMEM div 1024) +
-      ' loaded)');
+    WriteLine(GPUName + ' (' + ConvertKB2TB(GPUMEM div 1024) + ')');
   Stopwatch := TStopwatch.Create;
   Stopwatch.Start;
   ConTask.Perform(DecodeStats);

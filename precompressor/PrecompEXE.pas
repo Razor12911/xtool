@@ -452,11 +452,11 @@ begin
       for Y := Low(CodecSize) to High(CodecSize) do
       begin
         repeat
-          CodecExe[X].WorkDir[Y, Z] := IncludeTrailingBackSlash
-            (IncludeTrailingBackSlash(GetCurrentDir) + CodecExe[X].Name + '_' +
+          CodecExe[X].WorkDir[Y, Z] := IncludeTrailingPathDelimiter
+            (IncludeTrailingPathDelimiter(GetCurrentDir) + CodecExe[X].Name + '_' +
             IntToHex(Random($10000), 4));
         until DirectoryExists(CodecExe[X].WorkDir[Y, Z]) = False;
-        IncludeTrailingBackSlash(CodecExe[X].WorkDir[Y, Z]);
+        IncludeTrailingPathDelimiter(CodecExe[X].WorkDir[Y, Z]);
         if CodecExe[X].Mode[Z] = STDIO_MODE then
           CodecExe[X].Ctx[Y, Z] := ExecStdioInit(Y, PChar(CodecExe[X].Exec[Z]),
             PChar(CodecExe[X].Param[Z]), PChar(CodecExe[X].WorkDir[Y, Z]),

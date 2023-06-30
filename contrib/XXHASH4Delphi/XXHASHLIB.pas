@@ -338,6 +338,7 @@ function XXH64_update;begin exit(_XXH64_update(state,input,length))end;
 function XXH64_digest;begin exit(_XXH64_digest(state))end;
 procedure XXH64_canonicalFromHash;begin _XXH64_canonicalFromHash(dst,hash)end;
 function XXH64_hashFromCanonical;begin exit(_XXH64_hashFromCanonical(src))end;
+function XXH3_64bits;begin exit(_XXH3_64bits(data,len))end;
 function XXH3_128bits;begin exit(_XXH3_128bits(data,len))end;
 function XXH3_128bits_withSeed;begin exit(_XXH3_128bits_withSeed(data,len,seed))end;
 function XXH3_128bits_withSecret;begin exit(_XXH3_128bits_withSecret(data,len,secret,secretSize))end;

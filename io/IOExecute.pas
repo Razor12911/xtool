@@ -215,7 +215,7 @@ begin
               SS := TSharedMemoryStream.Create
                 (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
                 '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)),
-                IncludeTrailingBackSlash(PString(WorkDir)^) + InFile);
+                IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
               try
                 Res := ExecStdin(Exec, Param, PString(WorkDir)^,
                   SS.Memory, SS.Size);
@@ -226,7 +226,7 @@ begin
           STDOUT_MODE:
             begin
               TFS := TFileStream.Create
-                (IncludeTrailingBackSlash(PString(WorkDir)^) + OutFile,
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile,
                 fmCreate);
               try
                 Res := ExecStdout(Exec, Param, PString(WorkDir)^, Callback);
@@ -239,9 +239,9 @@ begin
               SS := TSharedMemoryStream.Create
                 (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
                 '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)),
-                IncludeTrailingBackSlash(PString(WorkDir)^) + InFile);
+                IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
               TFS := TFileStream.Create
-                (IncludeTrailingBackSlash(PString(WorkDir)^) + OutFile,
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile,
                 fmCreate);
               try
                 Res := ExecStdio(Exec, Param, PString(WorkDir)^, SS.Memory,
@@ -278,11 +278,11 @@ var
 
   procedure Load(X: Integer);
   begin
-    DeleteFile(IncludeTrailingBackSlash(WorkDir[X]) + LCtx.InFile);
-    DeleteFile(IncludeTrailingBackSlash(WorkDir[X]) + LCtx.OutFile);
+    DeleteFile(IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.InFile);
+    DeleteFile(IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.OutFile);
     if not Done then
     begin
-      FStream := TFileStream.Create(IncludeTrailingBackSlash(WorkDir[X]) +
+      FStream := TFileStream.Create(IncludeTrailingPathDelimiter(WorkDir[X]) +
         LCtx.InFile, fmCreate);
       try
         Done := CopyStream(Input, FStream, Options.ChunkSize) = 0;
@@ -307,7 +307,7 @@ begin
   SetLength(State, Options.Threads);
   for I := Low(Tasks) to High(Tasks) do
   begin
-    WorkDir[I] := IncludeTrailingBackSlash(GetCurrentDir) +
+    WorkDir[I] := IncludeTrailingPathDelimiter(GetCurrentDir) +
       LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
       '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF1));
     CreateDir(WorkDir[I]);
@@ -333,10 +333,10 @@ begin
           continue;
         B := 0;
         if State[I] = STATE_EXECUTED then
-          S := IncludeTrailingBackSlash(WorkDir[I]) + LCtx.OutFile
+          S := IncludeTrailingPathDelimiter(WorkDir[I]) + LCtx.OutFile
         else
         begin
-          S := IncludeTrailingBackSlash(WorkDir[I]) + LCtx.InFile;
+          S := IncludeTrailingPathDelimiter(WorkDir[I]) + LCtx.InFile;
           B := 1;
         end;
         SStream := TSharedMemoryStream.Create
@@ -386,8 +386,8 @@ var
     B: Byte;
     I64: Int64;
   begin
-    DeleteFile(IncludeTrailingBackSlash(WorkDir[X]) + LCtx.InFile);
-    DeleteFile(IncludeTrailingBackSlash(WorkDir[X]) + LCtx.OutFile);
+    DeleteFile(IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.InFile);
+    DeleteFile(IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.OutFile);
     if not Done then
     begin
       repeat
@@ -395,7 +395,7 @@ var
         Input.ReadBuffer(I64, I64.Size);
         if I64 >= 0 then
         begin
-          FStream := TFileStream.Create(IncludeTrailingBackSlash(WorkDir[X]) +
+          FStream := TFileStream.Create(IncludeTrailingPathDelimiter(WorkDir[X]) +
             LCtx.InFile, fmCreate);
           try
             if B = 0 then
@@ -425,7 +425,7 @@ begin
   SetLength(State, Options.Threads);
   for I := Low(Tasks) to High(Tasks) do
   begin
-    WorkDir[I] := IncludeTrailingBackSlash(GetCurrentDir) +
+    WorkDir[I] := IncludeTrailingPathDelimiter(GetCurrentDir) +
       LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
       '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF1));
     CreateDir(WorkDir[I]);
@@ -450,7 +450,7 @@ begin
         if State[I] = STATE_DONE then
           continue;
         if State[I] = STATE_EXECUTED then
-          S := IncludeTrailingBackSlash(WorkDir[I]) + LCtx.OutFile
+          S := IncludeTrailingPathDelimiter(WorkDir[I]) + LCtx.OutFile
         else
           raise Exception.CreateRes(@SWriteError);
         SStream := TSharedMemoryStream.Create
