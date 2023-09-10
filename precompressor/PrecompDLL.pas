@@ -4,8 +4,7 @@ interface
 
 uses
   InitCode,
-  Utils,
-  UIMain,
+  Utils, LibImport,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -52,7 +51,7 @@ type
   TPrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
     Size: Integer)cdecl;
   TPrecompAdd = procedure(Instance: Integer; Info: LStrInfo1; Codec: PChar;
-    DepthInfo: PDepthInfo)cdecl;
+    Reserved: Pointer)cdecl;
 
   TPrecompInit = function(Command: PChar; Count: Integer; Funcs: LPrecompFuncs)
     : Boolean cdecl;
@@ -75,6 +74,7 @@ type
   PDLLStruct = ^TDLLStruct;
 
   TDLLStruct = record
+    Lib: TLibImport;
     Names: TArray<String>;
     Init: TPrecompInit;
     Free: TPrecompFree;
@@ -88,11 +88,11 @@ type
 var
   CodecIndex: TArray<Integer>;
   CodecAdd: TArray<_PrecompAdd>;
-  DLLList: TStringDynArray;
+
   CodecDLL: TArray<TDLLStruct>;
 
 procedure AddStream(Instance: Integer; Info: LStrInfo1; Codec: PChar;
-  DepthInfo: PDepthInfo)cdecl;
+  Reserved: Pointer)cdecl;
 var
   SI: _StrInfo1;
 begin
@@ -106,7 +106,7 @@ begin
     SI.Status := TStreamStatus.None;
   LongRec(SI.Option).Lo := Info^.Option;
   LongRec(SI.Option).Hi := CodecIndex[Instance];
-  CodecAdd[Instance](Instance, @SI, Codec, DepthInfo)
+  CodecAdd[Instance](Instance, @SI, Codec, nil)
 end;
 
 function DLLInit(Command: PChar; Count: Integer; Funcs: PPrecompFuncs): Boolean;
@@ -258,7 +258,7 @@ function ImageRvaToVa(NtHeaders: Pointer; Base: Pointer; Rva: ULONG;
   LastRvaSection: Pointer): Pointer; stdcall; external 'dbghelp.dll';
 
 procedure ImageExportedFunctionNames(const ImageName: string;
-  NamesList: TStrings);
+  NamesList: TStrings)overload;
 var
   I: Integer;
   FileHandle: THandle;
@@ -270,65 +270,41 @@ var
   Names: PAnsiChar;
   NamesDataLeft: Integer;
 begin
-  // NOTE: our policy in this procedure is to exit upon any failure and return an empty list
-
   NamesList.Clear;
-
   FileHandle := CreateFile(PChar(ImageName), GENERIC_READ, FILE_SHARE_READ, nil,
     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
   if FileHandle = INVALID_HANDLE_VALUE then
-  begin
     exit;
-  end;
   try
     ImageHandle := CreateFileMapping(FileHandle, nil, PAGE_READONLY, 0, 0, nil);
     if ImageHandle = 0 then
-    begin
       exit;
-    end;
     try
       ImagePointer := MapViewOfFile(ImageHandle, FILE_MAP_READ, 0, 0, 0);
       if not Assigned(ImagePointer) then
-      begin
         exit;
-      end;
-
       try
         Header := ImageNtHeader(ImagePointer);
         if not Assigned(Header) then
-        begin
           exit;
-        end;
         if Header.Signature <> $00004550 then
-        begin // "PE\0\0" as a DWORD.
           exit;
-        end;
-
         ExportTable := ImageRvaToVa(Header, ImagePointer,
           Header.OptionalHeader.DataDirectory[0].VirtualAddress, nil);
         if not Assigned(ExportTable) then
-        begin
           exit;
-        end;
-
         NamesPointer := ImageRvaToVa(Header, ImagePointer,
           Cardinal(ExportTable.AddressOfNames), nil);
         if not Assigned(NamesPointer) then
-        begin
           exit;
-        end;
         Names := ImageRvaToVa(Header, ImagePointer,
           Cardinal(NamesPointer^), nil);
         if not Assigned(Names) then
-        begin
           exit;
-        end;
-
         NamesDataLeft := Header.OptionalHeader.DataDirectory[0].Size;
         for I := 0 to ExportTable.NumberOfNames - 1 do
         begin
           NamesList.Add(Names);
-          // Locate the next name
           while (Names^ <> chr(0)) and (NamesDataLeft > 0) do
           begin
             Inc(Names);
@@ -338,7 +314,6 @@ begin
         end;
       finally
         UnmapViewOfFile(ImagePointer);
-        // Ignore error as there is not much we could do.
       end;
     finally
       CloseHandle(ImageHandle);
@@ -348,61 +323,111 @@ begin
   end;
 end;
 
+procedure ImageExportedFunctionNames(const ImageName: TCustomMemoryStream;
+  NamesList: TStrings)overload;
 var
-  I, J: Integer;
+  I: Integer;
+  Header: PIMAGE_NT_HEADERS;
+  ExportTable: PIMAGE_EXPORT_DIRECTORY;
+  NamesPointer: Pointer;
+  Names: PAnsiChar;
+  NamesDataLeft: Integer;
+begin
+  NamesList.Clear;
+  Header := ImageNtHeader(ImageName.Memory);
+  if not Assigned(Header) then
+    exit;
+  if Header.Signature <> $00004550 then
+    exit;
+  ExportTable := ImageRvaToVa(Header, ImageName.Memory,
+    Header.OptionalHeader.DataDirectory[0].VirtualAddress, nil);
+  if not Assigned(ExportTable) then
+    exit;
+  NamesPointer := ImageRvaToVa(Header, ImageName.Memory,
+    Cardinal(ExportTable.AddressOfNames), nil);
+  if not Assigned(NamesPointer) then
+    exit;
+  Names := ImageRvaToVa(Header, ImageName.Memory, Cardinal(NamesPointer^), nil);
+  if not Assigned(Names) then
+    exit;
+  NamesDataLeft := Header.OptionalHeader.DataDirectory[0].Size;
+  for I := 0 to ExportTable.NumberOfNames - 1 do
+  begin
+    NamesList.Add(Names);
+    while (Names^ <> chr(0)) and (NamesDataLeft > 0) do
+    begin
+      Inc(Names);
+      dec(NamesDataLeft);
+    end;
+    Inc(Names);
+  end;
+end;
+
+var
+  I, J, X: Integer;
   S: String;
+  DLLList: TStringDynArray;
   FuncList: TStringList;
-  DLLStruct: PDLLStruct;
-  DLLHandle: THandle;
+  RStream: TResourceStream;
 
 initialization
 
+FuncList := TStringList.Create;
+FuncList.Clear;
 DLLList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.dll',
   TSearchOption.soTopDirectoryOnly);
-FuncList := TStringList.Create;
 for I := Low(DLLList) to High(DLLList) do
 begin
   ImageExportedFunctionNames(DLLList[I], FuncList);
   if (FuncList.IndexOf('PrecompInit') >= 0) and
     (FuncList.IndexOf('PrecompCodec') >= 0) then
   begin
-    New(DLLStruct);
-    DLLHandle := LoadLibrary(PChar(DLLList[I]));
-    if DLLHandle >= 32 then
+    X := Length(CodecDLL);
+    SetLength(CodecDLL, Succ(X));
+    CodecDLL[X].Lib := TLibImport.Create;
+    CodecDLL[X].Lib.LoadLib(PChar(DLLList[I]));
+    if CodecDLL[X].Lib.Loaded then
     begin
-      @DLLStruct^.Init := GetProcAddress(DLLHandle, 'PrecompInit');
-      Assert(@DLLStruct^.Init <> nil);
-      @DLLStruct^.Free := GetProcAddress(DLLHandle, 'PrecompFree');
-      @DLLStruct^.Codec := GetProcAddress(DLLHandle, 'PrecompCodec');
-      @DLLStruct^.Scan1 := GetProcAddress(DLLHandle, 'PrecompScan1');
-      @DLLStruct^.Scan2 := GetProcAddress(DLLHandle, 'PrecompScan2');
-      @DLLStruct^.Process := GetProcAddress(DLLHandle, 'PrecompProcess');
-      @DLLStruct^.Restore := GetProcAddress(DLLHandle, 'PrecompRestore');
+      CodecDLL[X].Init := CodecDLL[X].Lib.GetProcAddr('PrecompInit');
+      Assert(@CodecDLL[X].Init <> nil);
+      @CodecDLL[X].Free := CodecDLL[X].Lib.GetProcAddr('PrecompFree');
+      @CodecDLL[X].Codec := CodecDLL[X].Lib.GetProcAddr('PrecompCodec');
+      @CodecDLL[X].Scan1 := CodecDLL[X].Lib.GetProcAddr('PrecompScan1');
+      @CodecDLL[X].Scan2 := CodecDLL[X].Lib.GetProcAddr('PrecompScan2');
+      @CodecDLL[X].Process := CodecDLL[X].Lib.GetProcAddr('PrecompProcess');
+      @CodecDLL[X].Restore := CodecDLL[X].Lib.GetProcAddr('PrecompRestore');
       if InitCode.UIDLLLoaded then
         XTLAddplugin(ChangeFileExt(ExtractFileName(DLLList[I]), ''),
           PLUGIN_LIBRARY);
-      Insert(DLLStruct^, CodecDLL, Length(CodecDLL));
       J := 0;
-      while Assigned(CodecDLL[Pred(Length(CodecDLL))].Codec(J)) do
+      while Assigned(CodecDLL[X].Codec(J)) do
       begin
-        S := String(CodecDLL[Pred(Length(CodecDLL))].Codec(J));
-        Insert(S, CodecDLL[Pred(Length(CodecDLL))].Names,
-          Length(CodecDLL[Pred(Length(CodecDLL))].Names));
+        S := String(CodecDLL[X].Codec(J));
+        if SameText(ChangeFileExt(ExtractFileName(S), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          FORCEDMETHOD := True;
+        Insert(S, CodecDLL[X].Names, Length(CodecDLL[X].Names));
         Insert(S, Codec.Names, Length(Codec.Names));
-        if InitCode.UIDLLLoaded then
-          XTLAddCodec(S);
+        if not SameText(ChangeFileExt(ExtractFileName(S), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          if InitCode.UIDLLLoaded then
+            XTLAddCodec(S);
         Inc(J);
       end;
       if J = 0 then
       begin
         Insert(ChangeFileExt(ExtractFileName(DLLList[I]), ''),
-          CodecDLL[Pred(Length(CodecDLL))].Names,
-          Length(CodecDLL[Pred(Length(CodecDLL))].Names));
+          CodecDLL[X].Names, Length(CodecDLL[X].Names));
         Insert(ChangeFileExt(ExtractFileName(DLLList[I]), ''), Codec.Names,
           Length(Codec.Names));
         if InitCode.UIDLLLoaded then
           XTLAddCodec(ChangeFileExt(ExtractFileName(DLLList[I]), ''));
       end;
+    end
+    else
+    begin
+      CodecDLL[X].Lib.Free;
+      SetLength(CodecDLL, X);
     end;
   end;
 end;
@@ -415,5 +440,10 @@ Codec.Scan1 := @DLLScan1;
 Codec.Scan2 := @DLLScan2;
 Codec.Process := @DLLProcess;
 Codec.Restore := @DLLRestore;
+
+finalization
+
+for I := High(CodecDLL) downto Low(CodecDLL) do
+  CodecDLL[I].Lib.Free;
 
 end.

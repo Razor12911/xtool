@@ -5,7 +5,6 @@ interface
 uses
   InitCode,
   Utils, ParseExpr,
-  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -64,10 +63,10 @@ var
   I, J: Integer;
   X, Y, Z: Integer;
   S: String;
+  SList: TStringDynArray;
   ParamsSet: Boolean;
 begin
   Result := True;
-  ParamsSet := False;
   for X := Low(CodecAvailable) to High(CodecAvailable) do
     for Y := Low(CodecAvailable[X]) to High(CodecAvailable[X]) do
     begin
@@ -135,24 +134,31 @@ begin
   begin
     S := Funcs^.GetCodec(Command, X, False);
     for Y := Low(Codec.Names) to High(Codec.Names) do
+    begin
+      ParamsSet := False;
       if CompareText(S, Codec.Names[Y]) = 0 then
       begin
         for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
           CodecEnabled[Y, I] := True;
         for Z := Low(CodecCfg[0, Y]) to High(CodecCfg[0, Y]) do
-          if Funcs^.GetParam(Command, X, PChar(CodecCfg[0, Y, Z].Name)) <> ''
-          then
-          begin
-            if not ParamsSet then
+        begin
+          SList := DecodeStr(CodecCfg[0, Y, Z].Name, ',');
+          for J := Low(SList) to High(SList) do
+            if Funcs^.GetParam(Command, X, PChar(SList[J])) <> '' then
             begin
-              for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
-                CodecEnabled[Y, I] := False;
-              ParamsSet := True;
+              if not ParamsSet then
+              begin
+                for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
+                  CodecEnabled[Y, I] := False;
+                ParamsSet := True;
+              end;
+              CodecEnabled[Y, Z] := True;
+              break;
             end;
-            CodecEnabled[Y, Z] := True;
-          end;
+        end;
         break;
       end;
+    end;
     Inc(X);
   end;
   for X := Low(CodecEnabled) to High(CodecEnabled) do
@@ -195,13 +201,12 @@ var
   A, B: Integer;
   I, J: Integer;
   X, Y: Integer;
-  Pos: NativeInt;
+  Pos, Pos2: NativeInt;
   NI: NativeInt;
   I64: Int64;
   StreamPosInt, StreamOffsetInt, OldSizeInt, NewSizeInt,
     DepthSizeInt: NativeInt;
   SI: _StrInfo1;
-  DI: TDepthInfo;
   DS: TPrecompStr;
 begin
   if Depth > 0 then
@@ -221,7 +226,9 @@ begin
                 StreamPosInt := Pos;
                 for Y := Low(Structure) to High(Structure) do
                 begin
-                  if (X <> Y) and (Structure[Y].BeforeStream = True) then
+                  if (Structure[Y].BeforeStream = True) and
+                    (IndexText(Structure[Y].Name, ['Signature', 'Footer']) < 0)
+                  then
                   begin
                     NI := Structure[Y].Position - Structure[X].Position;
                     if Structure[Y].Name = 'Stream' then
@@ -263,13 +270,31 @@ begin
                   except
                   end;
                 end;
+                for Y := Low(Structure) to High(Structure) do
+                begin
+                  if (Structure[Y].BeforeStream = False) and
+                    (Structure[Y].Name = 'Footer') then
+                  begin
+                    Structure[Y].Value := 0;
+                    Pos2 := StreamPosInt;
+                    if BinarySearch(Input, Pos2, SizeEx, Structure[Y].Data,
+                      Structure[Y].Size, Pos2) then
+                    begin
+                      I64 := Pos2 - StreamPosInt;
+                      Structure[Y].Value := I64.ToDouble;
+                    end;
+                  end;
+                  if Status = TScanStatus.Fail then
+                    break;
+                end;
                 StreamOffsetInt := Round(Parser.Evaluate(StreamOffset));
                 OldSizeInt := Round(Parser.Evaluate(OldSize));
                 NewSizeInt := Round(Parser.Evaluate(NewSize));
                 DepthSizeInt := Round(Parser.Evaluate(DepthSize));
                 for Y := Low(Structure) to High(Structure) do
                 begin
-                  if (X <> Y) and (Structure[Y].BeforeStream = False) then
+                  if (Structure[Y].BeforeStream = False) and
+                    (IndexText(Structure[Y].Name, ['Footer']) < 0) then
                   begin
                     NI := Structure[Y].Position - Structure[X].Position +
                       StreamOffsetInt + OldSizeInt;
@@ -313,13 +338,12 @@ begin
                     SI.Status := TStreamStatus.Predicted
                   else
                     SI.Status := TStreamStatus.None;
+                  Add(Instance, @SI, PChar(Codec), nil);
                   DS := Funcs^.GetDepthCodec(PChar(Codec));
-                  Move(DS[0], DI.Codec, SizeOf(DI.Codec));
-                  DI.OldSize := NewSizeInt;
-                  DI.NewSize := DepthSizeInt;
-                  Add(Instance, @SI, PChar(Codec), @DI);
+                  if DS <> '' then
+                    Funcs^.AddDepthStream(Instance, 0, NewSizeInt, DepthSizeInt,
+                      DS, 0, 0);
                   Inc(Pos, Max(OldSizeInt, 1));
-                  // fix this
                   Status := TScanStatus.Success;
                 end;
                 if Status <> TScanStatus.Success then
@@ -366,8 +390,9 @@ begin
 end;
 
 var
-  I, J, K, X, Y: Integer;
+  I, J, K, X, Y, Z: Integer;
   SL: TStringList;
+  Ini: TMemIniFile;
   Bytes: TBytes;
   S1, S2: String;
   Pos: Integer;
@@ -377,23 +402,30 @@ var
   CfgRecArray: PCfgRecDynArray;
   CfgStruct: PCfgStruct;
   SList: TStringDynArray;
+  RStream: TResourceStream;
 
 initialization
 
-CfgList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.ini',
-  TSearchOption.soTopDirectoryOnly);
 SL := TStringList.Create;
 SetLength(CodecCfg, 1);
+CfgList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.ini',
+  TSearchOption.soTopDirectoryOnly);
 for I := Low(CfgList) to High(CfgList) do
 begin
-  with TIniFile.Create(CfgList[I]) do
+  Ini := TMemIniFile.Create(CfgList[I]);
+  with Ini do
     try
       if ReadString('Stream1', 'Name', '') <> '' then
       begin
+        if SameText(ChangeFileExt(ExtractFileName(CfgList[I]), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          FORCEDMETHOD := True;
         S1 := ChangeFileExt(ExtractFileName(CfgList[I]), '');
         Insert(S1, Codec.Names, Length(Codec.Names));
-        if InitCode.UIDLLLoaded then
-          XTLAddplugin(S1, PLUGIN_CONFIG);
+        if not SameText(ChangeFileExt(ExtractFileName(CfgList[I]), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          if InitCode.UIDLLLoaded then
+            XTLAddplugin(S1, PLUGIN_CONFIG);
         SetLength(CodecCfg[0], Succ(Length(CodecCfg[0])));
         CfgRecArray := @CodecCfg[0, Pred(Length(CodecCfg[0]))];
         X := 1;
@@ -405,7 +437,11 @@ begin
           CfgRec^.Parser := TExpressionParser.Create;
           CfgRec^.Name := ReadString('Stream' + X.ToString, 'Name', '');
           if InitCode.UIDLLLoaded then
-            XTLAddCodec(CfgRec^.Name);
+          begin
+            SList := DecodeStr(CfgRec^.Name, ',');
+            for Y := Low(SList) to High(SList) do
+              XTLAddCodec(SList[Y]);
+          end;
           CfgRec^.Codec := ReadString('Stream' + X.ToString, 'Codec', '');
           CfgRec^.BigEndian := ReadBool('Stream' + X.ToString,
             'BigEndian', False);
@@ -426,10 +462,11 @@ begin
             CfgStruct^.Size :=
               Round(IfThen(S2 <> '', CfgRec^.Parser.Evaluate(S2), 0));
             GetMem(CfgStruct^.Data, CfgStruct^.Size);
-            if CfgStruct^.Name = 'Signature' then
+            Z := IndexText(CfgStruct^.Name, ['Signature', 'Footer']);
+            if Z >= 0 then
             begin
-              S1 := ReplaceStr(ReadString('Stream' + X.ToString, 'Signature',
-                '0'), ' ', '');
+              S1 := ReplaceStr(ReadString('Stream' + X.ToString,
+                CaseStr(Z, ['Signature', 'Footer']), '0'), ' ', '');
               ConvertHexChr(S1);
               HexValue := S1[1] = '$';
               if HexValue then
@@ -487,7 +524,8 @@ begin
             S1 := SL[J].Substring(0, SL[J].IndexOf('=')).TrimRight;
             S2 := SL[J].Substring(Succ(SL[J].IndexOf('='))).TrimLeft;
             if (IndexText(S1, ['Name', 'Codec', 'BigEndian', 'Signature',
-              'Structure']) >= 0) or S1.StartsWith('Condition', True) then
+              'Footer', 'Structure']) >= 0) or S1.StartsWith('Condition', True)
+            then
               SL.Delete(J);
           end;
           SetLength(CfgRec^.Names, SL.Count);
@@ -495,8 +533,8 @@ begin
           SetLength(CfgRec^.Values, SL.Count);
           for J := 0 to SL.Count - 1 do
           begin
-            S1 := SL[J].Substring(0, SL[J].IndexOf('=')).TrimRight;
-            S2 := SL[J].Substring(Succ(SL[J].IndexOf('='))).TrimLeft;
+            S1 := SL[J].Substring(0, SL[J].IndexOf('=')).Trim;
+            S2 := SL[J].Substring(Succ(SL[J].IndexOf('='))).Trim;
             CfgRec^.Names[J] := S1;
             CfgRec^.Exprs[J] := S2;
             CfgRec^.Values[J] := 0;

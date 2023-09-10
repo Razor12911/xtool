@@ -65,7 +65,7 @@ var
     rawSize: NativeUInt): NativeUInt stdcall;
   OodleLZ_GetCompressScratchMemBound: function(compressor: Integer;
     compressSelect: Integer; rawSize: NativeUInt;
-    pOptions: POodleLZ_CompressOptions): NativeUInt stdcall = nil;
+    pOptions: POodleLZ_CompressOptions = nil): NativeUInt stdcall = nil;
 
   DLLLoaded: Boolean = False;
 
@@ -89,21 +89,20 @@ var
   I: Integer;
   C: Cardinal;
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename, True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(Filename, True));
   if not Lib.Loaded then
-    for I := 1 to 9 do
+    for I := 3 to 9 do
     begin
-      Lib.Free;
-      Lib := TLibImport.Create(ExpandPath(PluginsPath + 'oo2core_' + I.ToString
-        + '_win64.dll', True));
+      Lib.LoadLib(ExpandPath(PluginsPath + 'oo2core_' + I.ToString +
+        '_win64.dll', True));
       if Lib.Loaded then
         break;
     end;
   if not Lib.Loaded then
     for I := 3 to 9 do
     begin
-      Lib.Free;
-      Lib := TLibImport.Create(ExpandPath(PluginsPath + 'oo2ext_' + I.ToString +
+      Lib.LoadLib(ExpandPath(PluginsPath + 'oo2ext_' + I.ToString +
         '_win64.dll', True));
       if Lib.Loaded then
         break;
@@ -112,7 +111,7 @@ begin
   begin
     Oodle_CheckVersion := Lib.GetProcAddr('Oodle_CheckVersion');
     if not Assigned(Oodle_CheckVersion) then
-      for I := 0 to 32 do
+      for I := 0 to 49 do
       begin
         @Oodle_CheckVersion :=
           Lib.GetProcAddr(PAnsiChar('_Oodle_CheckVersion@' + (I * 2).ToString));
@@ -126,7 +125,7 @@ begin
     OldCompressOptions_GetDefault := LongRec(C).Hi < $2E08;
     @OodleLZ_Compress_1 := Lib.GetProcAddr('OodleLZ_Compress');
     if not Assigned(OodleLZ_Compress_1) then
-      for I := 0 to 32 do
+      for I := 0 to 49 do
       begin
         @OodleLZ_Compress_1 :=
           Lib.GetProcAddr(PAnsiChar('_OodleLZ_Compress@' + (I * 2).ToString));
@@ -136,7 +135,7 @@ begin
     @OodleLZ_Compress_2 := @OodleLZ_Compress_1;
     OodleLZ_Decompress := Lib.GetProcAddr('OodleLZ_Decompress');
     if not Assigned(OodleLZ_Decompress) then
-      for I := 0 to 32 do
+      for I := 0 to 49 do
       begin
         @OodleLZ_Decompress :=
           Lib.GetProcAddr(PAnsiChar('_OodleLZ_Decompress@' + (I * 2).ToString));
@@ -146,7 +145,7 @@ begin
     OodleLZ_CompressOptions_GetDefault_1 :=
       Lib.GetProcAddr('OodleLZ_CompressOptions_GetDefault');
     if not Assigned(OodleLZ_CompressOptions_GetDefault_1) then
-      for I := 0 to 32 do
+      for I := 0 to 49 do
       begin
         @OodleLZ_CompressOptions_GetDefault_1 :=
           Lib.GetProcAddr(PAnsiChar('_OodleLZ_CompressOptions_GetDefault@' +
@@ -159,7 +158,7 @@ begin
     OodleLZ_GetCompressedBufferSizeNeeded_1 :=
       Lib.GetProcAddr('OodleLZ_GetCompressedBufferSizeNeeded');
     if not Assigned(OodleLZ_GetCompressedBufferSizeNeeded_1) then
-      for I := 0 to 32 do
+      for I := 0 to 49 do
       begin
         @OodleLZ_GetCompressedBufferSizeNeeded_1 :=
           Lib.GetProcAddr(PAnsiChar('_OodleLZ_GetCompressedBufferSizeNeeded@' +
@@ -174,7 +173,7 @@ begin
       OodleLZ_GetCompressScratchMemBound :=
         Lib.GetProcAddr('OodleLZ_GetCompressScratchMemBound');
       if not Assigned(OodleLZ_GetCompressScratchMemBound) then
-        for I := 0 to 32 do
+        for I := 0 to 49 do
         begin
           @OodleLZ_GetCompressScratchMemBound :=
             Lib.GetProcAddr(PAnsiChar('_OodleLZ_GetCompressScratchMemBound@' +

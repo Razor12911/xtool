@@ -5,20 +5,31 @@ interface
 uses
   MemoryModule,
   WinAPI.Windows,
-  System.SysUtils, System.Classes, System.Character;
+  System.SysUtils, System.Classes, System.Character, System.RTLConsts;
 
 type
   TLibImport = class
   private
     FIsMemoryLib: Boolean;
     FDLLLoaded: Boolean;
-    FDLLStream: TResourceStream;
+    FImageFileName: String;
+    FDLLStream: TCustomMemoryStream;
     FDLLHandle: NativeUInt;
+    FImagePtr: Pointer;
+    FImageSize: NativeInt;
   public
-    constructor Create(ALibrary: String);
+    constructor Create;
     destructor Destroy; override;
+    procedure LoadLib(ALibrary: String)overload;
+    procedure LoadLib(AMemory: Pointer; ASize: NativeInt)overload;
+    procedure LoadLib(AStream: TStream; ASize: NativeInt)overload;
+    procedure UnloadLib;
     function GetProcAddr(AProcName: PAnsiChar): Pointer;
     property Loaded: Boolean read FDLLLoaded;
+    property IsMemory: Boolean read FIsMemoryLib;
+    property ImageFileName: String read FImageFileName;
+    property ImagePtr: Pointer read FImagePtr;
+    property ImageSize: NativeInt read FImageSize;
   end;
 
 procedure InjectLib(Source, Dest: String);
@@ -34,7 +45,7 @@ function FileToResourceName(FileName: String): String;
 var
   I: Integer;
 begin
-  Result := ChangeFileExt(ExtractFileName(FileName), '').ToUpper;
+  Result := ExtractFileName(FileName).ToUpper;
   for I := 1 to Result.Length do
     if not Result[I].IsLetterOrDigit then
       Result[I] := '_';
@@ -77,38 +88,91 @@ begin
   end;
 end;
 
-constructor TLibImport.Create(ALibrary: String);
-var
-  LResName: String;
+constructor TLibImport.Create;
 begin
   inherited Create;
   FDLLLoaded := False;
+  FImageFileName := '';
+  FImagePtr := nil;
+  FImageSize := 0;
+end;
+
+destructor TLibImport.Destroy;
+begin
+  UnloadLib;
+  inherited Destroy;
+end;
+
+procedure TLibImport.LoadLib(ALibrary: String);
+var
+  LResName: String;
+  szFileName: array [0 .. MAX_PATH] of char;
+begin
+  UnloadLib;
   LResName := FileToResourceName(ALibrary);
   FIsMemoryLib := ResourceExists(LResName);
   if FIsMemoryLib then
   begin
     FDLLStream := TResourceStream.Create(HInstance, LResName, RT_RCDATA);
+    WriteLn(ErrOutput, FDLLStream.Size.ToString);
     FDLLHandle := NativeUInt(MemoryLoadLibary(FDLLStream.Memory));
     FDLLLoaded := Assigned(Pointer(FDLLHandle));
   end
   else
   begin
+    FDLLStream := TMemoryStream.Create;
     FDLLHandle := LoadLibrary(PWideChar(ALibrary));
     FDLLLoaded := FDLLHandle >= 32;
+    if FDLLLoaded then
+    begin
+      FillChar(szFileName, sizeof(szFileName), #0);
+      GetModuleFileName(FDLLHandle, szFileName, MAX_PATH);
+    end;
   end;
+  FImageFileName := ALibrary;
+  FImagePtr := FDLLStream.Memory;
+  FImageSize := FDLLStream.Size;
 end;
 
-destructor TLibImport.Destroy;
+procedure TLibImport.LoadLib(AMemory: Pointer; ASize: NativeInt);
+begin
+  UnloadLib;
+  FIsMemoryLib := True;
+  FDLLStream := TMemoryStream.Create;
+  FDLLStream.WriteBuffer(AMemory, ASize);
+  FDLLHandle := NativeUInt(MemoryLoadLibary(FDLLStream.Memory));
+  FDLLLoaded := Assigned(Pointer(FDLLHandle));
+  FImageFileName := '';
+  FImagePtr := FDLLStream.Memory;
+  FImageSize := FDLLStream.Size;
+end;
+
+procedure TLibImport.LoadLib(AStream: TStream; ASize: NativeInt);
+begin
+  UnloadLib;
+  FIsMemoryLib := True;
+  FDLLStream := TMemoryStream.Create;
+  FDLLStream.CopyFrom(AStream, ASize);
+  FDLLHandle := NativeUInt(MemoryLoadLibary(FDLLStream.Memory));
+  FDLLLoaded := Assigned(Pointer(FDLLHandle));
+  FImageFileName := '';
+  FImagePtr := FDLLStream.Memory;
+  FImageSize := FDLLStream.Size;
+end;
+
+procedure TLibImport.UnloadLib;
 begin
   if FIsMemoryLib then
   begin
-    if FDLLLoaded then
-      MemoryFreeLibrary(Pointer(FDLLHandle));
-    FDLLStream.Free;
+    MemoryFreeLibrary(Pointer(FDLLHandle));
   end
   else if FDLLLoaded then
     FreeLibrary(FDLLHandle);
-  inherited Destroy;
+  if FDLLLoaded then
+    FDLLStream.Free;
+  FDLLLoaded := False;
+  FImagePtr := nil;
+  FImageSize := 0;
 end;
 
 function TLibImport.GetProcAddr(AProcName: PAnsiChar): Pointer;
@@ -125,6 +189,8 @@ procedure InjectLib(Source, Dest: String);
 var
   LResName: String;
 begin
+  if not FileExists(Source) then
+    raise Exception.CreateRes(@SSpecifiedFileNotFound);
   LResName := FileToResourceName(Source);
   UpdateFileResource(Source, Dest, LResName);
 end;

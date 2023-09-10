@@ -29,6 +29,7 @@ var
   jojpeg_Getvalue: function(p: Pointer; f_DEC, typ: integer): Int64;
   jojpeg_Addbuf: procedure(p: Pointer; f_DEC: integer; buf: Pointer;
     bufsize, state: integer)stdcall;
+
   DLLLoaded: boolean = False;
 
 implementation
@@ -38,7 +39,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'jojpeg_dll.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'jojpeg_dll.dll', True));
   if Lib.Loaded then
   begin
     @jojpeg_Init := Lib.GetProcAddr('jojpeg_Init');

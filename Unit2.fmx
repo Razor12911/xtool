@@ -63,7 +63,7 @@ object Form2: TForm2
           Size.Height = 242.000000000000000000
           Size.PlatformDefault = False
           Text = 'ZLib'
-          TabOrder = 5
+          TabOrder = 6
           ContentSize = '217'
           object Layout6: TLayout
             Align = Top
@@ -471,7 +471,7 @@ object Form2: TForm2
           Size.Height = 134.000000000000000000
           Size.PlatformDefault = False
           Text = 'LZO'
-          TabOrder = 4
+          TabOrder = 5
           ContentSize = '109'
           object Layout13: TLayout
             Align = Top
@@ -582,7 +582,7 @@ object Form2: TForm2
           Size.Height = 98.000000000000000000
           Size.PlatformDefault = False
           Text = 'ZSTD'
-          TabOrder = 3
+          TabOrder = 4
           ContentSize = '73'
           object Layout16: TLayout
             Align = Top
@@ -1106,6 +1106,7 @@ object Form2: TForm2
             object RadioButton4: TRadioButton
               Align = Left
               GroupName = 'WAV'
+              IsChecked = True
               Margins.Left = 30.000000000000000000
               Margins.Top = 8.000000000000000000
               Margins.Bottom = 8.000000000000000000
@@ -1150,6 +1151,7 @@ object Form2: TForm2
             object RadioButton1: TRadioButton
               Align = Client
               GroupName = 'JPG'
+              IsChecked = True
               Margins.Left = 30.000000000000000000
               Margins.Top = 8.000000000000000000
               Margins.Right = 8.000000000000000000
@@ -1201,6 +1203,41 @@ object Form2: TForm2
               Size.PlatformDefault = False
               TabOrder = 2
               Text = 'JoJpeg'
+            end
+          end
+        end
+        object Expander7: TExpander
+          Align = Top
+          Margins.Left = 8.000000000000000000
+          Margins.Top = 8.000000000000000000
+          Margins.Right = 8.000000000000000000
+          Position.X = 8.000000000000000000
+          Position.Y = 1504.000000000000000000
+          ShowCheck = False
+          Size.Width = 252.000000000000000000
+          Size.Height = 62.000000000000000000
+          Size.PlatformDefault = False
+          Text = 'DirectStorage'
+          TabOrder = 3
+          ContentSize = '37'
+          object Layout38: TLayout
+            Align = Top
+            Size.Width = 252.000000000000000000
+            Size.Height = 36.000000000000000000
+            Size.PlatformDefault = False
+            TabOrder = 32
+            object CheckBox22: TCheckBox
+              Align = Client
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Right = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 236.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              TabOrder = 3
+              Text = 'GDeflate'
+              OnChange = CheckBox8Change
             end
           end
         end

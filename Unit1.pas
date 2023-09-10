@@ -86,20 +86,7 @@ type
     TabItem4: TTabItem;
     TabItem5: TTabItem;
     TabItem6: TTabItem;
-    TabItem7: TTabItem;
-    TabItem8: TTabItem;
-    GroupBox13: TGroupBox;
-    Layout15: TLayout;
-    GroupBox14: TGroupBox;
-    Layout16: TLayout;
-    Edit11: TEdit;
-    SearchEditButton10: TSearchEditButton;
-    Memo1: TMemo;
-    Layout17: TLayout;
-    Button3: TButton;
-    Button4: TButton;
     OpenDialog2: TOpenDialog;
-    Label11: TLabel;
     Layout4: TLayout;
     Button1: TButton;
     Label5: TLabel;
@@ -107,9 +94,6 @@ type
     SearchEditButton5: TSearchEditButton;
     Layout18: TLayout;
     Button5: TButton;
-    Layout19: TLayout;
-    Button6: TButton;
-    VertScrollBox3: TVertScrollBox;
     TabItem9: TTabItem;
     VertScrollBox4: TVertScrollBox;
     GroupBox15: TGroupBox;
@@ -164,26 +148,6 @@ type
     Edit17: TEdit;
     SearchEditButton16: TSearchEditButton;
     ComboBox15: TComboBox;
-    VertScrollBox6: TVertScrollBox;
-    GroupBox24: TGroupBox;
-    Layout31: TLayout;
-    Edit18: TEdit;
-    SearchEditButton17: TSearchEditButton;
-    ComboBox16: TComboBox;
-    GroupBox25: TGroupBox;
-    Layout32: TLayout;
-    Edit19: TEdit;
-    SearchEditButton18: TSearchEditButton;
-    GroupBox26: TGroupBox;
-    Layout33: TLayout;
-    Label17: TLabel;
-    SpinBox14: TSpinBox;
-    GroupBox27: TGroupBox;
-    Layout34: TLayout;
-    Edit20: TEdit;
-    SearchEditButton19: TSearchEditButton;
-    Layout35: TLayout;
-    Button9: TButton;
     VertScrollBox7: TVertScrollBox;
     GroupBox28: TGroupBox;
     Layout36: TLayout;
@@ -242,6 +206,8 @@ type
     Label3: TLabel;
     SpinBox3: TSpinBox;
     CheckBox6: TCheckBox;
+    Label8: TLabel;
+    ComboEdit3: TComboEdit;
     procedure FormShow(Sender: TObject);
     procedure SearchEditButton1Click(Sender: TObject);
     procedure SearchEditButton3Click(Sender: TObject);
@@ -255,9 +221,6 @@ type
     procedure SearchEditButton5Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure ComboBox5Change(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
-    procedure SearchEditButton10Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
     procedure ComboBox7Change(Sender: TObject);
     procedure ComboBox6Change(Sender: TObject);
     procedure ComboBox8Change(Sender: TObject);
@@ -284,15 +247,9 @@ type
     procedure SearchEditButton16Click(Sender: TObject);
     procedure SearchEditButton15Click(Sender: TObject);
     procedure SearchEditButton14Click(Sender: TObject);
-    procedure ComboBox16Change(Sender: TObject);
-    procedure SearchEditButton17Click(Sender: TObject);
-    procedure SearchEditButton19Click(Sender: TObject);
-    procedure SearchEditButton18Click(Sender: TObject);
-    procedure Button6Click(Sender: TObject);
     procedure Button10Click(Sender: TObject);
     procedure Button7Click(Sender: TObject);
     procedure Button8Click(Sender: TObject);
-    procedure Button9Click(Sender: TObject);
     procedure SearchEditButton23Click(Sender: TObject);
     procedure Button11Click(Sender: TObject);
     procedure ComboBox18Change(Sender: TObject);
@@ -300,6 +257,12 @@ type
     procedure SearchEditButton25Click(Sender: TObject);
     procedure SearchEditButton24Click(Sender: TObject);
     procedure CheckBox4Change(Sender: TObject);
+    procedure Edit1Change(Sender: TObject);
+    procedure Edit21Change(Sender: TObject);
+    procedure Edit8Change(Sender: TObject);
+    procedure Edit10Change(Sender: TObject);
+    procedure Edit14Change(Sender: TObject);
+    procedure Edit25Change(Sender: TObject);
   private
     { Private declarations }
   public
@@ -408,7 +371,7 @@ begin
     Insert('-dd' + IfThen(SpinBox4.Enabled, SpinBox4.Text, ''), CmdStr,
       Length(CmdStr));
   if ComboEdit1.Enabled then
-    Insert('-SI' + ReplaceText(ComboEdit1.Text, ' ', ''), CmdStr,
+    Insert('-sps' + ReplaceText(ComboEdit1.Text, ' ', ''), CmdStr,
       Length(CmdStr));
   if CheckBox4.IsChecked then
   begin
@@ -419,6 +382,8 @@ begin
     Insert('-l' + SpinBox7.Text + IfThen(SameText(ComboEdit2.Text, 'Auto'), '',
       'x') + S, CmdStr, Length(CmdStr));
   end;
+  Insert('-p' + ReplaceText(ReplaceText(ComboEdit3.Text, '%', 'p'), ' ', '')
+    .ToLower, CmdStr, Length(CmdStr));
   Insert('-bd' + Edit6.Text, CmdStr, Length(CmdStr));
   Insert(Edit1.Text, CmdStr, Length(CmdStr));
   if ComboBox3.ItemIndex = 1 then
@@ -433,21 +398,6 @@ begin
   Form2.Close;
 end;
 
-procedure TForm1.Button3Click(Sender: TObject);
-begin
-  OpenDialog2.FileName := '';
-  if OpenDialog2.Execute then
-    Memo1.Lines.AddStrings(OpenDialog2.Files);
-end;
-
-procedure TForm1.Button4Click(Sender: TObject);
-var
-  Dir: string;
-begin
-  if SelectDirectory('', '', Dir) then
-    Memo1.Lines.Add(Dir);
-end;
-
 procedure TForm1.Button5Click(Sender: TObject);
 begin
   SetLength(CmdStr, 0);
@@ -459,18 +409,6 @@ begin
   Insert(Edit7.Text, CmdStr, Length(CmdStr));
   if ComboBox8.ItemIndex = 1 then
     Insert(Edit9.Text, CmdStr, Length(CmdStr));
-end;
-
-procedure TForm1.Button6Click(Sender: TObject);
-var
-  I: Integer;
-begin
-  SetLength(CmdStr, 0);
-  Insert(ParamStr(0), CmdStr, Length(CmdStr));
-  Insert('archive', CmdStr, Length(CmdStr));
-  for I := 0 to Memo1.Lines.Count - 1 do
-    Insert(Memo1.Lines[I], CmdStr, Length(CmdStr));
-  Insert(Edit11.Text, CmdStr, Length(CmdStr));
 end;
 
 procedure TForm1.Button7Click(Sender: TObject);
@@ -498,17 +436,6 @@ begin
   Insert(Edit16.Text, CmdStr, Length(CmdStr));
   if ComboBox13.ItemIndex = 1 then
     Insert(Edit15.Text, CmdStr, Length(CmdStr));
-end;
-
-procedure TForm1.Button9Click(Sender: TObject);
-begin
-  SetLength(CmdStr, 0);
-  Insert(ParamStr(0), CmdStr, Length(CmdStr));
-  Insert('patch', CmdStr, Length(CmdStr));
-  Insert('-t' + SpinBox14.Text, CmdStr, Length(CmdStr));
-  Insert(Edit18.Text, CmdStr, Length(CmdStr));
-  Insert(Edit20.Text, CmdStr, Length(CmdStr));
-  Insert(Edit19.Text, CmdStr, Length(CmdStr));
 end;
 
 procedure TForm1.CheckBox4Change(Sender: TObject);
@@ -545,12 +472,6 @@ end;
 procedure TForm1.ComboBox15Change(Sender: TObject);
 begin
   Edit17.Text := '';
-end;
-
-procedure TForm1.ComboBox16Change(Sender: TObject);
-begin
-  Edit18.Text := '';
-  Edit20.Text := '';
 end;
 
 procedure TForm1.ComboBox17Change(Sender: TObject);
@@ -621,6 +542,33 @@ begin
   Edit10.Text := '';
 end;
 
+procedure TForm1.Edit10Change(Sender: TObject);
+begin
+  Button7.Enabled := (Edit10.Text <> '') and (Edit13.Text <> '');;
+end;
+
+procedure TForm1.Edit14Change(Sender: TObject);
+begin
+  Button8.Enabled := (Edit14.Text <> '') and (Edit17.Text <> '') and
+    (Edit16.Text <> '');
+end;
+
+procedure TForm1.Edit1Change(Sender: TObject);
+begin
+  Button1.Enabled := Edit1.Text <> '';
+end;
+
+procedure TForm1.Edit21Change(Sender: TObject);
+begin
+  Button10.Enabled := (Edit21.Text <> '') and (Edit23.Text <> '') and
+    (Edit22.Text <> '') and (Edit24.Text <> '');
+end;
+
+procedure TForm1.Edit25Change(Sender: TObject);
+begin
+  Button11.Enabled := Edit25.Text <> '';
+end;
+
 procedure TForm1.Edit6Change(Sender: TObject);
 begin
   if Sender = Edit6 then
@@ -630,6 +578,11 @@ begin
   end
   else
     Edit6.Text := Edit28.Text;
+end;
+
+procedure TForm1.Edit8Change(Sender: TObject);
+begin
+  Button5.Enabled := (Edit8.Text <> '') and (Edit7.Text <> '');
 end;
 
 procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -662,20 +615,11 @@ begin
     SpinBox10.Value := Max(1, CPUCount div 2);
     SpinBox12.Max := CPUCount * 2;
     SpinBox12.Value := Max(1, CPUCount div 2);
-    SpinBox14.Max := CPUCount * 2;
-    SpinBox14.Value := Max(1, CPUCount div 2);
     SpinBox16.Max := CPUCount * 2;
     SpinBox16.Value := Max(1, CPUCount div 2);
     SpinBox13.Max := CPUCount * 2;
     SpinBox13.Value := Max(1, CPUCount div 2);
   end;
-end;
-
-procedure TForm1.SearchEditButton10Click(Sender: TObject);
-begin
-  SaveDialog1.FileName := '';
-  if SaveDialog1.Execute then
-    Edit11.Text := SaveDialog1.FileName;
 end;
 
 procedure TForm1.SearchEditButton11Click(Sender: TObject);
@@ -760,47 +704,6 @@ begin
   end;
 end;
 
-procedure TForm1.SearchEditButton17Click(Sender: TObject);
-var
-  Dir: string;
-begin
-  case ComboBox16.ItemIndex of
-    0:
-      begin
-        OpenDialog1.FileName := '';
-        if OpenDialog1.Execute then
-          Edit18.Text := OpenDialog1.FileName;
-      end;
-    1:
-      if SelectDirectory('', '', Dir) then
-        Edit18.Text := Dir;
-  end;
-end;
-
-procedure TForm1.SearchEditButton18Click(Sender: TObject);
-begin
-  SaveDialog1.FileName := '';
-  if SaveDialog1.Execute then
-    Edit19.Text := SaveDialog1.FileName;
-end;
-
-procedure TForm1.SearchEditButton19Click(Sender: TObject);
-var
-  Dir: string;
-begin
-  case ComboBox16.ItemIndex of
-    0:
-      begin
-        OpenDialog1.FileName := '';
-        if OpenDialog1.Execute then
-          Edit20.Text := OpenDialog1.FileName;
-      end;
-    1:
-      if SelectDirectory('', '', Dir) then
-        Edit20.Text := Dir;
-  end;
-end;
-
 procedure TForm1.SearchEditButton1Click(Sender: TObject);
 var
   Dir: string;
@@ -877,9 +780,7 @@ procedure TForm1.SearchEditButton23Click(Sender: TObject);
 const
   XTOOL_PRECOMP = $304C5458;
   XTOOL_IODEC = $314C5458;
-  XTOOL_PATCH = $324C5458;
-  XTOOL_ARCH = $334C5458;
-  XTOOL_EXEC = $344C5458;
+  XTOOL_EXEC = $324C5458;
 var
   I: Integer;
 begin
@@ -892,8 +793,7 @@ begin
       finally
         Free;
       end;
-    DecodeMode := IndexInt(I, [XTOOL_PRECOMP, XTOOL_IODEC, XTOOL_PATCH,
-      XTOOL_ARCH]);
+    DecodeMode := IndexInt(I, [XTOOL_PRECOMP, XTOOL_IODEC]);
     if DecodeMode < 0 then
       raise Exception.Create('Unsupported input');
     SpinBox13.Enabled := DecodeMode in [0];

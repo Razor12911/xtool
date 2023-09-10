@@ -21,6 +21,12 @@ const
   FL2_BLOCK_OVERLAP_MIN = 0;
   FL2_BLOCK_OVERLAP_MAX = 14;
 
+{$IFDEF CPU32BITS}
+  FL2_DEC_MEM = 1 shl 29;
+{$ELSE}
+  FL2_DEC_MEM = 1 shl 31;
+{$ENDIF}
+
 type
   PFL2_inBuffer = ^FL2_inBuffer;
 
@@ -154,12 +160,15 @@ var
 
   FL2_endStream: function(fcs: Pointer; output: PFL2_outBuffer): size_t cdecl;
 
+  FL2_estimateDStreamSize: function(dictSize: size_t; nbThreads: Cardinal)
+    : size_t cdecl;
   FL2_isError: function(code: size_t): Cardinal cdecl;
   FL2_CStream_setParameter: function(fcs: Pointer; param: FL2_cParameter;
     value: size_t): size_t cdecl;
   FL2_CStream_getParameter: function(fcs: Pointer; param: FL2_cParameter)
     : size_t cdecl;
   FL2_setDStreamMemoryLimitMt: procedure(fds: Pointer; limit: size_t)cdecl;
+
   DLLLoaded: boolean = False;
 
 type
@@ -193,22 +202,24 @@ type
     FBufferSize = 65536;
   private
     FCtx: Pointer;
+    FThreads, FDictionary: Integer;
+    FDecMem: Int64;
     FInp: FL2_inBuffer;
     FInput: TStream;
     FBuffer: array [0 .. FBufferSize - 1] of Byte;
     FInSize, FOutSize: Int64;
+    FInitialized: boolean;
   public
     constructor Create(AInput: TStream);
     destructor Destroy; override;
     function Read(var Buffer; Count: Integer): Integer; override;
+    property Threads: Integer read FThreads write FThreads;
+    property DecodeMemory: Int64 read FDecMem write FDecMem;
     property InSize: Int64 read FInSize;
     property OutSize: Int64 read FOutSize;
   end;
 
 implementation
-
-var
-  Lib: TLibImport;
 
 constructor TLZMACompressStream.Create(AOutput: TStream);
 begin
@@ -236,6 +247,7 @@ function TLZMACompressStream.Write(const Buffer; Count: LongInt): LongInt;
 var
   Inp: FL2_inBuffer;
   Oup: FL2_outBuffer;
+  LDict: Integer;
 begin
   Result := 0;
   if not FInitialized then
@@ -255,6 +267,11 @@ begin
       FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_overlapFraction,
         FOverlap);
     FL2_initCStream(FCtx, 0);
+    FL2_CStream_setParameter(FCtx, FL2_cParameter.FL2_p_overlapFraction,
+      FOverlap);
+    LDict := FL2_CStream_getParameter(FCtx,
+      FL2_cParameter.FL2_p_dictionarySize);
+    FOutput.WriteBuffer(LDict, LDict.size);
     FInitialized := True;
   end;
   Inp.src := PByte(@Buffer);
@@ -298,27 +315,52 @@ end;
 constructor TLZMADecompressStream.Create(AInput: TStream);
 begin
   inherited Create;
+  FThreads := ConvertToThreads('50p');
+  AInput.ReadBuffer(FDictionary, FDictionary.size);
+  FDecMem := FL2_DEC_MEM;
   FInput := AInput;
-  { FCtx := FL2_createDStream;
-    FL2_setDStreamMemoryLimitMt(FCtx, 0); }
-  FCtx := FL2_createDStream;
-  FL2_initDStream(FCtx);
-  FillChar(FInp, SizeOf(FL2_inBuffer), 0);
   FInSize := 0;
   FOutSize := 0;
+  FInitialized := False;
 end;
 
 destructor TLZMADecompressStream.Destroy;
 begin
-  FL2_freeDCtx(FCtx);
+  if FInitialized then
+    try
+      FL2_freeDCtx(FCtx);
+    except
+    end;
   inherited Destroy;
 end;
 
 function TLZMADecompressStream.Read(var Buffer; Count: Integer): Integer;
 var
+  I: Integer;
   Oup: FL2_outBuffer;
 begin
   Result := 0;
+  if not FInitialized then
+  begin
+    for I := FThreads downto 1 do
+    begin
+      if FL2_estimateDStreamSize(FDictionary, I) <= FDecMem then
+      begin
+        FThreads := I;
+        break;
+      end;
+    end;
+    if FThreads > 1 then
+    begin
+      FCtx := FL2_createDStreamMt(FThreads);
+      FL2_setDStreamMemoryLimitMt(FCtx, NativeInt.MaxValue);
+    end
+    else
+      FCtx := FL2_createDStream;
+    FL2_initDStream(FCtx);
+    FillChar(FInp, SizeOf(FL2_inBuffer), 0);
+    FInitialized := True;
+  end;
   if FInp.pos = FInp.size then
   begin
     FInp.src := @FBuffer[0];
@@ -349,9 +391,13 @@ begin
   Result := Oup.pos;
 end;
 
+var
+  Lib: TLibImport;
+
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'fast-lzma2.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'fast-lzma2.dll', True));
   if Lib.Loaded then
   begin
     @FL2_compress := Lib.GetProcAddr('FL2_compress');
@@ -377,6 +423,7 @@ begin
     @FL2_initDStream := Lib.GetProcAddr('FL2_initDStream');
     @FL2_decompressStream := Lib.GetProcAddr('FL2_decompressStream');
     @FL2_endStream := Lib.GetProcAddr('FL2_endStream');
+    @FL2_estimateDStreamSize := Lib.GetProcAddr('FL2_estimateDStreamSize');
     @FL2_isError := Lib.GetProcAddr('FL2_isError');
     @FL2_CStream_setParameter := Lib.GetProcAddr('FL2_CStream_setParameter');
     @FL2_CStream_getParameter := Lib.GetProcAddr('FL2_CStream_getParameter');

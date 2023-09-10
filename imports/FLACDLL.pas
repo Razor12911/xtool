@@ -118,6 +118,7 @@ var
     : Boolean cdecl;
   FLAC__stream_decoder_finish: function(encoder: Pointer): Boolean cdecl;
   FLAC__stream_decoder_delete: procedure(encoder: Pointer)cdecl;
+
   DLLLoaded: Boolean = False;
 
 implementation
@@ -127,8 +128,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create
-    (ExpandPath(PluginsPath + 'libFLAC_dynamic.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'libFLAC_dynamic.dll', True));
   if Lib.Loaded then
   begin
     @FLAC__stream_encoder_new := Lib.GetProcAddr('FLAC__stream_encoder_new');

@@ -5,7 +5,6 @@ interface
 uses
   InitCode,
   Utils, ParseExpr,
-  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -73,10 +72,10 @@ var
   I, J: Integer;
   X, Y, Z: Integer;
   S: String;
+  SList: TStringDynArray;
   ParamsSet: Boolean;
 begin
   Result := True;
-  ParamsSet := False;
   for X := Low(CodecAvailable) to High(CodecAvailable) do
     for Y := Low(CodecAvailable[X]) to High(CodecAvailable[X]) do
     begin
@@ -177,24 +176,31 @@ begin
   begin
     S := Funcs^.GetCodec(Command, X, False);
     for Y := Low(Codec.Names) to High(Codec.Names) do
+    begin
+      ParamsSet := False;
       if CompareText(S, Codec.Names[Y]) = 0 then
       begin
         for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
           CodecEnabled[Y, I] := True;
         for Z := Low(CodecCfg[0, Y]) to High(CodecCfg[0, Y]) do
-          if Funcs^.GetParam(Command, X, PChar(CodecCfg[0, Y, Z].Name)) <> ''
-          then
-          begin
-            if not ParamsSet then
+        begin
+          SList := DecodeStr(CodecCfg[0, Y, Z].Name, ',');
+          for J := Low(SList) to High(SList) do
+            if Funcs^.GetParam(Command, X, PChar(SList[J])) <> '' then
             begin
-              for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
-                CodecEnabled[Y, I] := False;
-              ParamsSet := True;
+              if not ParamsSet then
+              begin
+                for I := Low(CodecEnabled[Y]) to High(CodecEnabled[Y]) do
+                  CodecEnabled[Y, I] := False;
+                ParamsSet := True;
+              end;
+              CodecEnabled[Y, Z] := True;
+              break;
             end;
-            CodecEnabled[Y, Z] := True;
-          end;
+        end;
         break;
       end;
+    end;
     Inc(X);
   end;
   for X := Low(CodecEnabled) to High(CodecEnabled) do
@@ -243,9 +249,7 @@ var
   I64: Int64;
   LoopPosInt, StreamPosInt1, StreamPosInt2, StreamOffsetInt, OldSizeInt,
     NewSizeInt, DepthSizeInt: NativeInt;
-  LoopContinue: Boolean;
   SI: _StrInfo1;
-  DI: TDepthInfo;
   DS: TPrecompStr;
 
   procedure UpdateCounters(var C: TConfigRec);
@@ -288,11 +292,10 @@ var
         SI.Status := TStreamStatus.Predicted
       else
         SI.Status := TStreamStatus.None;
+      Add(Instance, @SI, PChar(Codec), nil);
       DS := Funcs^.GetDepthCodec(PChar(Codec));
-      Move(DS[0], DI.Codec, SizeOf(DI.Codec));
-      DI.OldSize := NewSizeInt;
-      DI.NewSize := DepthSizeInt;
-      Add(Instance, @SI, PChar(Codec), @DI);
+      if DS <> '' then
+        Funcs^.AddDepthStream(Instance, 0, NewSizeInt, DepthSizeInt, DS, 0, 0);
       Status := TScanStatus.Success;
     end;
   end;
@@ -504,6 +507,7 @@ end;
 var
   I, J, K, X, Y, Z: Integer;
   SL: TStringList;
+  Ini: TMemIniFile;
   Bytes: TBytes;
   S1, S2, S3: String;
   Pos: Integer;
@@ -514,23 +518,30 @@ var
   CfgStruct: PCfgStruct;
   CfgCounter: PCfgCounter;
   SList: TStringDynArray;
+  RStream: TResourceStream;
 
 initialization
 
-CfgList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.ini',
-  TSearchOption.soTopDirectoryOnly);
 SL := TStringList.Create;
 SetLength(CodecCfg, 1);
+CfgList := TDirectory.GetFiles(ExpandPath(PluginsPath, True), '*.ini',
+  TSearchOption.soTopDirectoryOnly);
 for I := Low(CfgList) to High(CfgList) do
 begin
-  with TIniFile.Create(CfgList[I]) do
+  Ini := TMemIniFile.Create(CfgList[I]);
+  with Ini do
     try
       if ReadString('StreamList1', 'Name', '') <> '' then
       begin
+        if SameText(ChangeFileExt(ExtractFileName(CfgList[I]), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          FORCEDMETHOD := True;
         S1 := ChangeFileExt(ExtractFileName(CfgList[I]), '');
         Insert(S1, Codec.Names, Length(Codec.Names));
-        if InitCode.UIDLLLoaded then
-          XTLAddplugin(S1, PLUGIN_CONFIG);
+        if not SameText(ChangeFileExt(ExtractFileName(CfgList[I]), ''),
+          ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+          if InitCode.UIDLLLoaded then
+            XTLAddplugin(S1, PLUGIN_CONFIG);
         SetLength(CodecCfg[0], Succ(Length(CodecCfg[0])));
         CfgRecArray := @CodecCfg[0, Pred(Length(CodecCfg[0]))];
         X := 1;
@@ -542,7 +553,11 @@ begin
           CfgRec^.Parser := TExpressionParser.Create;
           CfgRec^.Name := ReadString('StreamList' + X.ToString, 'Name', '');
           if InitCode.UIDLLLoaded then
-            XTLAddCodec(CfgRec^.Name);
+          begin
+            SList := DecodeStr(CfgRec^.Name, ',');
+            for Y := Low(SList) to High(SList) do
+              XTLAddCodec(SList[Y]);
+          end;
           CfgRec^.Codec := ReadString('StreamList' + X.ToString, 'Codec', '');
           CfgRec^.BigEndian := ReadBool('StreamList' + X.ToString,
             'BigEndian', False);

@@ -87,15 +87,6 @@ begin
           else
             break;
         end;
-      { -5:
-        begin
-        // increase output buffer size and try again
-        break;
-        end; }
-      { -8:
-        begin
-        // reduce input buffer size and try again
-        end; }
     else
       break;
     end;
@@ -206,30 +197,30 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, LZOCodecs[LZO1X_CODEC]) = 0) and LZODLL.DLLLoaded then
     begin
-      SetBits(Option^, LZO1X_CODEC, 0, 5);
-      SetBits(Option^, LZO1XVariant, 12, 12);
+      SetBits(Option^, LZO1X_CODEC, 0, 3);
+      SetBits(Option^, LZO1XVariant, 7, 12);
       if Funcs^.GetParam(Command, I, 'l') <> '' then
-        SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
+        SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 3, 4);
       if Funcs^.GetParam(Command, I, 'v') = '999' then
-        SetBits(Option^, 999, 12, 12);
+        SetBits(Option^, 999, 7, 12);
       Result := True;
     end
     else if (CompareText(S, LZOCodecs[LZO2A_CODEC]) = 0) and LZODLL.DLLLoaded
     then
     begin
-      SetBits(Option^, LZO2A_CODEC, 0, 5);
-      SetBits(Option^, LZO2AVariant, 12, 12);
+      SetBits(Option^, LZO2A_CODEC, 0, 3);
+      SetBits(Option^, LZO2AVariant, 7, 12);
       if Funcs^.GetParam(Command, I, 'v') = '999' then
-        SetBits(Option^, 999, 12, 12);
+        SetBits(Option^, 999, 7, 12);
       Result := True;
     end
     else if (CompareText(S, LZOCodecs[LZO1C_CODEC]) = 0) and LZODLL.DLLLoaded
     then
     begin
-      SetBits(Option^, LZO1C_CODEC, 0, 5);
-      SetBits(Option^, LZO1CVariant, 12, 12);
+      SetBits(Option^, LZO1C_CODEC, 0, 3);
+      SetBits(Option^, LZO1CVariant, 7, 12);
       if Funcs^.GetParam(Command, I, 'v') = '999' then
-        SetBits(Option^, 999, 12, 12);
+        SetBits(Option^, 999, 7, 12);
       Result := True;
     end;
     Inc(I);
@@ -246,61 +237,7 @@ var
   Pos: NativeInt;
   LZOSI: TLZOSI;
   SI: _StrInfo1;
-  DI1, DI2: TDepthInfo;
-  DS: TPrecompStr;
 begin
-  DI1 := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
-  if DS <> '' then
-  begin
-    X := IndexTextW(@DS[0], LZOCodecs);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
-      exit;
-    if not CodecAvailable[X] then
-      exit;
-    Res := Max(DI1.NewSize, LMaxSize);
-    Buffer := Funcs^.Allocator(Instance, Res);
-    case X of
-      LZO1X_CODEC:
-        if not lzo1x_decompress_safe(Input, DI1.OldSize, Buffer, @Res) = 0 then
-          Res := 0;
-      LZO2A_CODEC:
-        if not lzo2a_decompress_safe(Input, DI1.OldSize, Buffer, @Res) = 0 then
-          Res := 0;
-      LZO1C_CODEC:
-        if not lzo1c_decompress_safe(Input, DI1.OldSize, Buffer, @Res) = 0 then
-          Res := 0;
-    end;
-    if (Res > DI1.OldSize) then
-    begin
-      Output(Instance, Buffer, Res);
-      SI.Position := 0;
-      SI.OldSize := DI1.OldSize;
-      SI.NewSize := Res;
-      SI.Option := 0;
-      SetBits(SI.Option, X, 0, 5);
-      case X of
-        LZO1X_CODEC:
-          SetBits(SI.Option, LZO1XVariant, 12, 12);
-        LZO2A_CODEC:
-          SetBits(SI.Option, LZO2AVariant, 12, 12);
-        LZO1C_CODEC:
-          SetBits(SI.Option, LZO1CVariant, 12, 12);
-      end;
-      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
-        SI.Status := TStreamStatus.Predicted
-      else
-        SI.Status := TStreamStatus.None;
-      DS := Funcs^.GetDepthCodec(DI1.Codec);
-      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
-      DI2.OldSize := SI.NewSize;
-      DI2.NewSize := SI.NewSize;
-      Funcs^.LogScan1(LZOCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-        SI.OldSize, SI.NewSize);
-      Add(Instance, @SI, DI1.Codec, @DI2);
-    end;
-    exit;
-  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Buffer := Funcs^.Allocator(Instance, LMaxSize);
@@ -314,10 +251,10 @@ begin
       SI.OldSize := LZOSI.CSize;
       SI.NewSize := LZOSI.DSize;
       SI.Option := 0;
-      SetBits(SI.Option, LZO1X_CODEC, 0, 5);
-      SetBits(SI.Option, LZO1XVariant, 12, 12);
+      SetBits(SI.Option, LZO1X_CODEC, 0, 3);
+      SetBits(SI.Option, LZO1XVariant, 7, 12);
       SI.Status := TStreamStatus.None;
-      Funcs^.LogScan1(LZOCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+      Funcs^.LogScan1(LZOCodecs[GetBits(SI.Option, 0, 3)], SI.Position,
         SI.OldSize, SI.NewSize);
       Add(Instance, @SI, nil, nil);
       Inc(Pos, LZOSI.CSize);
@@ -336,7 +273,15 @@ var
   Res: NativeUInt;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
+  if (StreamInfo^.OldSize > 0) and REPROCESSED then
+    if (Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^)
+      .Lo = StreamInfo^.OldSize) and
+      (Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Lo <
+      Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Hi)
+    then
+      StreamInfo^.OldSize :=
+        Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Hi;
   if StreamInfo^.OldSize <= 0 then
     exit;
   Res := Max(StreamInfo^.NewSize, LMaxSize);
@@ -359,7 +304,7 @@ begin
   begin
     Output(Instance, Buffer, Res);
     StreamInfo^.NewSize := Res;
-    Funcs^.LogScan2(LZOCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+    Funcs^.LogScan2(LZOCodecs[GetBits(StreamInfo^.Option, 0, 3)],
       StreamInfo^.OldSize, StreamInfo^.NewSize);
     Result := True;
   end;
@@ -376,7 +321,7 @@ var
   Res2: NativeUInt;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Buffer := Funcs^.Allocator(Instance, StreamInfo^.NewSize);
@@ -385,7 +330,7 @@ begin
   begin
     if StreamInfo^.Status >= TStreamStatus.Predicted then
     begin
-      if GetBits(StreamInfo^.Option, 5, 7) <> I then
+      if GetBits(StreamInfo^.Option, 3, 4) <> I then
         continue;
       if (StreamInfo^.Status = TStreamStatus.Database) and
         (GetBits(StreamInfo^.Option, 31, 1) = 0) then
@@ -400,11 +345,11 @@ begin
     Res1 := StreamInfo^.NewSize;
     case X of
       LZO1X_CODEC:
-        case GetBits(StreamInfo^.Option, 12, 12) of
+        case GetBits(StreamInfo^.Option, 7, 12) of
           LZO1X_999:
             begin
               Params := 'l' + I.ToString + ':' + 'v' +
-                GetBits(StreamInfo^.Option, 12, 12).ToString;
+                GetBits(StreamInfo^.Option, 7, 12).ToString;
               if not Result then
                 if not lzo1x_999_compress_level(NewInput, StreamInfo^.NewSize,
                   Buffer, @Res1, WrkMem[Instance], nil, 0, nil, I) = 0 then
@@ -412,10 +357,10 @@ begin
             end;
         end;
       LZO2A_CODEC:
-        case GetBits(StreamInfo^.Option, 12, 12) of
+        case GetBits(StreamInfo^.Option, 7, 12) of
           LZO2A_999:
             begin
-              Params := 'v' + GetBits(StreamInfo^.Option, 12, 12).ToString;
+              Params := 'v' + GetBits(StreamInfo^.Option, 7, 12).ToString;
               if not Result then
                 if not lzo2a_999_compress(NewInput, StreamInfo^.NewSize, Buffer,
                   @Res1, WrkMem[Instance]) = 0 then
@@ -423,10 +368,10 @@ begin
             end;
         end;
       LZO1C_CODEC:
-        case GetBits(StreamInfo^.Option, 12, 12) of
+        case GetBits(StreamInfo^.Option, 7, 12) of
           LZO1C_999:
             begin
-              Params := 'v' + GetBits(StreamInfo^.Option, 12, 12).ToString;
+              Params := 'v' + GetBits(StreamInfo^.Option, 7, 12).ToString;
               if not Result then
                 if not lzo1c_999_compress(NewInput, StreamInfo^.NewSize, Buffer,
                   @Res1, WrkMem[Instance]) = 0 then
@@ -437,30 +382,14 @@ begin
     if not Result then
       Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
         StreamInfo^.OldSize);
-    Funcs^.LogProcess(LZOCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+    Funcs^.LogProcess(LZOCodecs[GetBits(StreamInfo^.Option, 0, 3)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result or (StreamInfo^.Status >= TStreamStatus.Predicted) then
       break;
   end;
-  { if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
-    begin
-    Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
-    Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
-    Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
-    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2,
-    Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
-    if Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2) then
-    begin
-    Output(Instance, Buffer + Res1, Res2);
-    SetBits(StreamInfo^.Option, 1, 31, 1);
-    SOList[Instance][X].Add(I);
-    Result := True;
-    end;
-    end; }
   if Result then
   begin
-    SetBits(StreamInfo^.Option, I, 5, 7);
+    SetBits(StreamInfo^.Option, I, 3, 4);
     SOList[Instance][X].Add(I);
   end;
 end;
@@ -475,7 +404,7 @@ var
   Res2: NativeUInt;
 begin
   Result := False;
-  X := GetBits(StreamInfo.Option, 0, 5);
+  X := GetBits(StreamInfo.Option, 0, 3);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Params := '';
@@ -485,53 +414,40 @@ begin
   Res1 := StreamInfo.NewSize;
   case X of
     LZO1X_CODEC:
-      case GetBits(StreamInfo.Option, 12, 12) of
+      case GetBits(StreamInfo.Option, 7, 12) of
         LZO1X_999:
           begin
-            Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' +
-              'v' + GetBits(StreamInfo.Option, 12, 12).ToString;
+            Params := 'l' + GetBits(StreamInfo.Option, 3, 4).ToString + ':' +
+              'v' + GetBits(StreamInfo.Option, 7, 12).ToString;
             if not lzo1x_999_compress_level(Input, StreamInfo.NewSize, Buffer,
               @Res1, WrkMem[Instance], nil, 0, nil, GetBits(StreamInfo.Option,
-              5, 7)) = 0 then
+              3, 4)) = 0 then
               Res1 := 0;
           end;
       end;
     LZO2A_CODEC:
-      case GetBits(StreamInfo.Option, 12, 12) of
+      case GetBits(StreamInfo.Option, 7, 12) of
         LZO2A_999:
           begin
-            Params := 'v' + GetBits(StreamInfo.Option, 12, 12).ToString;
+            Params := 'v' + GetBits(StreamInfo.Option, 7, 12).ToString;
             if not lzo2a_999_compress(Input, StreamInfo.NewSize, Buffer, @Res1,
               WrkMem[Instance]) = 0 then
               Res1 := 0;
           end;
       end;
     LZO1C_CODEC:
-      case GetBits(StreamInfo.Option, 12, 12) of
+      case GetBits(StreamInfo.Option, 7, 12) of
         LZO1C_999:
           begin
-            Params := 'v' + GetBits(StreamInfo.Option, 12, 12).ToString;
+            Params := 'v' + GetBits(StreamInfo.Option, 7, 12).ToString;
             if not lzo2a_999_compress(Input, StreamInfo.NewSize, Buffer, @Res1,
               WrkMem[Instance]) = 0 then
               Res1 := 0;
           end;
       end;
   end;
-  Funcs^.LogRestore(LZOCodecs[GetBits(StreamInfo.Option, 0, 5)], PChar(Params),
+  Funcs^.LogRestore(LZOCodecs[GetBits(StreamInfo.Option, 0, 3)], PChar(Params),
     StreamInfo.OldSize, StreamInfo.NewSize, Res1, True);
-  if GetBits(StreamInfo.Option, 31, 1) = 1 then
-  begin
-    Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
-    Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
-      Buffer + Res1, StreamInfo.OldSize);
-    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
-    if Res2 > 0 then
-    begin
-      Output(Instance, Buffer + Res1, StreamInfo.OldSize);
-      Result := True;
-    end;
-    exit;
-  end;
   if Res1 = StreamInfo.OldSize then
   begin
     Output(Instance, Buffer, StreamInfo.OldSize);

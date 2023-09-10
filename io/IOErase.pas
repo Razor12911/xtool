@@ -105,7 +105,7 @@ var
   PEntry: PEntryStruct1;
   LBytes: TBytes;
   FStream: TFileStream;
-  SStream: TSharedMemoryStream;
+  SStream: TFileStreamEx;
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
   Tasks: TArray<TTask>;
@@ -305,16 +305,14 @@ begin
         end;
         if Found2 then
         begin
-          SStream := TSharedMemoryStream.Create
-            (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-            '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), LList[I]);
+          SStream := TFileStreamEx.Create(LList[I]);
           try
             for J := PInteger(PByte(MStream.Memory) + CountPos)^ - 1 downto 0 do
             begin
               PEntry := PEntryStruct1(PByte(MStream.Memory) + CountPos +
                 Integer.Size) + J;
-              FillChar((PByte(SStream.Memory) + PEntry.Position)^,
-                PEntry.Size, 0);
+              SStream.Position := PEntry.Position;
+              SStream.Fill(0, PEntry.Size);
             end;
           finally
             SStream.Free;

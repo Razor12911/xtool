@@ -43,17 +43,17 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, CryptoCodecs[XOR_CODEC]) = 0) then
     begin
-      SetBits(Option^, 0, 0, 5);
+      SetBits(Option^, 0, 0, 3);
       Result := True;
     end
     else if (CompareText(S, CryptoCodecs[AES_CODEC]) = 0) then
     begin
-      SetBits(Option^, 1, 0, 5);
+      SetBits(Option^, 1, 0, 3);
       Result := True;
     end
     else if (CompareText(S, CryptoCodecs[RC4_CODEC]) = 0) then
     begin
-      SetBits(Option^, 2, 0, 5);
+      SetBits(Option^, 2, 0, 3);
       Result := True;
     end;
     Inc(I);
@@ -63,37 +63,8 @@ end;
 procedure CryptoScan1(Instance, Depth: Integer; Input: PByte;
   Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
   Funcs: PPrecompFuncs);
-var
-  X: Integer;
-  SI: _StrInfo1;
-  DI1, DI2: TDepthInfo;
-  DS: TPrecompStr;
 begin
-  DI1 := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
-  if DS <> '' then
-  begin
-    X := IndexTextW(@DS[0], CryptoCodecs);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
-      exit;
-    Output(Instance, Input, DI1.OldSize);
-    SI.Position := 0;
-    SI.OldSize := DI1.OldSize;
-    SI.NewSize := DI1.NewSize;
-    SI.Option := 0;
-    SetBits(SI.Option, X, 0, 5);
-    if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
-      SI.Status := TStreamStatus.Predicted
-    else
-      SI.Status := TStreamStatus.None;
-    DS := Funcs^.GetDepthCodec(DI1.Codec);
-    Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
-    DI2.OldSize := SI.NewSize;
-    DI2.NewSize := SI.NewSize;
-    Funcs^.LogScan1(CryptoCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-      SI.OldSize, -1);
-    Add(Instance, @SI, DI1.Codec, @DI2);
-  end;
+
 end;
 
 function CryptoScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
@@ -110,7 +81,7 @@ begin
   begin
     Output(Instance, Input, StreamInfo^.OldSize);
     StreamInfo^.NewSize := StreamInfo^.OldSize;
-    Funcs^.LogScan2(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+    Funcs^.LogScan2(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 3)],
       StreamInfo^.OldSize, -1);
     Result := True;
   end;
@@ -124,7 +95,7 @@ var
   Res: Integer;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
   Res := 0;
   if not Funcs^.GetResource(StreamInfo^.Resource, nil, @Res) then
     exit;
@@ -142,7 +113,7 @@ begin
       exit;
     end;
     Result := True;
-    Funcs^.LogProcess(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 5)], nil,
+    Funcs^.LogProcess(CryptoCodecs[GetBits(StreamInfo^.Option, 0, 3)], nil,
       StreamInfo^.OldSize, -1, -1, Result);
   end;
 end;
@@ -155,7 +126,7 @@ var
   Res: Integer;
 begin
   Result := False;
-  X := GetBits(StreamInfo.Option, 0, 5);
+  X := GetBits(StreamInfo.Option, 0, 3);
   Res := 0;
   if not Funcs^.GetResource(StreamInfo.Resource, nil, @Res) then
     exit;
@@ -174,7 +145,7 @@ begin
     end;
     Output(Instance, Input, StreamInfo.OldSize);
     Result := True;
-    Funcs^.LogRestore(CryptoCodecs[GetBits(StreamInfo.Option, 0, 5)], nil,
+    Funcs^.LogRestore(CryptoCodecs[GetBits(StreamInfo.Option, 0, 3)], nil,
       StreamInfo.OldSize, -1, -1, Result);
   end;
 end;

@@ -5,7 +5,6 @@ interface
 uses
   InitCode,
   Utils, SynCommons, SynCrypto,
-  UIMain,
   PrecompUtils,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils,
@@ -56,7 +55,7 @@ var
   CodecSearch: TArray<TArray<TSearchStruct>>;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
 
-function CheckHashList(Instance: Integer; Position: NativeInt;
+function CheckHashList(Instance: Integer; Position, SizeEx: NativeInt;
   HashList: TArray<THashStruct>; Funcs: PPrecompFuncs): Boolean;
 const
   BufferSize = 65536;
@@ -83,8 +82,8 @@ begin
     end;
     if (X > 0) or (CRC <> HashList[I].Hash) then
       break;
-    if I = High(HashList) then
-      Result := True;
+    if (I = High(HashList)) or ((FULLSCAN = False) and (LPos > SizeEx)) then
+      exit(True)
   end;
 end;
 
@@ -174,7 +173,6 @@ var
   X, Y: Integer;
   Pos, LSize: NativeInt;
   SI: _StrInfo1;
-  DI: TDepthInfo;
   DS: TPrecompStr;
   SS: PSearchStruct;
   CRC: Cardinal;
@@ -205,8 +203,8 @@ begin
                 Checked := True;
               end;
               if (CodecSearch[I, SearchInfo[I, J, X]].Hash = CRC) and
-                CheckHashList(Instance, Pos, CodecSearch[I, SearchInfo[I, J, X]]
-                .HashList, Funcs) then
+                CheckHashList(Instance, Pos, SizeEx,
+                CodecSearch[I, SearchInfo[I, J, X]].HashList, Funcs) then
               begin
                 SS := @CodecSearch[I, SearchInfo[I, J, X]];
                 Output(Instance, nil, 0);
@@ -221,11 +219,11 @@ begin
                     SI.Status := TStreamStatus.Predicted
                   else
                     SI.Status := TStreamStatus.None;
+                  Add(Instance, @SI, PChar(SS^.Codec), nil);
                   DS := Funcs^.GetDepthCodec(PChar(SS^.Codec));
-                  Move(DS[0], DI.Codec, SizeOf(DI.Codec));
-                  DI.OldSize := SS^.EntryList[Y].NewSize;
-                  DI.NewSize := SS^.EntryList[Y].DepthSize;
-                  Add(Instance, @SI, PChar(SS^.Codec), @DI);
+                  if DS <> '' then
+                    Funcs^.AddDepthStream(Instance, 0, SS^.EntryList[Y].NewSize,
+                      SS^.EntryList[Y].DepthSize, DS, 0, 0);
                 end;
               end;
             end;
@@ -279,12 +277,17 @@ begin
       begin
         if FStream.Position < FStream.Size then
         begin
+          if SameText(ChangeFileExt(ExtractFileName(SearchList[I]), ''),
+            ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+            FORCEDMETHOD := True;
           J := Length(CodecSearch);
           SetLength(CodecSearch, Succ(J));
           S := ChangeFileExt(ExtractFileName(SearchList[I]), '');
           Insert(S, Codec.Names, Length(Codec.Names));
-          if InitCode.UIDLLLoaded then
-            XTLAddplugin(S, PLUGIN_DATABASE);
+          if not SameText(ChangeFileExt(ExtractFileName(SearchList[I]), ''),
+            ChangeFileExt(ExtractFileName(Utils.GetModuleName), '')) then
+            if InitCode.UIDLLLoaded then
+              XTLAddplugin(S, PLUGIN_DATABASE);
         end;
         while FStream.Position < FStream.Size do
         begin

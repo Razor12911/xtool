@@ -88,7 +88,6 @@ function inflateReset(var strm: z_stream): integer;
 implementation
 
 var
-  Lib: TLibImport;
   WinAPIDLL: boolean;
 
 function deflateInit2(var strm: z_stream; level, method, windowBits, memLevel,
@@ -147,14 +146,15 @@ begin
   Result := System.ZLib.inflateReset(strm);
 end;
 
+var
+  Lib: TLibImport;
+
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename, True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(Filename, True));
   if not(Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion'))) then
-  begin
-    Lib.Free;
-    Lib := TLibImport.Create(ExpandPath(PluginsPath + 'zlib1.dll', True));
-  end;
+    Lib.LoadLib(ExpandPath(PluginsPath + 'zlib1.dll', True));
   if Lib.Loaded and Assigned(Lib.GetProcAddr('zlibVersion')) then
   begin
     DLLLoaded := True;

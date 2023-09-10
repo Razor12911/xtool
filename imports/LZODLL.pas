@@ -62,6 +62,7 @@ var
     dst: Pointer; dst_len: PNativeUInt; wrkmem: Pointer): integer; cdecl;
   lzo2a_decompress_safe: function(const src: Pointer; src_len: NativeUInt;
     dst: Pointer; dst_len: PNativeUInt): integer cdecl;
+
   DLLLoaded: Boolean = False;
 
 implementation
@@ -71,7 +72,8 @@ var
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename, True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(Filename, True));
   if Lib.Loaded then
   begin
     @lzo1x_1_compress := Lib.GetProcAddr('lzo1x_1_compress');

@@ -483,25 +483,25 @@ begin
     S := Funcs^.GetCodec(Command, I, False);
     if (CompareText(S, MediaCodecs[FLAC_CODEC]) = 0) and FLACDLL.DLLLoaded then
     begin
-      SetBits(Option^, FLAC_CODEC, 0, 5);
+      SetBits(Option^, FLAC_CODEC, 0, 3);
       Result := True;
     end
     else if (CompareText(S, MediaCodecs[PACKJPG_CODEC]) = 0) and PackJPGDLL.DLLLoaded
     then
     begin
-      SetBits(Option^, PACKJPG_CODEC, 0, 5);
+      SetBits(Option^, PACKJPG_CODEC, 0, 3);
       Result := True;
     end
     else if (CompareText(S, MediaCodecs[BRUNSLI_CODEC]) = 0) and BrunsliDLL.DLLLoaded
     then
     begin
-      SetBits(Option^, BRUNSLI_CODEC, 0, 5);
+      SetBits(Option^, BRUNSLI_CODEC, 0, 3);
       Result := True;
     end
     else if (CompareText(S, MediaCodecs[JOJPEG_CODEC]) = 0) and JoJpegDLL.DLLLoaded
     then
     begin
-      SetBits(Option^, JOJPEG_CODEC, 0, 5);
+      SetBits(Option^, JOJPEG_CODEC, 0, 3);
       Result := True;
     end;
     Inc(I);
@@ -516,75 +516,10 @@ var
   Pos: NativeInt;
   X, Y, Z: Integer;
   SI: _StrInfo1;
-  DI1, DI2: TDepthInfo;
-  DS: TPrecompStr;
   wave_hdr: TWAVE_hdr;
   data_size, hdr_size: Cardinal;
   progressive: Boolean;
 begin
-  DI1 := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
-  if DS <> '' then
-  begin
-    X := IndexTextW(@DS[0], MediaCodecs);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
-      exit;
-    if not CodecAvailable[X] then
-      exit;
-    Y := DI1.OldSize;
-    case X of
-      FLAC_CODEC:
-        begin
-          if GetWAVEInfo(Input, Y, @wave_hdr, @data_size, @hdr_size) then
-            Y := data_size + hdr_size
-          else
-            Y := 0;
-        end;
-      PACKJPG_CODEC, BRUNSLI_CODEC, JOJPEG_CODEC:
-        begin
-          if GetJPEGInfo(Input, Y, @data_size, @progressive) then
-            Y := data_size
-          else
-            Y := 0;
-        end;
-    else
-      Y := 0;
-    end;
-    if Y > 0 then
-    begin
-      Z := data_size;
-      if X = FLAC_CODEC then
-      begin
-        Buffer := Funcs^.Allocator(Instance, hdr_size);
-        Move(Input^, Buffer^, hdr_size);
-        Inc(PInteger(Buffer)^);
-        Output(Instance, @hdr_size, hdr_size.Size);
-        Output(Instance, Buffer, hdr_size);
-        Output(Instance, Input + hdr_size, Z);
-        Inc(Z, hdr_size.Size);
-        Inc(Z, hdr_size);
-      end
-      else
-        Output(Instance, Input, Z);
-      SI.Position := 0;
-      SI.OldSize := Y;
-      SI.NewSize := Z;
-      SI.Option := 0;
-      SetBits(SI.Option, X, 0, 5);
-      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
-        SI.Status := TStreamStatus.Predicted
-      else
-        SI.Status := TStreamStatus.None;
-      DS := Funcs^.GetDepthCodec(DI1.Codec);
-      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
-      DI2.OldSize := SI.NewSize;
-      DI2.NewSize := SI.NewSize;
-      Funcs^.LogScan1(MediaCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-        SI.OldSize, -1);
-      Add(Instance, @SI, DI1.Codec, @DI2);
-    end;
-    exit;
-  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Pos := 0;
@@ -612,9 +547,9 @@ begin
         SI.OldSize := Y;
         SI.NewSize := Z;
         SI.Option := 0;
-        SetBits(SI.Option, FLAC_CODEC, 0, 5);
+        SetBits(SI.Option, FLAC_CODEC, 0, 3);
         SI.Status := TStreamStatus.None;
-        Funcs^.LogScan1(MediaCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        Funcs^.LogScan1(MediaCodecs[GetBits(SI.Option, 0, 3)], SI.Position,
           SI.OldSize, -1);
         Add(Instance, @SI, nil, nil);
         Inc(Pos, SI.OldSize);
@@ -638,13 +573,13 @@ begin
         SI.NewSize := Z;
         SI.Option := 0;
         if CodecEnabled[BRUNSLI_CODEC] then
-          SetBits(SI.Option, BRUNSLI_CODEC, 0, 5)
+          SetBits(SI.Option, BRUNSLI_CODEC, 0, 3)
         else if CodecEnabled[JOJPEG_CODEC] then
-          SetBits(SI.Option, JOJPEG_CODEC, 0, 5)
+          SetBits(SI.Option, JOJPEG_CODEC, 0, 3)
         else if CodecEnabled[PACKJPG_CODEC] then
-          SetBits(SI.Option, PACKJPG_CODEC, 0, 5);
+          SetBits(SI.Option, PACKJPG_CODEC, 0, 3);
         SI.Status := TStreamStatus.None;
-        Funcs^.LogScan1(MediaCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+        Funcs^.LogScan1(MediaCodecs[GetBits(SI.Option, 0, 3)], SI.Position,
           SI.OldSize, -1);
         Add(Instance, @SI, nil, nil);
         Inc(Pos, SI.OldSize);
@@ -666,7 +601,7 @@ var
   progressive: Boolean;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
   if StreamInfo^.OldSize <= 0 then
     exit;
   Y := StreamInfo^.OldSize;
@@ -705,7 +640,7 @@ begin
     else
       Output(Instance, Input, Z);
     StreamInfo^.NewSize := Z;
-    Funcs^.LogScan2(MediaCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+    Funcs^.LogScan2(MediaCodecs[GetBits(StreamInfo^.Option, 0, 3)],
       StreamInfo^.OldSize, -1);
     Result := True;
   end;
@@ -723,7 +658,7 @@ var
   Res1, Res2: Integer;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Params := '';
@@ -833,7 +768,7 @@ begin
         end;
       end;
   end;
-  Funcs^.LogProcess(MediaCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+  Funcs^.LogProcess(MediaCodecs[GetBits(StreamInfo^.Option, 0, 3)],
     PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, -1, Result);
 end;
 
@@ -849,7 +784,7 @@ var
   Res1, Res2: Integer;
 begin
   Result := False;
-  X := GetBits(StreamInfo.Option, 0, 5);
+  X := GetBits(StreamInfo.Option, 0, 3);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Params := '';
@@ -948,40 +883,6 @@ begin
                 break;
             end;
           end;
-          { while True do
-            begin
-            Res1 := jojpeg_Loop(ctx, jojpeg_Decompress);
-            if Res1 = 0 then
-            break;
-            if (Res1 = jojpeg_dec_Input1) then
-            begin
-            Res2 := Min(StreamInfo.NewSize - I, J_WORKMEM);
-            jojpeg_Addbuf(ctx, jojpeg_Decompress, PByte(Input) + I, Res2,
-            jojpeg_dec_Input1);
-            Inc(I, Res2);
-            end;
-            if (Res1 = jojpeg_dec_Input2) then
-            begin
-            Res2 := Min(StreamInfo.ExtSize - J, J_WORKMEM);
-            jojpeg_Addbuf(ctx, jojpeg_Decompress, PByte(InputExt) + J, Res2,
-            jojpeg_dec_Input2);
-            Inc(J, Res2);
-            end;
-            if (Res1 = jojpeg_dec_Output) then
-            begin
-            Output(Instance, Buffer, J_WORKMEM);
-            Inc(Y, J_WORKMEM);
-            jojpeg_Addbuf(ctx, jojpeg_Decompress, Buffer, J_WORKMEM,
-            jojpeg_dec_Output);
-            end;
-            end;
-            if (Y <> StreamInfo.OldSize) and (StreamInfo.OldSize - Y < J_WORKMEM)
-            then
-            begin
-            Res2 := StreamInfo.OldSize - Y;
-            Output(Instance, Buffer, Res2);
-            Inc(Y, Res2);
-            end; }
           Res := Y;
           Result := Y = StreamInfo.OldSize;
         finally
@@ -989,7 +890,7 @@ begin
         end;
       end;
   end;
-  Funcs^.LogRestore(MediaCodecs[GetBits(StreamInfo.Option, 0, 5)],
+  Funcs^.LogRestore(MediaCodecs[GetBits(StreamInfo.Option, 0, 3)],
     PChar(Params), StreamInfo.NewSize, Res, -1, Result);
 end;
 

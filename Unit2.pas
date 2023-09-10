@@ -115,6 +115,9 @@ type
     VertScrollBox3: TVertScrollBox;
     Expander10: TExpander;
     ListBox2: TListBox;
+    Expander7: TExpander;
+    Layout38: TLayout;
+    CheckBox22: TCheckBox;
     procedure FormShow(Sender: TObject);
     procedure CheckBox3Change(Sender: TObject);
     procedure CheckBox1Change(Sender: TObject);
@@ -310,6 +313,8 @@ begin
   FLayout1[I].Parent := FExpander;
   FLayout1[I].Height := 64;
   FLayout1[I].Align := TAlignLayout.Top;
+  // FLayout1[I].Align := TAlignLayout.None;
+  FLayout1[I].Position.Y := I * FLayout1[I].Height;
   Insert(TCheckBox.Create(FLayout1[I]), FCheckBox, Length(FCheckBox));
   FCheckBox[I].Parent := FLayout1[I];
   FCheckBox[I].Height := 20;
@@ -406,6 +411,8 @@ begin
     AddMethod('packjpg', Res, [], []);
   if CheckBox26.IsChecked and RadioButton3.IsChecked then
     AddMethod('jojpeg', Res, [], []);
+  if CheckBox22.IsChecked then
+    AddMethod('gdeflate', Res, [], []);
   for I := 0 to ListBox2.Items.Count - 1 do
     if ListBox2.ItemByIndex(I).IsChecked then
       AddMethod(ListBox2.Items[I], Res, [], []);

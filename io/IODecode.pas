@@ -88,7 +88,7 @@ var
   LBytes: TBytes;
   LFilename: String;
   BaseDir1, BaseDir2: String;
-  SS1, SS2: TSharedMemoryStream;
+  SS1, SS2: TFileStreamEx;
 begin
   if FileExists(Input2) then
     BaseDir1 := ExtractFilePath(TPath.GetFullPath(Input2))
@@ -111,10 +111,7 @@ begin
     end;
     SetLength(LBytes, I);
     Input1.ReadBuffer(LBytes[0], I);
-    SS1 := TSharedMemoryStream.Create
-      (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-      '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)),
-      BaseDir2 + StringOf(LBytes));
+    SS1 := TFileStreamEx.Create(BaseDir2 + StringOf(LBytes));
     try
       Input1.ReadBuffer(I, I.Size);
       for J := 0 to I - 1 do
@@ -123,12 +120,10 @@ begin
         LFilename := BaseDir1 + LEntry.Filename;
         if FileExists(LFilename) then
         begin
-          SS2 := TSharedMemoryStream.Create
-            (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-            '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), LFilename);
+          SS2 := TFileStreamEx.Create(LFilename);
           try
-            Move(SS2.Memory^, (PByte(SS1.Memory) + LEntry.Position)^,
-              Min(SS2.Size, LEntry.Size));
+            SS1.Position := LEntry.Position;
+            SS2.CopyTo(SS1, Min(SS2.Size, LEntry.Size));
           finally
             SS2.Free;
           end;

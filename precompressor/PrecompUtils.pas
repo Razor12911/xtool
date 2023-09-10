@@ -4,7 +4,7 @@ interface
 
 uses
   InitCode,
-  Utils, Threading, XXHASHLIB,
+  Utils, Threading, XXHASHLIB, ZSTDLib,
   WinAPI.Windows,
   System.SysUtils, System.Classes, System.StrUtils, System.Types, System.Math,
   System.Generics.Defaults, System.Generics.Collections;
@@ -36,12 +36,14 @@ type
 
   TStreamStatus = (None, Invalid, Predicted, Database);
 
-  PDepthInfo = ^TDepthInfo;
+  PDepthStream = ^TDepthStream;
 
-  TDepthInfo = packed record
-    Codec: array [0 .. 31] of Char;
-    OldSize: Integer;
-    NewSize: Integer;
+  TDepthStream = record
+    Position: Int64;
+    OldSize, NewSize: Integer;
+    Resource: Integer;
+    Codec: Byte;
+    Option: Integer;
   end;
 
   PEncodeSI = ^TEncodeSI;
@@ -58,7 +60,7 @@ type
     Option: Integer;
     Checksum: XXH128_hash_t;
     Status: TStreamStatus;
-    DepthInfo: TDepthInfo;
+    DepthStreams: TArray<TDepthStream>;
   end;
 
   PFutureSI = ^TFutureSI;
@@ -71,7 +73,7 @@ type
     Scan2: Boolean;
     Option: Integer;
     Status: TStreamStatus;
-    DepthInfo: TDepthInfo;
+    DepthStreams: TArray<TDepthStream>;
   end;
 
   PStreamHeader = ^TStreamHeader;
@@ -124,7 +126,8 @@ type
       : TPrecompStr cdecl;
     GetParam: function(Cmd: PChar; Index: Integer; Param: PChar)
       : TPrecompStr cdecl;
-    GetDepthInfo: function(Index: Integer): TDepthInfo cdecl;
+    AddDepthStream: procedure(Instance: Integer; Position: Int64;
+      OldSize, NewSize: Integer; Codec: PChar; Option, Resource: Integer)cdecl;
     Compress: function(Codec: PChar; InBuff: Pointer; InSize: Integer;
       OutBuff: Pointer; OutSize: Integer; DictBuff: Pointer; DictSize: Integer)
       : Integer cdecl; // 5
@@ -203,7 +206,7 @@ type
   _PrecompOutput = procedure(Instance: Integer; const Buffer: Pointer;
     Size: Integer)cdecl;
   _PrecompAdd = procedure(Instance: Integer; Info: PStrInfo1; Codec: PChar;
-    DepthInfo: PDepthInfo)cdecl;
+    Reserved: Pointer)cdecl;
 
   _PrecompInit = function(Command: PChar; Count: Integer;
     Funcs: PPrecompFuncs): Boolean;
@@ -260,7 +263,7 @@ type
   TDuplicate1 = packed record
     Size: Integer;
     Checksum: XXH128_hash_t;
-    Index: Integer;
+    Index1, Index2: Integer;
     Count: Integer;
   end;
 
@@ -271,10 +274,17 @@ type
     Count: Integer;
   end;
 
+  PDuplicate3 = ^TDuplicate3;
+
+  TDuplicate3 = packed record
+    Size: Integer;
+    Index: Integer;
+    Count: Integer;
+  end;
+
   TPrecompVMStream = class(TStream)
   private const
-    FSuffix1 = '-vm.tmp';
-    FSuffix2 = '_mapped.io';
+    FSuffix = '-vm.tmp';
   protected
     procedure SetSize(const NewSize: Int64); override;
     procedure SetSize(NewSize: Longint); override;
@@ -300,6 +310,9 @@ type
     Data: Pointer;
     Size: Integer;
   end;
+
+procedure _Init(Count: Integer);
+procedure _Free;
 
 procedure AddMethod(Method: String);
 procedure ClearMethods;
@@ -327,9 +340,15 @@ function PrecompHash(Codec: PChar; InBuff: Pointer; InSize: Integer;
 function PrecompEncodePatch(OldBuff: Pointer; OldSize: Integer;
   NewBuff: Pointer; NewSize: Integer; PatchBuff: Pointer; PatchSize: Integer)
   : Integer cdecl;
+function PrecompEncodePatchEx(Instance: Integer; OldBuff: Pointer;
+  OldSize: Integer; NewBuff: Pointer; NewSize: Integer; Output: _PrecompOutput)
+  : Integer cdecl;
 function PrecompDecodePatch(PatchBuff: Pointer; PatchSize: Integer;
   OldBuff: Pointer; OldSize: Integer; NewBuff: Pointer; NewSize: Integer)
   : Integer cdecl;
+function PrecompDecodePatchEx(Instance: Integer; PatchBuff: Pointer;
+  PatchSize: Integer; OldBuff: Pointer; OldSize: Integer;
+  Output: _PrecompOutput): Integer cdecl;
 function PrecompAddResource(FileName: PChar): Integer cdecl;
 function PrecompGetResource(Index: Integer; Data: Pointer; Size: PInteger)
   : Boolean cdecl;
@@ -367,9 +386,14 @@ function PrecompAcceptPatch(OldSize, NewSize, PatchSize: Integer)
   : Boolean cdecl;
 
 var
+  Codec: TPrecompressor;
   PrecompFunctions: _PrecompFuncs;
   DIFF_TOLERANCE: Single = 0.05;
+  DIFF_CLEVEL: Integer = 1;
   OPTIMISE_DEC: Boolean = False;
+  FULLSCAN: Boolean = False;
+  REPROCESSED: Boolean = False;
+  FORCEDMETHOD: Boolean = False;
   EncodeSICmp: TEncodeSIComparer;
   FutureSICmp: TFutureSIComparer;
   StockMethods, ExternalMethods: TStringList;
@@ -378,8 +402,45 @@ var
 implementation
 
 uses
-  ZLibDLL, LZ4DLL, LZODLL, ZSTDDLL, OodleDLL, XDeltaDLL,
+  ZLibDLL, LZ4DLL, LZODLL, ZSTDDLL, OodleDLL,
   SynCommons, SynCrypto;
+
+const
+  DummyCodecs: array of PChar = ['none'];
+  CODEC_COUNT = 1;
+  NONE_CODEC = 0;
+
+type
+  TPrecompVar = record
+    ZSTDCtx1: ZSTD_CCtx;
+    ZSTDCtx2: ZSTD_DCtx;
+  end;
+
+var
+  _PrecompVar: TArray<TPrecompVar>;
+
+procedure _Init(Count: Integer);
+var
+  I: Integer;
+begin
+  SetLength(_PrecompVar, Count);
+  for I := Low(_PrecompVar) to High(_PrecompVar) do
+  begin
+    _PrecompVar[I].ZSTDCtx1 := ZSTDLib.ZSTD_createCCtx;
+    _PrecompVar[I].ZSTDCtx2 := ZSTDLib.ZSTD_createDCtx;
+  end;
+end;
+
+procedure _Free;
+var
+  I: Integer;
+begin
+  for I := Low(_PrecompVar) to High(_PrecompVar) do
+  begin
+    ZSTDLib.ZSTD_freeCCtx(_PrecompVar[I].ZSTDCtx1);
+    ZSTDLib.ZSTD_freeDCtx(_PrecompVar[I].ZSTDCtx2);
+  end;
+end;
 
 function TEncodeSIComparer.Compare(const Left, Right: TEncodeSI): Integer;
 begin
@@ -431,7 +492,7 @@ begin
       List2 := DecodeStr(List1[I], SPrecompSep2);
       for J := Succ(Low(List2)) to High(List2) do
       begin
-        if FileExists(PluginsPath + List2[J]) then
+        if FileExists(ExpandPath(PluginsPath + List2[J], True)) then
         begin
           Result := PrecompAddResource(PChar(List2[J]));
           break;
@@ -473,16 +534,10 @@ begin
   if FInitialised then
     exit;
   FFilename := LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-    FSuffix1));
+    FSuffix));
   if FileExists(FFilename) then
     DeleteFile(FFilename);
-{$IFDEF CPU32BITS}
-  FStream := TFileStream.Create(FFilename, fmCreate);
-{$ELSE}
-  FStream := TSharedMemoryStream.Create
-    (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-    '_' + Random($7FFFFFFF).ToHexString + FSuffix2)), FFilename);
-{$ENDIF}
+  FStream := TFileStreamEx.Create(FFilename, $4000000);
   FInitialised := True;
 end;
 
@@ -594,7 +649,7 @@ begin
       else
       begin
         for I := Succ(Low(List2)) to High(List2) do
-          if List2[I].StartsWith(Param, False) and
+          if List2[I].StartsWith(Param, True) and
             (ResourceExists(List2[I]) = False) then
           begin
             S := List2[I].Substring(Length(Param));
@@ -631,12 +686,15 @@ function PrecompCompress(Codec: PChar; InBuff: Pointer; InSize: Integer;
   DictSize: Integer): Integer;
 var
   ZStream: z_stream;
+  LZ4FT: LZ4F_preferences_t;
   I, X: Integer;
   S: String;
+  dst: NativeUInt;
+  WrkMem: array [0 .. $7FFFF] of Byte;
 begin
   Result := 0;
   X := IndexText(PrecompGetCodec(Codec, 0, False),
-    ['zlib', 'lz4', 'lz4hc', 'lzo1c', 'lzo1x', 'lzo2a', 'zstd', 'lzna',
+    ['zlib', 'lz4', 'lz4hc', 'lz4f', 'lzo1c', 'lzo1x', 'lzo2a', 'zstd', 'lzna',
     'kraken', 'mermaid', 'selkie', 'hydra', 'leviathan']);
   case X of
     0:
@@ -677,7 +735,52 @@ begin
         Result := LZ4_compress_HC(InBuff, OutBuff, InSize, OutSize,
           StrToInt(S));
       end;
+    3:
+      if LZ4DLL.DLLLoaded then
+      begin
+        FillChar(LZ4FT, SizeOf(LZ4F_preferences_t), 0);
+        S := PrecompGetParam(Codec, 0, 'l');
+        if S = '' then
+          S := '9';
+        LZ4FT.compressionLevel := S.ToInteger;
+        S := PrecompGetParam(Codec, 0, 'b');
+        if S = '' then
+          S := '4';
+        LZ4FT.frameInfo.blockSizeID := LZ4F_blockSizeID_t(S.ToInteger);
+        S := PrecompGetParam(Codec, 0, 'd');
+        if S = '' then
+          S := '0';
+        LZ4FT.frameInfo.blockMode := LZ4F_blockMode_t(S.ToInteger);
+        Result := LZ4F_compressFrame(OutBuff, OutSize, InBuff, InSize, @LZ4FT);
+      end;
+    4:
+      if LZODLL.DLLLoaded then
+      begin
+        dst := OutSize;
+        if lzo1c_999_compress(InBuff, InSize, OutBuff, @dst, @WrkMem[0]) = 0
+        then
+          Result := dst;
+      end;
+    5:
+      if LZODLL.DLLLoaded then
+      begin
+        S := PrecompGetParam(Codec, 0, 'l');
+        if S = '' then
+          S := '8';
+        dst := OutSize;
+        if lzo1x_999_compress_level(InBuff, InSize, OutBuff, @dst, @WrkMem[0],
+          nil, 0, nil, StrToInt(S)) = 0 then
+          Result := dst;
+      end;
     6:
+      if LZODLL.DLLLoaded then
+      begin
+        dst := OutSize;
+        if lzo2a_999_compress(InBuff, InSize, OutBuff, @dst, @WrkMem[0]) = 0
+        then
+          Result := dst;
+      end;
+    7:
       if ZSTDDLL.DLLLoaded then
       begin
         S := PrecompGetParam(Codec, 0, 'l');
@@ -685,21 +788,21 @@ begin
           S := '19';
         Result := ZSTD_compress(OutBuff, OutSize, InBuff, InSize, StrToInt(S));
       end;
-    7 .. 12:
+    8 .. 13:
       if OodleDLL.DLLLoaded then
       begin
         case X of
-          7:
-            I := 6;
           8:
-            I := 8;
+            I := 7;
           9:
-            I := 9;
+            I := 8;
           10:
-            I := 11;
+            I := 9;
           11:
-            I := 12;
+            I := 11;
           12:
+            I := 12;
+          13:
             I := 13;
         else
           I := 8;
@@ -718,11 +821,12 @@ function PrecompDecompress(Codec: PChar; InBuff: Pointer; InSize: Integer;
 var
   ZStream: z_stream;
   S: String;
+  dst: NativeUInt;
 begin
   Result := 0;
-  case IndexText(Codec, ['zlib', 'lz4', 'lz4hc', 'lz4f', 'lzo1c', 'lzo1x',
-    'lzo2a', 'zstd', 'lzna', 'kraken', 'mermaid', 'selkie', 'hydra',
-    'leviathan']) of
+  case IndexText(PrecompGetCodec(Codec, 0, False),
+    ['zlib', 'lz4', 'lz4hc', 'lz4f', 'lzo1c', 'lzo1x', 'lzo2a', 'zstd', 'lzna',
+    'kraken', 'mermaid', 'selkie', 'hydra', 'leviathan']) of
     0:
       if ZLibDLL.DLLLoaded then
       begin
@@ -748,6 +852,27 @@ begin
     3:
       if LZ4DLL.DLLLoaded then
         Result := LZ4F_decompress_safe(InBuff, OutBuff, InSize, OutSize);
+    4:
+      if LZODLL.DLLLoaded then
+      begin
+        dst := OutSize;
+        if lzo1c_decompress_safe(InBuff, InSize, OutBuff, @dst) = 0 then
+          Result := dst;
+      end;
+    5:
+      if LZODLL.DLLLoaded then
+      begin
+        dst := OutSize;
+        if lzo1x_decompress_safe(InBuff, InSize, OutBuff, @dst) = 0 then
+          Result := dst;
+      end;
+    6:
+      if LZODLL.DLLLoaded then
+      begin
+        dst := OutSize;
+        if lzo2a_decompress_safe(InBuff, InSize, OutBuff, @dst) = 0 then
+          Result := dst;
+      end;
     7:
       if ZSTDDLL.DLLLoaded then
         Result := ZSTD_decompress(OutBuff, OutSize, InBuff, InSize);
@@ -760,7 +885,7 @@ end;
 function PrecompEncrypt(Codec: PChar; InBuff: Pointer; InSize: Integer;
   KeyBuff: Pointer; KeySize: Integer): Boolean;
 var
-  AES: TAESECB;
+  AES: TAESAbstract;
   RC4: TRC4;
 begin
   Result := False;
@@ -792,7 +917,7 @@ end;
 function PrecompDecrypt(Codec: PChar; InBuff: Pointer; InSize: Integer;
   KeyBuff: Pointer; KeySize: Integer): Boolean;
 var
-  AES: TAESECB;
+  AES: TAESAbstract;
   RC4: TRC4;
 begin
   Result := False;
@@ -906,31 +1031,148 @@ end;
 function PrecompEncodePatch(OldBuff: Pointer; OldSize: Integer;
   NewBuff: Pointer; NewSize: Integer; PatchBuff: Pointer;
   PatchSize: Integer): Integer;
+begin
+  Result := EncodePatch(OldBuff, OldSize, NewBuff, NewSize, PatchBuff,
+    PatchSize);
+end;
+
+function PrecompEncodePatchEx(Instance: Integer; OldBuff: Pointer;
+  OldSize: Integer; NewBuff: Pointer; NewSize: Integer;
+  Output: _PrecompOutput): Integer;
+
+  function highbit64(V: UInt64): Cardinal;
+  var
+    Count: Cardinal;
+  begin
+    Count := 0;
+    Assert(V <> 0);
+    V := V shr 1;
+    while V <> 0 do
+    begin
+      V := V shr 1;
+      Inc(Count);
+    end;
+    Result := Count;
+  end;
+
 var
-  Res: NativeUInt;
+  Buffer: array [0 .. $40000 - 1] of Byte;
+  BufferSize: Integer;
+  Ctx: ZSTD_CCtx;
+  Inp: ZSTDLib.ZSTD_inBuffer;
+  Oup: ZSTDLib.ZSTD_outBuffer;
+  Res: NativeInt;
+
+  procedure DoWrite;
+  begin
+    Output(Instance, @Buffer[0], Oup.Pos);
+    Inc(Result, Oup.Pos);
+    Oup.dst := @Buffer[0];
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+  end;
+
 begin
   Result := 0;
-  if not XDeltaDLL.DLLLoaded then
-    exit;
-  if xd3_encode(OldBuff, OldSize, NewBuff, NewSize, PatchBuff, @Res, PatchSize,
-    Integer(XD3_NOCOMPRESS)) = 0 then
-    Result := Res;
-  // MakeDiff(OldBuff, NewBuff, PatchBuff, OldSize, NewSize, Result);
+  BufferSize := Min(ZSTDLib.ZSTD_CStreamOutSize, Length(Buffer));
+  Ctx := _PrecompVar[Instance].ZSTDCtx1;
+  Oup.dst := @Buffer[0];
+  Oup.Size := BufferSize;
+  Oup.Pos := 0;
+  Inp.src := OldBuff;
+  Inp.Size := OldSize;
+  Inp.Pos := 0;
+  ZSTDLib.ZSTD_initCStream(Ctx, DIFF_CLEVEL);
+  ZSTDLib.ZSTD_CCtx_setParameter(Ctx, ZSTDLib.ZSTD_cParameter.ZSTD_c_windowLog,
+    highbit64(NewSize) + 1);
+  ZSTDLib.ZSTD_CCtx_setParameter(Ctx,
+    ZSTDLib.ZSTD_cParameter.ZSTD_c_enableLongDistanceMatching, 1);
+  ZSTDLib.ZSTD_CCtx_refPrefix(Ctx, NewBuff, NewSize);
+  while Inp.Pos < Inp.Size do
+  begin
+    Res := ZSTDLib.ZSTD_compressStream(Ctx, Oup, Inp);
+    if Res < 0 then
+      exit(0)
+    else if Res > 0 then
+      DoWrite
+    else
+      break;
+  end;
+  ZSTDLib.ZSTD_flushStream(Ctx, Oup);
+  DoWrite;
+  ZSTDLib.ZSTD_endStream(Ctx, Oup);
+  DoWrite;
 end;
 
 function PrecompDecodePatch(PatchBuff: Pointer; PatchSize: Integer;
   OldBuff: Pointer; OldSize: Integer; NewBuff: Pointer;
   NewSize: Integer): Integer;
+begin
+  Result := DecodePatch(PatchBuff, PatchSize, OldBuff, OldSize,
+    NewBuff, NewSize);
+end;
+
+function PrecompDecodePatchEx(Instance: Integer; PatchBuff: Pointer;
+  PatchSize: Integer; OldBuff: Pointer; OldSize: Integer;
+  Output: _PrecompOutput): Integer;
+
+  function highbit64(V: UInt64): Cardinal;
+  var
+    Count: Cardinal;
+  begin
+    Count := 0;
+    Assert(V <> 0);
+    V := V shr 1;
+    while V <> 0 do
+    begin
+      V := V shr 1;
+      Inc(Count);
+    end;
+    Result := Count;
+  end;
+
 var
-  Res: NativeUInt;
+  Buffer: array [0 .. $40000 - 1] of Byte;
+  BufferSize: Integer;
+  Ctx: ZSTD_DCtx;
+  Inp: ZSTDLib.ZSTD_inBuffer;
+  Oup: ZSTDLib.ZSTD_outBuffer;
+  Res: NativeInt;
+
+  procedure DoWrite;
+  begin
+    Output(Instance, @Buffer[0], Oup.Pos);
+    Inc(Result, Oup.Pos);
+    Oup.dst := @Buffer[0];
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+  end;
+
 begin
   Result := 0;
-  if not XDeltaDLL.DLLLoaded then
-    exit;
-  if xd3_decode(PatchBuff, PatchSize, OldBuff, OldSize, NewBuff, @Res, NewSize,
-    Integer(XD3_NOCOMPRESS)) = 0 then
-    Result := Res;
-  // MakePatch(OldBuff, PatchBuff, NewBuff, OldSize, PatchSize, Result);
+  BufferSize := Min(ZSTDLib.ZSTD_DStreamOutSize, Length(Buffer));
+  Ctx := _PrecompVar[Instance].ZSTDCtx2;
+  Oup.dst := @Buffer[0];
+  Oup.Size := BufferSize;
+  Oup.Pos := 0;
+  Inp.src := PatchBuff;
+  Inp.Size := PatchSize;
+  Inp.Pos := 0;
+  ZSTDLib.ZSTD_DCtx_setParameter(Ctx,
+    ZSTDLib.ZSTD_dParameter.ZSTD_d_windowLogMax, highbit64(OldSize) + 1);
+  ZSTDLib.ZSTD_DCtx_refPrefix(Ctx, OldBuff, OldSize);
+  while Inp.Pos < Inp.Size do
+  begin
+    Res := ZSTDLib.ZSTD_decompressStream(Ctx, Oup, Inp);
+    if Res < 0 then
+      exit(0)
+    else if Res >= 0 then
+    begin
+      DoWrite;
+      if Res = 0 then
+        break;
+    end;
+  end;
 end;
 
 function PrecompAddResource(FileName: PChar): Integer;
@@ -951,8 +1193,8 @@ begin
   end;
   if not Exists then
   begin
-    with TFileStream.Create(PluginsPath + FileName, fmOpenRead or
-      fmShareDenyNone) do
+    with TFileStream.Create(ExpandPath(PluginsPath + FileName, True),
+      fmOpenRead or fmShareDenyNone) do
       try
         I := Length(Resources);
         SetLength(Resources, Succ(I));
@@ -1287,13 +1529,93 @@ begin
       Result := PatchSize <= DIFF_TOLERANCE;
 end;
 
+function DummyInit(Command: PChar; Count: Integer;
+  Funcs: PPrecompFuncs): Boolean;
+begin
+  Result := True;
+end;
+
+procedure DummyFree(Funcs: PPrecompFuncs);
+begin
+
+end;
+
+function DummyParse(Command: PChar; Option: PInteger;
+  Funcs: PPrecompFuncs): Boolean;
+var
+  S: String;
+  I: Integer;
+begin
+  Result := False;
+  Option^ := 0;
+  I := 0;
+  while Funcs^.GetCodec(Command, I, False) <> '' do
+  begin
+    S := Funcs^.GetCodec(Command, I, False);
+    if (CompareText(S, DummyCodecs[NONE_CODEC]) = 0) then
+    begin
+      SetBits(Option^, NONE_CODEC, 0, 3);
+      Result := True;
+    end;
+    Inc(I);
+  end;
+end;
+
+procedure DummyScan1(Instance, Depth: Integer; Input: PByte;
+  Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
+  Funcs: PPrecompFuncs);
+begin
+
+end;
+
+function DummyScan2(Instance, Depth: Integer; Input: Pointer; Size: Cardinal;
+  StreamInfo: PStrInfo2; Offset: PInteger; Output: _PrecompOutput;
+  Funcs: PPrecompFuncs): Boolean;
+begin
+  Result := StreamInfo^.OldSize > 0;
+  StreamInfo^.NewSize := StreamInfo^.OldSize;
+  if Result then
+    Output(Instance, Input, StreamInfo^.OldSize);
+  Funcs^.LogScan2(DummyCodecs[GetBits(StreamInfo^.Option, 0, 3)],
+    StreamInfo^.OldSize, -1);
+end;
+
+function DummyProcess(Instance, Depth: Integer; OldInput, NewInput: Pointer;
+  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+begin
+  Result := StreamInfo.OldSize > 0;
+end;
+
+function DummyRestore(Instance, Depth: Integer; Input, InputExt: Pointer;
+  StreamInfo: _StrInfo3; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
+begin
+  Output(Instance, Input, StreamInfo.OldSize);
+  Result := True;
+end;
+
+var
+  I: Integer;
+
 initialization
 
 EncodeSICmp := TEncodeSIComparer.Create;
 FutureSICmp := TFutureSIComparer.Create;
 StockMethods := TStringList.Create;
 ExternalMethods := TStringList.Create;
-if not XDeltaDLL.DLLLoaded then
-  DIFF_TOLERANCE := 0;
+
+Codec.Names := [];
+for I := Low(DummyCodecs) to High(DummyCodecs) do
+begin
+  Codec.Names := Codec.Names + [DummyCodecs[I]];
+  StockMethods.Add(DummyCodecs[I]);
+end;
+Codec.Initialised := False;
+Codec.Init := @DummyInit;
+Codec.Free := @DummyFree;
+Codec.Parse := @DummyParse;
+Codec.Scan1 := @DummyScan1;
+Codec.Scan2 := @DummyScan2;
+Codec.Process := @DummyProcess;
+Codec.Restore := @DummyRestore;
 
 end.

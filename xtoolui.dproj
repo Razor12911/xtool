@@ -5,7 +5,7 @@
         <FrameworkType>FMX</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Library</AppType>
         <MainSource>xtoolui.dpr</MainSource>
@@ -82,8 +82,7 @@
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=xtoolui.dll;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
-        <DCC_PEOSVersion>5.1</DCC_PEOSVersion>
-        <DCC_PESubSysVersion>5.1</DCC_PESubSysVersion>
+        <Debugger_HostApplication>Win32\Release\xtool.exe</Debugger_HostApplication>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <DCC_DcuOutput>.\$(Platform)\DCUs</DCC_DcuOutput>
@@ -94,8 +93,6 @@
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.0.0.0;InternalName=;LegalCopyright=Razor12911;LegalTrademarks=;OriginalFilename=xtooui.dll;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
         <Debugger_HostApplication>Win64\Release\xtool.exe</Debugger_HostApplication>
-        <DCC_PEOSVersion>5.1</DCC_PEOSVersion>
-        <DCC_PESubSysVersion>5.1</DCC_PESubSysVersion>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

@@ -22,6 +22,7 @@ var
     in_size: Integer; out_dest: Pointer; out_type: Integer)cdecl;
   pjglib_version_info: function: PAnsiChar cdecl;
   pjglib_short_name: function: PAnsiChar cdecl;
+
   DLLLoaded: Boolean = False;
 
 implementation
@@ -31,7 +32,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'packjpg_dll.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'packjpg_dll.dll', True));
   if Lib.Loaded then
   begin
     @pjglib_convert_stream2stream :=

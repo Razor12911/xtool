@@ -29,14 +29,15 @@ const
   O_WORKMEM = 64 * 1024 * 1024;
   O_LENGTH = 32;
   O_TRADEOFF = 256;
-  O_DICTIONARY = 0;
+  O_BLOCKSIZE = 0;
 
 var
   SOList: array of array [0 .. CODEC_COUNT - 1] of TSOList;
   OMaxSize: Integer = O_MAXSIZE;
+  OWorkMem: Integer = O_WORKMEM;
   OLength: Integer = O_LENGTH;
   OTradeOff: Integer = O_TRADEOFF;
-  ODictionary: Integer = O_DICTIONARY;
+  OBlockSize: Integer = O_BLOCKSIZE;
   CodecAvailable, CodecEnabled: TArray<Boolean>;
 
 type
@@ -211,7 +212,7 @@ procedure OodleDecompressCB(userdata: Pointer; rawBuf: PByte;
   rawLen: NativeUInt; compBuf: PByte; compBufferSize, rawDone,
   compUsed: NativeUInt);
 begin
-  WriteLn(ErrOutput, rawDone);
+
 end;
 
 function LocalLZ_Decompress(asrc, adst: PByte; asrcSize, adstCapacity: Integer;
@@ -240,14 +241,29 @@ function CustomLZ_Decompress(src, dst: PByte; srcSize, dstCapacity: Integer;
   var Res: Integer): Boolean;
 const
   BlkSize = 262144;
+  ScnSize = 4096;
+  Sc2Size = 16384;
 var
   W, X, Y, Z: Integer;
 begin
   Result := False;
-  Y := 0;
-  X := dstCapacity;
-  X := Min(Max(LocalLZ_Decompress(src, dst, srcSize, X, 0, Y),
-    LocalLZ_Decompress(src, dst, srcSize, X, 1, Z)), Pred(X));
+  W := dstCapacity;
+  X := 0;
+  while (X < srcSize) and (W > srcSize) and
+    (W > Max(0, dstCapacity - BlkSize)) do
+  begin
+    X := Min(Max(LocalLZ_Decompress(src, dst, srcSize, W, 0, Y),
+      LocalLZ_Decompress(src, dst, srcSize, W, 1, Z)), W);
+    Dec(W, ScnSize);
+  end;
+  if X < srcSize then
+    exit;
+  if X mod Sc2Size <> 0 then
+  begin
+    X := X + Sc2Size - (X mod Sc2Size);
+    X := Min(Max(LocalLZ_Decompress(src, dst, srcSize, X, 0, Y),
+      LocalLZ_Decompress(src, dst, srcSize, X, 1, Z)), X);
+  end;
   W := X;
   while (Y = 0) and (X > dstCapacity - BlkSize) and (W - X < OLength) do
   begin
@@ -306,26 +322,27 @@ begin
       SI.Position := Pos;
       SI.OldSize := StreamInfo^.CSize;
       SI.Option := 0;
-      SetBits(SI.Option, OTradeOff, 13, 11);
+      SetBits(SI.Option, OTradeOff, 8, 11);
+      SetBits(SI.Option, OBlockSize, 19, 13);
       case StreamInfo^.Codec of
         1:
           if CodecEnabled[KRAKEN_CODEC] then
-            SetBits(SI.Option, KRAKEN_CODEC, 0, 5);
+            SetBits(SI.Option, KRAKEN_CODEC, 0, 3);
         2:
           if CodecEnabled[MERMAID_CODEC] then
-            SetBits(SI.Option, MERMAID_CODEC, 0, 5)
+            SetBits(SI.Option, MERMAID_CODEC, 0, 3)
           else if CodecEnabled[SELKIE_CODEC] then
-            SetBits(SI.Option, SELKIE_CODEC, 0, 5);
+            SetBits(SI.Option, SELKIE_CODEC, 0, 3);
         3:
           if CodecEnabled[LEVIATHAN_CODEC] then
-            SetBits(SI.Option, LEVIATHAN_CODEC, 0, 5);
+            SetBits(SI.Option, LEVIATHAN_CODEC, 0, 3);
       end;
       if CodecEnabled[HYDRA_CODEC] then
-        SetBits(SI.Option, HYDRA_CODEC, 0, 5);
-      SetBits(SI.Option, Integer(StreamInfo^.HasCRC), 12, 1);
+        SetBits(SI.Option, HYDRA_CODEC, 0, 3);
+      SetBits(SI.Option, Integer(StreamInfo^.HasCRC), 7, 1);
       SI.Status := TStreamStatus.None;
       SI.NewSize := Result;
-      Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
+      Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 3)], SI.Position,
         SI.OldSize, SI.NewSize);
       Add(Instance, @SI, nil, nil);
     end;
@@ -385,12 +402,14 @@ begin
               ([StrToInt(Funcs^.GetParam(Command, X, 'l'))], True);
         if Funcs^.GetParam(Command, X, 's') <> '' then
           OMaxSize := ConvertToBytes(Funcs^.GetParam(Command, X, 's'));
+        if Funcs^.GetParam(Command, X, 'w') <> '' then
+          OWorkMem := StrToInt(Funcs^.GetParam(Command, X, 'w'));
         if Funcs^.GetParam(Command, X, 'n') <> '' then
           OLength := StrToInt(Funcs^.GetParam(Command, X, 'n'));
         if Funcs^.GetParam(Command, X, 't') <> '' then
           OTradeOff := StrToInt(Funcs^.GetParam(Command, X, 't'));
-        if Funcs^.GetParam(Command, X, 'd') <> '' then
-          ODictionary := StrToInt(Funcs^.GetParam(Command, X, 'd'));
+        if Funcs^.GetParam(Command, X, 'b') <> '' then
+          OBlockSize := StrToInt(Funcs^.GetParam(Command, X, 'b'));
       end;
     Inc(X);
   end;
@@ -420,7 +439,8 @@ var
 begin
   Result := False;
   Option^ := 0;
-  SetBits(Option^, OTradeOff, 13, 11);
+  SetBits(Option^, OTradeOff, 8, 11);
+  SetBits(Option^, OBlockSize, 19, 13);
   I := 0;
   while Funcs^.GetCodec(Command, I, False) <> '' do
   begin
@@ -428,15 +448,15 @@ begin
     for J := Low(OodleCodecs) to High(OodleCodecs) do
       if (CompareText(S, OodleCodecs[J]) = 0) and OodleDLL.DLLLoaded then
       begin
-        SetBits(Option^, J, 0, 5);
+        SetBits(Option^, J, 0, 3);
         if Funcs^.GetParam(Command, I, 'l') <> '' then
-          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 5, 7);
+          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'l')), 3, 4);
         if String(Funcs^.GetParam(Command, I, 'c')) = '1' then
-          SetBits(Option^, 1, 12, 1);
+          SetBits(Option^, 1, 7, 1);
         if Funcs^.GetParam(Command, I, 't') <> '' then
-          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 't')), 13, 11);
-        if Funcs^.GetParam(Command, I, 'd') <> '' then
-          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'd')), 24, 5);
+          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 't')), 8, 11);
+        if Funcs^.GetParam(Command, I, 'b') <> '' then
+          SetBits(Option^, StrToInt(Funcs^.GetParam(Command, I, 'b')), 19, 13);
         Result := True;
       end;
     Inc(I);
@@ -453,71 +473,7 @@ var
   Res: Integer;
   SI: _StrInfo1;
   OodleSI: TOodleSI;
-  DI1, DI2: TDepthInfo;
-  DS: TPrecompStr;
 begin
-  DI1 := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
-  if DS <> '' then
-  begin
-    X := IndexTextW(@DS[0], OodleCodecs);
-    if X < 0 then
-      exit;
-    if DI1.OldSize = 0 then
-      DI1.OldSize := SizeEx;
-    if not CodecAvailable[X] then
-      exit;
-    if not CodecAvailable[X] then
-      exit;
-    if (X in [LZNA_CODEC, LEVIATHAN_CODEC]) and (DI1.NewSize <= 0) then
-      exit;
-    if DI1.NewSize <= 0 then
-      Res := OMaxSize
-    else
-      Res := DI1.NewSize;
-    Buffer := Funcs^.Allocator(Instance, Res);
-    case X of
-      KRAKEN_CODEC, MERMAID_CODEC, SELKIE_CODEC, HYDRA_CODEC:
-        begin
-          if DI1.NewSize <= 0 then
-          begin
-            if not CustomLZ_Decompress(Input, Buffer, DI1.OldSize, Res, Res)
-            then
-              Res := 0;
-          end
-          else
-            Res := OodleLZ_Decompress(Input, DI1.OldSize, Buffer, Res);
-        end;
-    else
-      begin
-        if DI1.NewSize > 0 then
-          Res := OodleLZ_Decompress(Input, DI1.OldSize, Buffer, Res)
-        else
-          Res := 0;
-      end;
-    end;
-    if (Res > DI1.OldSize) then
-    begin
-      Output(Instance, Buffer, Res);
-      SI.Position := 0;
-      SI.OldSize := DI1.OldSize;
-      SI.NewSize := Res;
-      SI.Option := 0;
-      SetBits(SI.Option, X, 0, 5);
-      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
-        SI.Status := TStreamStatus.Predicted
-      else
-        SI.Status := TStreamStatus.None;
-      DS := Funcs^.GetDepthCodec(DI1.Codec);
-      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
-      DI2.OldSize := SI.NewSize;
-      DI2.NewSize := SI.NewSize;
-      Funcs^.LogScan1(OodleCodecs[GetBits(SI.Option, 0, 5)], SI.Position,
-        SI.OldSize, SI.NewSize);
-      Add(Instance, @SI, DI1.Codec, @DI2);
-    end;
-    exit;
-  end;
   if BoolArray(CodecEnabled, False) then
     exit;
   Pos := 0;
@@ -554,13 +510,20 @@ var
   Buffer: PByte;
   B: Boolean;
   I: Integer;
-  ResultN: TIntegerDynArray;
   X: Integer;
   Res: Integer;
   OodleSI: TOodleSI;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
+  if (StreamInfo^.OldSize > 0) and REPROCESSED then
+    if (Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^)
+      .Lo = StreamInfo^.OldSize) and
+      (Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Lo <
+      Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Hi)
+    then
+      StreamInfo^.OldSize :=
+        Int64Rec(PInt64(PByte(Input) + StreamInfo^.OldSize - Int64.Size)^).Hi;
   if (X <> LZNA_CODEC) and (StreamInfo^.OldSize <= 0) then
   begin
     GetOodleSI(Input, Size, @OodleSI);
@@ -586,7 +549,7 @@ begin
     begin
       Output(Instance, Buffer, Res);
       StreamInfo^.NewSize := Res;
-      Funcs^.LogScan2(OodleCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+      Funcs^.LogScan2(OodleCodecs[GetBits(StreamInfo^.Option, 0, 3)],
         StreamInfo^.OldSize, StreamInfo^.NewSize);
       Result := True;
     end;
@@ -602,17 +565,17 @@ var
   I: Integer;
   W: Integer;
   X, Y: Integer;
-  Res1: Integer;
+  Res1: NativeInt;
   Res2: NativeUInt;
   COptions: TOodleLZ_CompressOptions;
 begin
   Result := False;
-  X := GetBits(StreamInfo^.Option, 0, 5);
+  X := GetBits(StreamInfo^.Option, 0, 3);
   if BoolArray(CodecAvailable, False) or (CodecAvailable[X] = False) then
     exit;
   Y := GetOodleCodec(X);
   Buffer := Funcs^.Allocator(Instance, OodleLZ_GetCompressedBufferSizeNeeded(Y,
-    StreamInfo^.NewSize) + IfThen(OldCompress, 0, O_WORKMEM));
+    StreamInfo^.NewSize) + IfThen(OldCompress, 0, OWorkMem));
   if OldCompress then
   begin
     Work := nil;
@@ -622,17 +585,16 @@ begin
   begin
     Work := Buffer + OodleLZ_GetCompressedBufferSizeNeeded(Y,
       StreamInfo^.NewSize);
-    W := O_WORKMEM;
+    W := OWorkMem;
   end;
   SOList[Instance][X].Index := 0;
   while SOList[Instance][X].Get(I) >= 0 do
   begin
     if StreamInfo^.Status >= TStreamStatus.Predicted then
     begin
-      if GetBits(StreamInfo^.Option, 5, 7) <> I then
+      if GetBits(StreamInfo^.Option, 3, 4) <> I then
         continue;
-      if (StreamInfo^.Status = TStreamStatus.Database) and
-        (GetBits(StreamInfo^.Option, 31, 1) = 0) then
+      if (StreamInfo^.Status = TStreamStatus.Database) then
       begin
         Res1 := StreamInfo^.OldSize;
         Result := True;
@@ -640,20 +602,19 @@ begin
     end;
     Move(OodleLZ_CompressOptions_GetDefault(Y, I)^, COptions,
       SizeOf(TOodleLZ_CompressOptions));
-    COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 12, 1) = 1;
-    COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 13, 11);
-    COptions.dictionarySize := IfThen(GetBits(StreamInfo^.Option, 24, 5) = 0, 0,
-      Round(Power(2, GetBits(StreamInfo^.Option, 24, 5))));
-    Params := 'l' + I.ToString + ':' + 'c' + GetBits(StreamInfo^.Option, 12, 1)
-      .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 13, 11).ToString + ':'
-      + 'd' + GetBits(StreamInfo^.Option, 24, 5).ToString;
+    COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 7, 1) = 1;
+    COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 8, 11);
+    COptions.dictionarySize := GetBits(StreamInfo^.Option, 19, 13) * 1024;
+    Params := 'l' + I.ToString + ':' + 'c' + GetBits(StreamInfo^.Option, 7, 1)
+      .ToString + ':' + 't' + GetBits(StreamInfo^.Option, 8, 11).ToString + ':'
+      + 'b' + GetBits(StreamInfo^.Option, 19, 13).ToString;
     if not Result then
       Res1 := OodleLZ_Compress(Y, NewInput, StreamInfo^.NewSize, Buffer, I,
         @COptions, nil, nil, Work, W);
     if not Result then
       Result := (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
         StreamInfo^.OldSize);
-    Funcs^.LogProcess(OodleCodecs[GetBits(StreamInfo^.Option, 0, 5)],
+    Funcs^.LogProcess(OodleCodecs[GetBits(StreamInfo^.Option, 0, 3)],
       PChar(Params), StreamInfo^.OldSize, StreamInfo^.NewSize, Res1, Result);
     if Result or (StreamInfo^.Status = TStreamStatus.Predicted) then
       break;
@@ -666,10 +627,9 @@ begin
     begin
       Move(OodleLZ_CompressOptions_GetDefault(Y, B)^, COptions,
         SizeOf(TOodleLZ_CompressOptions));
-      COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 12, 1) = 1;
-      COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 13, 11);
-      COptions.dictionarySize := IfThen(GetBits(StreamInfo^.Option, 24, 5) = 0,
-        0, Round(Power(2, GetBits(StreamInfo^.Option, 24, 5))));
+      COptions.sendQuantumCRCs := GetBits(StreamInfo^.Option, 7, 1) = 1;
+      COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo^.Option, 8, 11);
+      COptions.dictionarySize := GetBits(StreamInfo^.Option, 19, 13) * 1024;
       Res1 := OodleLZ_Compress(Y, NewInput, StreamInfo^.NewSize, Buffer, B,
         @COptions, nil, nil, Work, W);
       if (Res1 = StreamInfo^.OldSize) and CompareMem(OldInput, Buffer,
@@ -679,25 +639,9 @@ begin
         break;
     end;
   end;
-  { if (Result = False) and ((StreamInfo^.Status >= TStreamStatus.Predicted) or
-    (SOList[Instance][X].Count = 1)) and (DIFF_TOLERANCE > 0) then
-    begin
-    Buffer := Funcs^.Allocator(Instance, Res1 + Max(StreamInfo^.OldSize, Res1));
-    Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
-    Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
-    Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2,
-    Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
-    if Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2) then
-    begin
-    Output(Instance, Buffer + Res1, Res2);
-    SetBits(StreamInfo^.Option, 1, 31, 1);
-    SOList[Instance][X].Add(I);
-    Result := True;
-    end;
-    end; }
   if Result then
   begin
-    SetBits(StreamInfo^.Option, I, 5, 7);
+    SetBits(StreamInfo^.Option, I, 3, 4);
     SOList[Instance][X].Add(I);
   end;
 end;
@@ -709,17 +653,17 @@ var
   Params: String;
   W: Integer;
   X, Y: Integer;
-  Res1: Integer;
+  Res1: NativeInt;
   Res2: NativeUInt;
   COptions: TOodleLZ_CompressOptions;
 begin
   Result := False;
-  X := GetBits(StreamInfo.Option, 0, 5);
+  X := GetBits(StreamInfo.Option, 0, 3);
   if CodecAvailable[X] = False then
     exit;
   Y := GetOodleCodec(X);
   Buffer := Funcs^.Allocator(Instance, OodleLZ_GetCompressedBufferSizeNeeded(Y,
-    StreamInfo.NewSize) + IfThen(OldCompress, 0, O_WORKMEM));
+    StreamInfo.NewSize) + IfThen(OldCompress, 0, OWorkMem));
   if OldCompress then
   begin
     Work := nil;
@@ -729,35 +673,21 @@ begin
   begin
     Work := Buffer + OodleLZ_GetCompressedBufferSizeNeeded(Y,
       StreamInfo.NewSize);
-    W := O_WORKMEM;
+    W := OWorkMem;
   end;
-  Move(OodleLZ_CompressOptions_GetDefault(Y, GetBits(StreamInfo.Option, 5, 7))^,
+  Move(OodleLZ_CompressOptions_GetDefault(Y, GetBits(StreamInfo.Option, 3, 4))^,
     COptions, SizeOf(TOodleLZ_CompressOptions));
-  COptions.sendQuantumCRCs := GetBits(StreamInfo.Option, 12, 1) = 1;
-  COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo.Option, 13, 11);
-  COptions.dictionarySize := IfThen(GetBits(StreamInfo.Option, 24, 5) = 0, 0,
-    Round(Power(2, GetBits(StreamInfo.Option, 24, 5))));
-  Params := 'l' + GetBits(StreamInfo.Option, 5, 7).ToString + ':' + 'c' +
-    GetBits(StreamInfo.Option, 12, 1).ToString + ':' + 't' +
-    GetBits(StreamInfo.Option, 13, 11).ToString + ':' + 'd' +
-    GetBits(StreamInfo.Option, 24, 5).ToString;
+  COptions.sendQuantumCRCs := GetBits(StreamInfo.Option, 7, 1) = 1;
+  COptions.spaceSpeedTradeoffBytes := GetBits(StreamInfo.Option, 8, 11);
+  COptions.dictionarySize := GetBits(StreamInfo.Option, 19, 13) * 1024;
+  Params := 'l' + GetBits(StreamInfo.Option, 3, 4).ToString + ':' + 'c' +
+    GetBits(StreamInfo.Option, 7, 1).ToString + ':' + 't' +
+    GetBits(StreamInfo.Option, 8, 11).ToString + ':' + 'b' +
+    GetBits(StreamInfo.Option, 19, 13).ToString;
   Res1 := OodleLZ_Compress(Y, Input, StreamInfo.NewSize, Buffer,
-    GetBits(StreamInfo.Option, 5, 7), @COptions, nil, nil, Work, W);
-  Funcs^.LogRestore(OodleCodecs[GetBits(StreamInfo.Option, 0, 5)],
+    GetBits(StreamInfo.Option, 3, 4), @COptions, nil, nil, Work, W);
+  Funcs^.LogRestore(OodleCodecs[GetBits(StreamInfo.Option, 0, 3)],
     PChar(Params), StreamInfo.OldSize, StreamInfo.NewSize, Res1, True);
-  if GetBits(StreamInfo.Option, 31, 1) = 1 then
-  begin
-    Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
-    Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
-      Buffer + Res1, StreamInfo.OldSize);
-    Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
-    if Res2 > 0 then
-    begin
-      Output(Instance, Buffer + Res1, StreamInfo.OldSize);
-      Result := True;
-    end;
-    exit;
-  end;
   if Res1 = StreamInfo.OldSize then
   begin
     Output(Instance, Buffer, StreamInfo.OldSize);

@@ -122,7 +122,7 @@ var
   LBytes: TBytes;
   LEntry: TEntryStruct2;
   FStream: TFileStream;
-  SStream1, SStream2: TSharedMemoryStream;
+  //SStream1, SStream2: TSharedMemoryStream;
   Tasks: TArray<TTask>;
   CS: TCriticalSection;
   TempDir: String;
@@ -192,7 +192,7 @@ begin
     end
     else
     begin
-      SStream1 := TSharedMemoryStream.Create
+     { SStream1 := TSharedMemoryStream.Create
         (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
         '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), LFilename);
       SStream2 := TSharedMemoryStream.Create
@@ -205,7 +205,7 @@ begin
       finally
         SStream1.Free;
         SStream2.Free;
-      end;
+      end;      }
       if not B then
         if InRange(FileSize(BaseDir2 + LList2[I]), Options.MinSize,
           Options.MaxSize) then
@@ -243,7 +243,7 @@ begin
           Y, Z: Integer;
           S1, S2: String;
           A: Boolean;
-          SS0, SS1, SS2: TSharedMemoryStream;
+          //SS0, SS1, SS2: TSharedMemoryStream;
           Res: NativeUInt;
         begin
           Z := Length(LList2);
@@ -256,7 +256,7 @@ begin
               S2 := Input1
             else
               S2 := BaseDir1 + LList2[Y];
-            SS0 := TSharedMemoryStream.Create
+           { SS0 := TSharedMemoryStream.Create
               (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
               '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), S1);
             SS1 := TSharedMemoryStream.Create
@@ -276,7 +276,7 @@ begin
               SS0.Free;
               SS1.Free;
               SS2.Free;
-            end;
+            end;  }
             if not A then
               DeleteFile(S1);
             CS.Acquire;
@@ -351,7 +351,7 @@ var
   BaseDir: String;
   LEntry: TEntryStruct2;
   FStream: TFileStream;
-  SStream0, SStream1, SStream2: TSharedMemoryStream;
+  //SStream0, SStream1, SStream2: TSharedMemoryStream;
   Res: NativeUInt;
 begin
   if FileExists(Output) then
@@ -363,7 +363,7 @@ begin
   S1 := IncludeTrailingPathDelimiter(GetCurrentDir) +
     LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
     '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF3));
-  SStream0 := TSharedMemoryStream.Create
+ { SStream0 := TSharedMemoryStream.Create
     (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
     '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), S1);
   try
@@ -425,7 +425,7 @@ begin
     SStream0.Free;
     if FileExists(S1) then
       TFile.Delete(S1);
-  end;
+  end;   }
 end;
 
 end.

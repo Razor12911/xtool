@@ -1,3 +1,53 @@
+  ES_R54 (0.7.9)
+  - added recompress streams feature
+  - added reassign streams feature
+  - added dummy codec
+  - added data transfer buffer for srep when dd# is used
+  - added memory checks to ensure memory usage does not run wild
+  - exectuable plugins (via xtool.ini) are no longer required when decoding if they were never used
+  - internal stream deduplication now reports speed and memory usage benefits
+  - configuration based plugins can now have multiple names (if multiple games use the same configuration)
+  - fixed xtool crash if an incorect path for plugins was provided
+  - fixed lz4/lz4hc codec bug when used directly without any plugin
+  - fixed an issue where using fast-lzma2 compression would crash when decoding
+  - fixed an issue in DirectStorage gdeflate codec
+  - fixed an issue with execute command in stdio mode
+  - deduplication memory requirements improved
+  - memory optimisations
+  - reduced memory requirements for large streams that require patching
+  - removed ability to inject libraries to exe (buggy)
+  - removed patch command (uses too much memory)
+  - removed archive command (no one uses it)
+  - updated oodle scanner
+  - updated lz4/lz4hc universal scanner
+  - updated lz4/lz4hc/lz4f codecs
+  - updated zlib codec
+  - updated zstd codec
+  - replaced gpu caching feature with normal system memory cache (it doesn't work well on AMD gpus), use -p#
+  - replaced xdelta3 with zstd patching engine
+  - srep64 executable considered in x64 build of xtool
+
+  ES_R53 (0.7.8)
+  - fixed an issue where xtool would crash on Windows XP and other systems upon closure
+  - memory optimisations
+  - improvements with database "based" plugins
+
+  ES_R52 (0.7.7)
+  - added universal scanner for DirectStorage gdeflate streams
+  - added the use of gpu for caching and virtual memory purposes
+  - updated depthing feature to improve stream detection when used by plugins
+
+  ES_R51 (0.7.6)
+  - minor bug fixes
+
+  ES_R50 (0.7.5)
+  - added footer feature in configuration plugins
+  - added thread priority controller via -T# parameter
+
+  ES_R49 (0.7.4)
+  - user can specify srep parameters to use via -sp#
+  - updated zlib codec
+
   ES_R48 (0.7.3)
   - minor bug fixes
 

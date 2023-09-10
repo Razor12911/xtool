@@ -42,8 +42,8 @@ uses
   System.Math,
   System.IOUtils,
   System.SyncObjs,
+  DStorage in 'common\DStorage.pas',
   LibImport in 'common\LibImport.pas',
-  OpenCL in 'common\OpenCL.pas',
   Threading in 'common\Threading.pas',
   Utils in 'common\Utils.pas',
   libc in 'contrib\LIBC\libc.pas',
@@ -71,7 +71,6 @@ uses
   PackJPGDLL in 'imports\PackJPGDLL.pas',
   PreflateDLL in 'imports\PreflateDLL.pas',
   ReflateDLL in 'imports\ReflateDLL.pas',
-  XDeltaDLL in 'imports\XDeltaDLL.pas',
   ZLibDLL in 'imports\ZLibDLL.pas',
   ZSTDDLL in 'imports\ZSTDDLL.pas',
   lz4 in 'sources\lz4.pas',
@@ -90,18 +89,17 @@ uses
   PrecompSearch in 'precompressor\PrecompSearch.pas',
   PrecompDLL in 'precompressor\PrecompDLL.pas',
   PrecompEXE in 'precompressor\PrecompEXE.pas',
+  PrecompDStorage in 'precompressor\PrecompDStorage.pas',
   DbgMain in 'dbgenerator\DbgMain.pas',
   DbgUtils in 'dbgenerator\DbgUtils.pas',
   IOFind in 'io\IOFind.pas',
   IOErase in 'io\IOErase.pas',
   IOReplace in 'io\IOReplace.pas',
-  IOArchive in 'io\IOArchive.pas',
-  IOPatch in 'io\IOPatch.pas',
   IOExecute in 'io\IOExecute.pas',
   IODecode in 'io\IODecode.pas',
   IOUtils in 'io\IOUtils.pas';
 
-{$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE or IMAGE_FILE_RELOCS_STRIPPED}
+{$SETPEFLAGS IMAGE_FILE_LARGE_ADDRESS_AWARE or IMAGE_FILE_RELOCS_STRIPPED or IMAGE_FILE_DEBUG_STRIPPED}
 
 const
   CommandPrecomp = 'precomp';
@@ -113,7 +111,6 @@ const
   CommandPatch = 'patch';
   CommandArchive = 'archive';
   CommandExecute = 'execute';
-  CommandInject = 'inject';
   CommandDecode = 'decode';
 
 procedure ProgramInfo;
@@ -133,7 +130,6 @@ begin
   WriteLine('  ' + CommandExtract);
   WriteLine('  ' + CommandFind);
   WriteLine('  ' + CommandGenerate);
-  WriteLine('  ' + CommandInject);
   WriteLine('  ' + CommandPatch);
   WriteLine('  ' + CommandPrecomp);
   WriteLine('  ' + CommandReplace);
@@ -151,15 +147,6 @@ begin
   WriteLine('');
   WriteLine('Parameters:');
   WriteLine('  t# - number of working threads [Threads/2]');
-  WriteLine('');
-end;
-
-procedure InjectPrintHelp;
-begin
-  WriteLine('inject - embed libraries as part of xtool');
-  WriteLine('');
-  WriteLine('Usage:');
-  WriteLine('  xtool inject dll');
   WriteLine('');
 end;
 
@@ -228,7 +215,7 @@ begin
 end;
 
 const
-  BufferSize = 1048576;
+  BufferSize = 4194034;
 
 var
   I, J: Integer;
@@ -247,10 +234,6 @@ var
   FindEnc: IOFind.TEncodeOptions;
   EraseEnc: IOErase.TEncodeOptions;
   ReplaceEnc: IOReplace.TEncodeOptions;
-  PatchEnc: IOPatch.TEncodeOptions;
-  PatchDec: IOPatch.TDecodeOptions;
-  ArchiveEnc: IOArchive.TEncodeOptions;
-  ArchiveDec: IOArchive.TDecodeOptions;
   ExecuteEnc: IOExecute.TEncodeOptions;
   ExecuteDec: IOExecute.TDecodeOptions;
   IODec: IODecode.TDecodeOptions;
@@ -264,40 +247,182 @@ begin
       Result := ParamArg[I, J];
 end;
 
+function PrecompEncodePatch2(Instance: Integer; OldBuff: Pointer;
+  OldSize: Integer; NewBuff: Pointer; NewSize: Integer;
+  Output: _PrecompOutput): Integer;
+
+  function highbit64(V: UInt64): Cardinal;
+  var
+    Count: Cardinal;
+  begin
+    Count := 0;
+    Assert(V <> 0);
+    V := V shr 1;
+    while V <> 0 do
+    begin
+      V := V shr 1;
+      Inc(Count);
+    end;
+    Result := Count;
+  end;
+
 var
-  I64: Int64;
-  MS, MS2: TMemoryStream;
-  GS: TGPUMemoryStream;
-  FS: TFileStream;
+  Buffer: Pointer;
+  BufferSize: Integer;
+  Ctx: ZSTD_CCtx;
+  Inp: ZSTDLib.ZSTD_inBuffer;
+  Oup: ZSTDLib.ZSTD_outBuffer;
+  Res: NativeInt;
+
+  procedure DoWrite;
+  begin
+    Output(Instance, Buffer, Oup.Pos);
+    Inc(Result, Oup.Pos);
+    Oup.dst := Buffer;
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+  end;
 
 begin
-  { MS := TMemoryStream.Create;
-    MS.LoadFromFile('UI.sb');
+  Result := 0;
+  BufferSize := ZSTDLib.ZSTD_CStreamOutSize;
+  GetMem(Buffer, BufferSize);
+  Ctx := ZSTDLib.ZSTD_createCCtx;
+  try
+    Oup.dst := Buffer;
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+    Inp.src := OldBuff;
+    Inp.Size := OldSize;
+    Inp.Pos := 0;
+    ZSTDLib.ZSTD_initCStream(Ctx, 1);
+    ZSTDLib.ZSTD_CCtx_setParameter(Ctx,
+      ZSTDLib.ZSTD_cParameter.ZSTD_c_windowLog, highbit64(NewSize) + 1);
+    ZSTDLib.ZSTD_CCtx_setParameter(Ctx,
+      ZSTDLib.ZSTD_cParameter.ZSTD_c_enableLongDistanceMatching, 1);
+    ZSTDLib.ZSTD_CCtx_refPrefix(Ctx, NewBuff, NewSize);
+    while Inp.Pos < Inp.Size do
+    begin
+      Res := ZSTDLib.ZSTD_compressStream(Ctx, Oup, Inp);
+      if Res < 0 then
+        exit(0)
+      else if Res > 0 then
+        DoWrite
+      else
+        break;
+    end;
+    ZSTDLib.ZSTD_flushStream(Ctx, Oup);
+    DoWrite;
+    ZSTDLib.ZSTD_endStream(Ctx, Oup);
+    DoWrite;
+  finally
+    ZSTDLib.ZSTD_freeCCtx(Ctx);
+  end;
+end;
+
+function PrecompDecodePatch2(Instance: Integer; PatchBuff: Pointer;
+  PatchSize: Integer; OldBuff: Pointer; OldSize: Integer;
+  Output: _PrecompOutput): Integer;
+
+  function highbit64(V: UInt64): Cardinal;
+  var
+    Count: Cardinal;
+  begin
+    Count := 0;
+    Assert(V <> 0);
+    V := V shr 1;
+    while V <> 0 do
+    begin
+      V := V shr 1;
+      Inc(Count);
+    end;
+    Result := Count;
+  end;
+
+var
+  Buffer: Pointer;
+  BufferSize: Integer;
+  Ctx: ZSTD_DCtx;
+  Inp: ZSTDLib.ZSTD_inBuffer;
+  Oup: ZSTDLib.ZSTD_outBuffer;
+  Res: NativeInt;
+
+  procedure DoWrite;
+  begin
+    Output(Instance, Buffer, Oup.Pos);
+    Inc(Result, Oup.Pos);
+    Oup.dst := Buffer;
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+  end;
+
+begin
+  Result := 0;
+  BufferSize := ZSTDLib.ZSTD_DStreamOutSize;
+  GetMem(Buffer, BufferSize);
+  Ctx := ZSTDLib.ZSTD_createDCtx;
+  try
+    Oup.dst := Buffer;
+    Oup.Size := BufferSize;
+    Oup.Pos := 0;
+    Inp.src := PatchBuff;
+    Inp.Size := PatchSize;
+    Inp.Pos := 0;
+    ZSTDLib.ZSTD_initDStream(Ctx);
+    ZSTDLib.ZSTD_DCtx_setParameter(Ctx,
+      ZSTDLib.ZSTD_dParameter.ZSTD_d_windowLogMax, highbit64(OldSize) + 1);
+    ZSTDLib.ZSTD_DCtx_refPrefix(Ctx, OldBuff, OldSize);
+    while Inp.Pos < Inp.Size do
+    begin
+      Res := ZSTDLib.ZSTD_decompressStream(Ctx, Oup, Inp);
+      if Res < 0 then
+        exit(0)
+      else if Res > 0 then
+        DoWrite
+      else
+        break;
+    end;
+  finally
+    ZSTDLib.ZSTD_freeDCtx(Ctx);
+  end;
+end;
+
+var
+  MS1, MS2, MS3, MS4: TMemoryStream;
+
+procedure ExecOutput1(Instance: Integer; const Buffer: Pointer;
+  Size: Integer)cdecl;
+begin
+  MS3.WriteBuffer(Buffer^, Size);
+end;
+
+procedure ExecOutput2(Instance: Integer; const Buffer: Pointer;
+  Size: Integer)cdecl;
+begin
+  MS4.WriteBuffer(Buffer^, Size);
+end;
+
+begin
+  { try
+    MS1 := TMemoryStream.Create;
     MS2 := TMemoryStream.Create;
-    MS2.Size := MS.Size;
-    GS := TGPUMemoryStream.Create(3 * 1024 * 1024);
-    GS.Size := 3 * 1024 * 1024;
-    with TCacheReadStream.Create(MS, GS, True, ccLZ4) do
-    begin
-    ReadBuffer(MS2.Memory^, MS2.Size);
-    Free;
+    MS3 := TMemoryStream.Create;
+    MS4 := TMemoryStream.Create;
+    MS1.LoadFromFile('UI.sb');
+    MS2.LoadFromFile('UI.sb.out');
+    MS4.Size := MS1.Size;
+    MS3.Size := PrecompEncodePatch2(0, MS1.Memory, MS1.Size, MS2.Memory,
+    MS2.Size, ExecOutput1);
+    MS3.SaveToFile('UI.sb.diff');
+    MS4.Size := PrecompDecodePatch2(0, MS3.Memory, MS3.Size, MS2.Memory,
+    MS2.Size, ExecOutput2);
+    MS4.SaveToFile('UI.sb.res');
+    except
+    on E: Exception do
+    ShowMessage(E.Message);
     end;
-    FS.Free;
-    MS2.SaveToFile('UI2.sb');
     ShowMessage('');
-    exit;
-    MS := TMemoryStream.Create;
-    MS.LoadFromFile('UI.sb');
-    FS := TFileStream.Create('UI.sb2', fmCreate);
-    GS := TGPUMemoryStream.Create(5 * 1024 * 1024);
-    GS.Size := 5 * 1024 * 1024;
-    with TCacheWriteStream.Create(FS, GS, True, ccLZ4) do
-    begin
-    WriteBuffer(MS.Memory^, MS.Size);
-    Free;
-    end;
-    FS.Free;
-    ShowMessage(''); }
+    exit; }
   FormatSettings := TFormatSettings.Invariant;
   if not CheckInstance('XToolUI_Check') then
     ProgramInfo;
@@ -334,7 +459,7 @@ begin
               end;
           end;
           WriteLine('Library loaded: ' + ReplaceText(LibList[J],
-            IncludeTrailingBackSlash(LibPath), ''));
+            IncludeTrailingPathDelimiter(LibPath), ''));
           WriteLine('');
           Exec_(ParamStr(0), S, '');
         end;
@@ -438,37 +563,6 @@ begin
           Input.Free;
         end;
       end;
-    if ParamStr(1).StartsWith(CommandPatch, True) then
-      if Length(ParamArg[1]) < 3 then
-        IOPatch.PrintHelp
-      else
-      begin
-        Output := TBufferedStream.Create(GetOutStream(ParamArg[1, 2]), False,
-          BufferSize);
-        try
-          IOPatch.Parse(ParamArg[0], PatchEnc);
-          IOPatch.Encode(ParamArg[1, 0], ParamArg[1, 1], Output, PatchEnc);
-        finally
-          Output.Free;
-        end;
-      end;
-    if ParamStr(1).StartsWith(CommandArchive, True) then
-      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
-        IOArchive.PrintHelp
-      else
-      begin
-        SetLength(StrArray, 0);
-        for I := 0 to High(ParamArg[1]) - 1 do
-          Insert(ParamArg[1, I], StrArray, Length(StrArray));
-        Output := TBufferedStream.Create
-          (GetOutStream(ParamArg[1, High(ParamArg[1])]), False, BufferSize);
-        try
-          IOArchive.Parse(ParamArg[0], ArchiveEnc);
-          IOArchive.Encode(StrArray, Output, ArchiveEnc);
-        finally
-          Input.Free;
-        end;
-      end;
     if ParamStr(1).StartsWith(CommandExecute, True) then
       if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
         IOExecute.PrintHelp
@@ -488,18 +582,6 @@ begin
           Input.Free;
           Output.Free;
         end;
-      end;
-    if ParamStr(1).StartsWith(CommandInject, True) then
-      if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
-        InjectPrintHelp
-      else
-      begin
-        S := ChangeFileExt(GetModuleName,
-          '_inj' + ExtractFileExt(GetModuleName));
-        if not FileExists(S) then
-          TFile.Copy(GetModuleName, S);
-        InjectLib(ParamArg[1, 0], S);
-        WriteLine('Successfully injected ' + ExtractFileName(ParamArg[1, 0]));
       end;
     if ParamStr(1).StartsWith(CommandDecode, True) then
       if (Length(ParamArg[0]) = 0) and (Length(ParamArg[1]) = 0) then
@@ -526,16 +608,6 @@ begin
               begin
                 IODecode.ParseDecode(ParamArg[0], IODec);
                 IODecode.Decode(Input, ParamArg[1, 1], ParamArg[1, 2], IODec);
-              end;
-            XTOOL_PATCH:
-              begin
-                IOPatch.Parse(ParamArg[0], PatchDec);
-                IOPatch.Decode(Input, ParamArg[1, 1], PatchDec);
-              end;
-            XTOOL_ARCH:
-              begin
-                IOArchive.Parse(ParamArg[0], ArchiveDec);
-                IOArchive.Decode(Input, ParamArg[1, 1], ArchiveDec);
               end;
             XTOOL_EXEC:
               begin

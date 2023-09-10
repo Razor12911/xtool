@@ -255,6 +255,13 @@ begin
   Inc(CodecSize[Instance], Size);
 end;
 
+procedure ExecOutput3(Instance: Integer; const Buffer: Pointer;
+  Size: Integer)cdecl;
+begin
+  CodecOutput[Instance](Instance, Buffer, Size);
+  Inc(CodecSize[Instance], Size);
+end;
+
 function ExeEncode(Index, Instance: Integer; Input: Pointer;
   StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
@@ -346,17 +353,23 @@ begin
 end;
 
 function ExeDecode(Index, Instance: Integer; Input: Pointer;
-  StreamInfo: PStrInfo2; Funcs: PPrecompFuncs): Boolean;
+  StreamInfo: PStrInfo2; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
   Buffer: PByte;
   X: Integer;
   Executed: Boolean;
   S, T: String;
   Res: Integer;
+  LOutput: _ExecOutput;
 begin
   Result := False;
   CodecSize[Instance] := 0;
   CodecAllocator[Instance] := Funcs^.Allocator;
+  CodecOutput[Instance] := Output;
+  if Assigned(Output) then
+    LOutput := ExecOutput3
+  else
+    LOutput := ExecOutput2;
   with CodecExe[Index] do
   begin
     if not DirectoryExists(WorkDir[Instance, 1]) then
@@ -398,7 +411,7 @@ begin
               PChar(WorkDir[Instance, 1]))
           else
             Executed := PrecompExecStdout(Instance, PChar(Exec[1]), PChar(S),
-              PChar(WorkDir[Instance, 1]), ExecOutput2);
+              PChar(WorkDir[Instance, 1]), LOutput);
         end;
     else
       begin
@@ -407,7 +420,7 @@ begin
             PChar(WorkDir[Instance, 1]), Input, StreamInfo^.NewSize)
         else
           Executed := ExecStdioProcess(Ctx[Instance, 1], Input,
-            StreamInfo^.NewSize, StreamInfo^.OldSize, ExecOutput2);
+            StreamInfo^.NewSize, StreamInfo^.OldSize, LOutput);
       end;
     end;
     if Executed then
@@ -421,7 +434,7 @@ begin
                 X := Read(WrkMem[Instance, 0], E_WORKMEM);
                 while X > 0 do
                 begin
-                  ExecOutput2(Instance, @WrkMem[Instance, 0], X);
+                  LOutput(Instance, @WrkMem[Instance, 0], X);
                   X := Read(WrkMem[Instance, 0], E_WORKMEM);
                 end;
               finally
@@ -453,8 +466,8 @@ begin
       begin
         repeat
           CodecExe[X].WorkDir[Y, Z] := IncludeTrailingPathDelimiter
-            (IncludeTrailingPathDelimiter(GetCurrentDir) + CodecExe[X].Name + '_' +
-            IntToHex(Random($10000), 4));
+            (IncludeTrailingPathDelimiter(GetCurrentDir) + CodecExe[X].Name +
+            '_' + IntToHex(Random($1000000), 4));
         until DirectoryExists(CodecExe[X].WorkDir[Y, Z]) = False;
         IncludeTrailingPathDelimiter(CodecExe[X].WorkDir[Y, Z]);
         if CodecExe[X].Mode[Z] = STDIO_MODE then
@@ -462,7 +475,6 @@ begin
             PChar(CodecExe[X].Param[Z]), PChar(CodecExe[X].WorkDir[Y, Z]),
             CodecExe[X].IsLib[Z]);
       end;
-    AddMethod(CodecExe[X].Name);
   end;
 end;
 
@@ -502,43 +514,8 @@ end;
 procedure ExeScan1(Instance, Depth: Integer; Input: PByte;
   Size, SizeEx: NativeInt; Output: _PrecompOutput; Add: _PrecompAdd;
   Funcs: PPrecompFuncs);
-var
-  Buffer: PByte;
-  X: Integer;
-  SI1: _StrInfo1;
-  SI2: _StrInfo2;
-  DI1, DI2: TDepthInfo;
-  DS: TPrecompStr;
 begin
-  DI1 := Funcs^.GetDepthInfo(Instance);
-  DS := Funcs^.GetCodec(DI1.Codec, 0, False);
-  if DS <> '' then
-  begin
-    X := IndexText(DS, Codec.Names);
-    if (X < 0) or (DI1.OldSize <> SizeEx) then
-      exit;
-    SI2.OldSize := DI1.OldSize;
-    SI2.NewSize := DI1.NewSize;
-    if ExeEncode(X, Instance, Input, @SI2, Output, Funcs) then
-    begin
-      SI1.Position := 0;
-      SI1.OldSize := SI2.OldSize;
-      SI1.NewSize := CodecSize[Instance];
-      SetBits(SI1.Option, CodecExe[X].ID, 0, 31);
-      if System.Pos(SPrecompSep2, DI1.Codec) > 0 then
-        SI1.Status := TStreamStatus.Predicted
-      else
-        SI1.Status := TStreamStatus.None;
-      DS := Funcs^.GetDepthCodec(DI1.Codec);
-      Move(DS[0], DI2.Codec, SizeOf(DI2.Codec));
-      DI2.OldSize := SI1.NewSize;
-      DI2.NewSize := 0;
-      Funcs^.LogScan1(PChar(Codec.Names[X]), SI1.Position, SI1.OldSize,
-        SI1.NewSize);
-      Add(Instance, @SI1, DI1.Codec, @DI2);
-    end;
-    exit;
-  end;
+
 end;
 
 function ExeScan2(Instance, Depth: Integer; Input: Pointer; Size: NativeInt;
@@ -570,7 +547,7 @@ var
   Buffer: PByte;
   I: Integer;
   X: Integer;
-  Res1: Integer;
+  Res1: NativeInt;
   Res2: NativeUInt;
 begin
   Result := False;
@@ -583,7 +560,7 @@ begin
       break;
     end;
   end;
-  if ExeDecode(X, Instance, NewInput, StreamInfo, Funcs) then
+  if ExeDecode(X, Instance, NewInput, StreamInfo, nil, Funcs) then
   begin
     Buffer := Funcs^.Allocator(Instance, CodecSize[Instance]);
     Res1 := CodecSize[Instance];
@@ -593,15 +570,12 @@ begin
       StreamInfo^.NewSize, Res1, Result);
     if (Result = False) and (DIFF_TOLERANCE > 0) then
     begin
-      Buffer := Funcs^.Allocator(Instance,
-        Res1 + Max(StreamInfo^.OldSize, Res1));
-      Res2 := PrecompEncodePatch(OldInput, StreamInfo^.OldSize, Buffer, Res1,
-        Buffer + Res1, Max(StreamInfo^.OldSize, Res1));
+      Res2 := PrecompEncodePatchEx(Instance, OldInput, StreamInfo^.OldSize,
+        Buffer, Res1, Output);
       Funcs^.LogPatch1(StreamInfo^.OldSize, Res1, Res2,
         Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2));
       if Funcs^.AcceptPatch(StreamInfo^.OldSize, Res1, Res2) then
       begin
-        Output(Instance, Buffer + Res1, Res2);
         SetBits(StreamInfo^.Option, 1, 31, 1);
         Result := True;
       end;
@@ -615,13 +589,18 @@ end;
 function ExeRestore(Instance, Depth: Integer; Input, InputExt: Pointer;
   StreamInfo: _StrInfo3; Output: _PrecompOutput; Funcs: PPrecompFuncs): Boolean;
 var
+  LOutput: _PrecompOutput;
   Buffer: PByte;
   I: Integer;
   X: Integer;
-  Res1: Integer;
+  Res1: NativeInt;
   Res2: NativeUInt;
   SI: _StrInfo2;
 begin
+  if GetBits(StreamInfo.Option, 31, 1) = 1 then
+    LOutput := nil
+  else
+    LOutput := Output;
   Result := False;
   X := -1;
   for I := Low(CodecExe) to High(CodecExe) do
@@ -636,7 +615,7 @@ begin
   SI.NewSize := StreamInfo.NewSize;
   SI.Resource := StreamInfo.Resource;
   SI.Option := StreamInfo.Option;
-  if ExeDecode(X, Instance, Input, @SI, Funcs) then
+  if ExeDecode(X, Instance, Input, @SI, LOutput, Funcs) then
   begin
     Buffer := Funcs^.Allocator(Instance, CodecSize[Instance]);
     Res1 := CodecSize[Instance];
@@ -644,22 +623,15 @@ begin
       StreamInfo.NewSize, Res1, True);
     if GetBits(StreamInfo.Option, 31, 1) = 1 then
     begin
-      Buffer := Funcs^.Allocator(Instance, Res1 + StreamInfo.OldSize);
-      Res2 := PrecompDecodePatch(InputExt, StreamInfo.ExtSize, Buffer, Res1,
-        Buffer + Res1, StreamInfo.OldSize);
+      Res2 := PrecompDecodePatchEx(Instance, InputExt, StreamInfo.ExtSize,
+        Buffer, Res1, Output);
       Funcs^.LogPatch2(StreamInfo.OldSize, Res1, StreamInfo.ExtSize, Res2 > 0);
-      if Res2 > 0 then
-      begin
-        Output(Instance, Buffer + Res1, StreamInfo.OldSize);
+      if Res2 = StreamInfo.OldSize then
         Result := True;
-      end;
       exit;
     end;
     if Res1 = StreamInfo.OldSize then
-    begin
-      Output(Instance, Buffer, StreamInfo.OldSize);
       Result := True;
-    end;
   end
   else
     Funcs^.LogRestore(PChar(Codec.Names[X]), nil, StreamInfo.OldSize,
@@ -677,7 +649,7 @@ begin
 end;
 
 var
-  I, J, K, X: Integer;
+  A, I, J, K, X: Integer;
   S1, S2, S3: String;
   Bytes: TBytes;
   Ini: TMemIniFile;

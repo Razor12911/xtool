@@ -1,14 +1,14 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{E490A6E6-3D5F-49E7-860E-CB57A73FBF77}</ProjectGuid>
+        <ProjectGuid>{7D94133D-16AE-4B55-95A5-AB14013B89B6}</ProjectGuid>
         <ProjectVersion>19.5</ProjectVersion>
         <FrameworkType>None</FrameworkType>
-        <MainSource>xtool.dpr</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
-        <AppType>Console</AppType>
+        <AppType>Library</AppType>
+        <MainSource>cls_xtool.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -53,29 +53,26 @@
         <DCC_S>false</DCC_S>
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
+        <GenDll>true</GenDll>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-        <SanitizedProjectName>xtool</SanitizedProjectName>
+        <SanitizedProjectName>cls_xtool</SanitizedProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Linux64)'!=''">
-        <DCC_UnitSearchPath>$(fmxlinux)\Lib\$(ProductVersion)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UsePackage>DataSnapServer;emshosting;fmx;DbxCommonDriver;bindengine;FireDACCommonODBC;emsclient;FireDACCommonDriver;IndyProtocols;dbxcds;emsedge;inetdb;FireDACSqliteDriver;DbxClientDriver;FireDACASADriver;soapmidas;dbexpress;FireDACInfxDriver;inet;DataSnapCommon;dbrtl;FireDACOracleDriver;CustomIPTransport;FireDACMSSQLDriver;DataSnapIndy10ServerTransport;DataSnapConnectors;FireDACMongoDBDriver;IndySystem;FireDACTDataDriver;bindcomp;FireDACCommon;DataSnapServerMidas;FireDACODBCDriver;emsserverresource;IndyCore;RESTBackendComponents;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;dsnapxml;DataSnapClient;DataSnapFireDAC;emsclientfiredac;FireDACPgDriver;FireDAC;xmlrtl;dsnap;CloudService;FireDACDb2Driver;DataSnapNativeClient;DatasnapConnectorsFreePascal;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>DBXSqliteDriver;RESTComponents;DataSnapServerMidas;DBXDb2Driver;DBXInterBaseDriver;vclactnband;vclFireDAC;emsclientfiredac;DataSnapFireDAC;svnui;tethering;FireDACADSDriver;DBXMSSQLDriver;DatasnapConnectorsFreePascal;FireDACMSSQLDriver;vcltouch;vcldb;bindcompfmx;svn;DBXOracleDriver;inetdb;FmxTeeUI;emsedge;FireDACIBDriver;fmx;fmxdae;vclib;FireDACDBXDriver;dbexpress;IndyCore;vclx;dsnap;DataSnapCommon;emsclient;FireDACCommon;RESTBackendComponents;DataSnapConnectors;VCLRESTComponents;soapserver;vclie;CEF4Delphi_FMX;bindengine;DBXMySQLDriver;FireDACOracleDriver;CloudService;FireDACMySQLDriver;DBXFirebirdDriver;FireDACCommonODBC;FireDACCommonDriver;DataSnapClient;inet;bindcompdbx;IndyIPCommon;vcl;DBXSybaseASEDriver;IndyIPServer;IndySystem;FireDACDb2Driver;dsnapcon;FireDACMSAccDriver;fmxFireDAC;FireDACInfxDriver;vclimg;TeeDB;FireDAC;emshosting;FireDACSqliteDriver;FireDACPgDriver;ibmonitor;FireDACASADriver;DBXOdbcDriver;FireDACTDataDriver;FMXTee;soaprtl;DbxCommonDriver;ibxpress;Tee;DataSnapServer;xmlrtl;soapmidas;DataSnapNativeClient;fmxobj;vclwinx;ibxbindings;rtl;emsserverresource;DbxClientDriver;FireDACDSDriver;DBXSybaseASADriver;CustomIPTransport;vcldsnap;bindcomp;appanalytics;DBXInformixDriver;IndyIPClient;bindcompvcl;TeeUI;dbxcds;VclSmp;adortl;FireDACODBCDriver;DataSnapIndy10ServerTransport;dsnapxml;DataSnapProviderClient;dbrtl;inetdbxpress;FireDACMongoDBDriver;IndyProtocols;fmxase;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>DataSnapServer;vclwinx;emshosting;fmx;DbxCommonDriver;vclie;bindengine;VCLRESTComponents;FireDACCommonODBC;DBXMSSQLDriver;IndyIPCommon;emsclient;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;dbxcds;vcledge;IndyIPClient;bindcompvclwinx;FmxTeeUI;emsedge;bindcompfmx;DBXFirebirdDriver;inetdb;ibmonitor;FireDACSqliteDriver;DbxClientDriver;FireDACASADriver;Tee;soapmidas;vclactnband;TeeUI;fmxFireDAC;dbexpress;FireDACInfxDriver;DBXMySQLDriver;VclSmp;inet;DataSnapCommon;fmxase;vcltouch;DBXOdbcDriver;dbrtl;FireDACOracleDriver;FireDACDBXDriver;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;FireDACMSSQLDriver;DataSnapIndy10ServerTransport;DataSnapConnectors;vcldsnap;DBXInterBaseDriver;FireDACMongoDBDriver;IndySystem;FireDACTDataDriver;vcldb;ibxbindings;vclFireDAC;bindcomp;FireDACCommon;DataSnapServerMidas;FireDACODBCDriver;emsserverresource;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;adortl;dsnapxml;IndyIPServer;DataSnapClient;DataSnapProviderClient;dsnapcon;DBXSybaseASEDriver;DBXDb2Driver;vclimg;DataSnapFireDAC;emsclientfiredac;FireDACPgDriver;FireDAC;FireDACDSDriver;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;DBXSybaseASADriver;CloudService;DBXOracleDriver;FireDACDb2Driver;DBXInformixDriver;vclib;DataSnapNativeClient;bindcompvclsmp;fmxobj;FMXTee;DatasnapConnectorsFreePascal;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <DCC_ConsoleTarget>true</DCC_ConsoleTarget>
-        <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
-        <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>DBXSqliteDriver;RESTComponents;DataSnapServerMidas;DBXDb2Driver;DBXInterBaseDriver;vclactnband;vclFireDAC;emsclientfiredac;DataSnapFireDAC;tethering;FireDACADSDriver;DBXMSSQLDriver;DatasnapConnectorsFreePascal;FireDACMSSQLDriver;vcltouch;vcldb;bindcompfmx;DBXOracleDriver;inetdb;FmxTeeUI;emsedge;FireDACIBDriver;fmx;fmxdae;vclib;FireDACDBXDriver;dbexpress;IndyCore;vclx;dsnap;DataSnapCommon;emsclient;FireDACCommon;RESTBackendComponents;DataSnapConnectors;VCLRESTComponents;soapserver;vclie;CEF4Delphi_FMX;bindengine;DBXMySQLDriver;FireDACOracleDriver;CloudService;FireDACMySQLDriver;DBXFirebirdDriver;FireDACCommonODBC;FireDACCommonDriver;DataSnapClient;inet;bindcompdbx;IndyIPCommon;vcl;DBXSybaseASEDriver;IndyIPServer;IndySystem;FireDACDb2Driver;dsnapcon;FireDACMSAccDriver;fmxFireDAC;FireDACInfxDriver;vclimg;TeeDB;FireDAC;emshosting;FireDACSqliteDriver;FireDACPgDriver;ibmonitor;FireDACASADriver;DBXOdbcDriver;FireDACTDataDriver;FMXTee;soaprtl;DbxCommonDriver;ibxpress;Tee;DataSnapServer;xmlrtl;soapmidas;DataSnapNativeClient;fmxobj;vclwinx;ibxbindings;rtl;emsserverresource;DbxClientDriver;FireDACDSDriver;DBXSybaseASADriver;CustomIPTransport;vcldsnap;bindcomp;appanalytics;DBXInformixDriver;IndyIPClient;bindcompvcl;TeeUI;dbxcds;VclSmp;adortl;FireDACODBCDriver;DataSnapIndy10ServerTransport;dsnapxml;DataSnapProviderClient;dbrtl;inetdbxpress;FireDACMongoDBDriver;IndyProtocols;fmxase;$(DCC_UsePackage)</DCC_UsePackage>
-        <DCC_ConsoleTarget>true</DCC_ConsoleTarget>
-        <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
-        <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
+        <DCC_UsePackage>DataSnapServer;vclwinx;emshosting;fmx;DbxCommonDriver;vclie;bindengine;VCLRESTComponents;FireDACCommonODBC;DBXMSSQLDriver;IndyIPCommon;emsclient;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;dbxcds;vcledge;IndyIPClient;bindcompvclwinx;FmxTeeUI;emsedge;bindcompfmx;DBXFirebirdDriver;inetdb;ibmonitor;FireDACSqliteDriver;DbxClientDriver;FireDACASADriver;Tee;soapmidas;vclactnband;TeeUI;fmxFireDAC;dbexpress;FireDACInfxDriver;DBXMySQLDriver;VclSmp;inet;DataSnapCommon;fmxase;vcltouch;DBXOdbcDriver;dbrtl;FireDACOracleDriver;FireDACDBXDriver;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;FireDACMSSQLDriver;DataSnapIndy10ServerTransport;DataSnapConnectors;vcldsnap;DBXInterBaseDriver;FireDACMongoDBDriver;IndySystem;FireDACTDataDriver;vcldb;ibxbindings;vclFireDAC;bindcomp;FireDACCommon;DataSnapServerMidas;FireDACODBCDriver;emsserverresource;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;adortl;dsnapxml;IndyIPServer;DataSnapClient;DataSnapProviderClient;dsnapcon;DBXSybaseASEDriver;DBXDb2Driver;vclimg;DataSnapFireDAC;emsclientfiredac;FireDACPgDriver;FireDAC;FireDACDSDriver;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;DBXSybaseASADriver;CloudService;DBXOracleDriver;FireDACDb2Driver;DBXInformixDriver;vclib;DataSnapNativeClient;bindcompvclsmp;fmxobj;FMXTee;DatasnapConnectorsFreePascal;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
@@ -86,24 +83,24 @@
         <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-        <DCC_DcuOutput>.\$(Platform)\DCUs</DCC_DcuOutput>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>7177</VerInfo_Locale>
         <Manifest_File>(None)</Manifest_File>
-        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.0.0;InternalName=;LegalCopyright=Razor12911;LegalTrademarks=;OriginalFilename=xtool.exe;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
+        <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.0.0;InternalName=;LegalCopyright=Razor12911;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
+        <DCC_DcuOutput>.\$(Platform)\DCUs</DCC_DcuOutput>
         <DCC_PEOSVersion>5.1</DCC_PEOSVersion>
         <DCC_PESubSysVersion>5.1</DCC_PESubSysVersion>
-        <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
-        <DCC_DcuOutput>.\$(Platform)\DCUs</DCC_DcuOutput>
-        <VerInfo_Locale>7177</VerInfo_Locale>
-        <Manifest_File>(None)</Manifest_File>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.0.0;InternalName=;LegalCopyright=Razor12911;LegalTrademarks=;OriginalFilename=xtool.exe;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
+        <VerInfo_Locale>7177</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.0.0;InternalName=;LegalCopyright=Razor12911;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.0.0.0;Comments=Created by Razor12911</VerInfo_Keys>
+        <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
+        <DCC_DcuOutput>.\$(Platform)\DCUs</DCC_DcuOutput>
         <DCC_PEOSVersion>5.2</DCC_PEOSVersion>
         <DCC_PESubSysVersion>5.2</DCC_PESubSysVersion>
     </PropertyGroup>
@@ -113,6 +110,7 @@
         </DelphiCompile>
         <DCCReference Include="contrib\FastMM4-AVX\FastMM4.pas"/>
         <DCCReference Include="contrib\FastMM4-AVX\FastMM4Messages.pas"/>
+        <DCCReference Include="common\CLS.pas"/>
         <DCCReference Include="common\DStorage.pas"/>
         <DCCReference Include="common\LibImport.pas"/>
         <DCCReference Include="common\Threading.pas"/>
@@ -130,10 +128,103 @@
         <DCCReference Include="contrib\ParseExpression\ParseClass.pas"/>
         <DCCReference Include="contrib\ParseExpression\ParseExpr.pas"/>
         <DCCReference Include="contrib\XXHASH4Delphi\XXHASHLIB.pas"/>
-        <DCCReference Include="contrib\ZSTD4Delphi\ZSTDLib.pas"/>
-        <DCCReference Include="InitCode.pas"/>
+        <DCCReference Include="contrib\ZSTD4Delphi\ZSTDLib.pas">
+            <Form>,
+    InitCode in &apos;InitCode.pas&apos;,
+    BrunsliDLL in &apos;imports\BrunsliDLL.pas&apos;,
+    FLACDLL in &apos;imports\FLACDLL.pas&apos;,
+    FLZMA2DLL in &apos;imports\FLZMA2DLL.pas&apos;,
+    JoJpegDLL in &apos;imports\JoJpegDLL.pas&apos;,
+    LZ4DLL in &apos;imports\LZ4DLL.pas&apos;,
+    LZODLL in &apos;imports\LZODLL.pas&apos;,
+    OodleDLL in &apos;imports\OodleDLL.pas&apos;,
+    PackJPGDLL in &apos;imports\PackJPGDLL.pas&apos;,
+    PreflateDLL in &apos;imports\PreflateDLL.pas&apos;,
+    ReflateDLL in &apos;imports\ReflateDLL.pas&apos;,
+    XDeltaDLL in &apos;imports\XDeltaDLL.pas&apos;,
+    ZLibDLL in &apos;imports\ZLibDLL.pas&apos;,
+    ZSTDDLL in &apos;imports\ZSTDDLL.pas&apos;,
+    lz4 in &apos;sources\lz4.pas&apos;,
+    UIMain in &apos;ui\UIMain.pas&apos;,
+    PrecompMain in &apos;precompressor\PrecompMain.pas&apos;,
+    PrecompUtils in &apos;precompressor\PrecompUtils.pas&apos;,
+    PrecompCrypto in &apos;precompressor\PrecompCrypto.pas&apos;,
+    PrecompZLib in &apos;precompressor\PrecompZLib.pas&apos;,
+    PrecompLZ4 in &apos;precompressor\PrecompLZ4.pas&apos;,
+    PrecompLZO in &apos;precompressor\PrecompLZO.pas&apos;,
+    PrecompZSTD in &apos;precompressor\PrecompZSTD.pas&apos;,
+    PrecompMedia in &apos;precompressor\PrecompMedia.pas&apos;,
+    PrecompOodle in &apos;precompressor\PrecompOodle.pas&apos;,
+    PrecompINI in &apos;precompressor\PrecompINI.pas&apos;,
+    PrecompINIEx in &apos;precompressor\PrecompINIEx.pas&apos;,
+    PrecompSearch in &apos;precompressor\PrecompSearch.pas&apos;,
+    PrecompDLL in &apos;precompressor\PrecompDLL.pas&apos;,
+    PrecompEXE in &apos;precompressor\PrecompEXE.pas&apos;,
+    PrecompDStorage in &apos;precompressor\PrecompDStorage.pas&apos;</Form>
+        </DCCReference>
+        <DCCReference Include="InitCode.pas">
+            <Form>,
+  BrunsliDLL in &apos;imports\BrunsliDLL.pas&apos;,
+  FLACDLL in &apos;imports\FLACDLL.pas&apos;,
+  FLZMA2DLL in &apos;imports\FLZMA2DLL.pas&apos;,
+  JoJpegDLL in &apos;imports\JoJpegDLL.pas&apos;,
+  LZ4DLL in &apos;imports\LZ4DLL.pas&apos;,
+  LZODLL in &apos;imports\LZODLL.pas&apos;,
+  OodleDLL in &apos;imports\OodleDLL.pas&apos;,
+  PackJPGDLL in &apos;imports\PackJPGDLL.pas&apos;,
+  PreflateDLL in &apos;imports\PreflateDLL.pas&apos;,
+  ReflateDLL in &apos;imports\ReflateDLL.pas&apos;,
+  XDeltaDLL in &apos;imports\XDeltaDLL.pas&apos;,
+  ZLibDLL in &apos;imports\ZLibDLL.pas&apos;,
+  ZSTDDLL in &apos;imports\ZSTDDLL.pas&apos;,
+  lz4 in &apos;sources\lz4.pas&apos;,
+  PrecompMain in &apos;precompressor\PrecompMain.pas&apos;,
+  PrecompUtils in &apos;precompressor\PrecompUtils.pas&apos;,
+  PrecompCrypto in &apos;precompressor\PrecompCrypto.pas&apos;,
+  PrecompZLib in &apos;precompressor\PrecompZLib.pas&apos;,
+  PrecompLZ4 in &apos;precompressor\PrecompLZ4.pas&apos;,
+  PrecompLZO in &apos;precompressor\PrecompLZO.pas&apos;,
+  PrecompZSTD in &apos;precompressor\PrecompZSTD.pas&apos;,
+  PrecompMedia in &apos;precompressor\PrecompMedia.pas&apos;,
+  PrecompOodle in &apos;precompressor\PrecompOodle.pas&apos;,
+  PrecompINI in &apos;precompressor\PrecompINI.pas&apos;,
+  PrecompINIEx in &apos;precompressor\PrecompINIEx.pas&apos;,
+  PrecompSearch in &apos;precompressor\PrecompSearch.pas&apos;,
+  PrecompDLL in &apos;precompressor\PrecompDLL.pas&apos;,
+  PrecompEXE in &apos;precompressor\PrecompEXE.pas&apos;,
+  PrecompDStorage in &apos;precompressor\PrecompDStorage.pas&apos;</Form>
+        </DCCReference>
         <DCCReference Include="imports\BrunsliDLL.pas"/>
-        <DCCReference Include="imports\FLACDLL.pas"/>
+        <DCCReference Include="imports\FLACDLL.pas">
+            <Form>,
+  FLZMA2DLL in &apos;imports\FLZMA2DLL.pas&apos;,
+  JoJpegDLL in &apos;imports\JoJpegDLL.pas&apos;,
+  LZ4DLL in &apos;imports\LZ4DLL.pas&apos;,
+  LZODLL in &apos;imports\LZODLL.pas&apos;,
+  OodleDLL in &apos;imports\OodleDLL.pas&apos;,
+  PackJPGDLL in &apos;imports\PackJPGDLL.pas&apos;,
+  PreflateDLL in &apos;imports\PreflateDLL.pas&apos;,
+  ReflateDLL in &apos;imports\ReflateDLL.pas&apos;,
+  XDeltaDLL in &apos;imports\XDeltaDLL.pas&apos;,
+  ZLibDLL in &apos;imports\ZLibDLL.pas&apos;,
+  ZSTDDLL in &apos;imports\ZSTDDLL.pas&apos;,
+  lz4 in &apos;sources\lz4.pas&apos;,
+  PrecompMain in &apos;precompressor\PrecompMain.pas&apos;,
+  PrecompUtils in &apos;precompressor\PrecompUtils.pas&apos;,
+  PrecompCrypto in &apos;precompressor\PrecompCrypto.pas&apos;,
+  PrecompZLib in &apos;precompressor\PrecompZLib.pas&apos;,
+  PrecompLZ4 in &apos;precompressor\PrecompLZ4.pas&apos;,
+  PrecompLZO in &apos;precompressor\PrecompLZO.pas&apos;,
+  PrecompZSTD in &apos;precompressor\PrecompZSTD.pas&apos;,
+  PrecompMedia in &apos;precompressor\PrecompMedia.pas&apos;,
+  PrecompOodle in &apos;precompressor\PrecompOodle.pas&apos;,
+  PrecompINI in &apos;precompressor\PrecompINI.pas&apos;,
+  PrecompINIEx in &apos;precompressor\PrecompINIEx.pas&apos;,
+  PrecompSearch in &apos;precompressor\PrecompSearch.pas&apos;,
+  PrecompDLL in &apos;precompressor\PrecompDLL.pas&apos;,
+  PrecompEXE in &apos;precompressor\PrecompEXE.pas&apos;,
+  PrecompDStorage in &apos;precompressor\PrecompDStorage.pas&apos;</Form>
+        </DCCReference>
         <DCCReference Include="imports\FLZMA2DLL.pas"/>
         <DCCReference Include="imports\JoJpegDLL.pas"/>
         <DCCReference Include="imports\LZ4DLL.pas"/>
@@ -144,8 +235,24 @@
         <DCCReference Include="imports\ReflateDLL.pas"/>
         <DCCReference Include="imports\ZLibDLL.pas"/>
         <DCCReference Include="imports\ZSTDDLL.pas"/>
-        <DCCReference Include="sources\lz4.pas"/>
-        <DCCReference Include="ui\UIMain.pas"/>
+        <DCCReference Include="sources\lz4.pas">
+            <Form>,
+  PrecompMain in &apos;precompressor\PrecompMain.pas&apos;,
+  PrecompUtils in &apos;precompressor\PrecompUtils.pas&apos;,
+  PrecompCrypto in &apos;precompressor\PrecompCrypto.pas&apos;,
+  PrecompZLib in &apos;precompressor\PrecompZLib.pas&apos;,
+  PrecompLZ4 in &apos;precompressor\PrecompLZ4.pas&apos;,
+  PrecompLZO in &apos;precompressor\PrecompLZO.pas&apos;,
+  PrecompZSTD in &apos;precompressor\PrecompZSTD.pas&apos;,
+  PrecompMedia in &apos;precompressor\PrecompMedia.pas&apos;,
+  PrecompOodle in &apos;precompressor\PrecompOodle.pas&apos;,
+  PrecompINI in &apos;precompressor\PrecompINI.pas&apos;,
+  PrecompINIEx in &apos;precompressor\PrecompINIEx.pas&apos;,
+  PrecompSearch in &apos;precompressor\PrecompSearch.pas&apos;,
+  PrecompDLL in &apos;precompressor\PrecompDLL.pas&apos;,
+  PrecompEXE in &apos;precompressor\PrecompEXE.pas&apos;,
+  PrecompDStorage in &apos;precompressor\PrecompDStorage.pas&apos;</Form>
+        </DCCReference>
         <DCCReference Include="precompressor\PrecompMain.pas"/>
         <DCCReference Include="precompressor\PrecompUtils.pas"/>
         <DCCReference Include="precompressor\PrecompCrypto.pas"/>
@@ -161,16 +268,6 @@
         <DCCReference Include="precompressor\PrecompDLL.pas"/>
         <DCCReference Include="precompressor\PrecompEXE.pas"/>
         <DCCReference Include="precompressor\PrecompDStorage.pas"/>
-        <DCCReference Include="dbgenerator\DbgMain.pas"/>
-        <DCCReference Include="dbgenerator\DbgUtils.pas"/>
-        <DCCReference Include="io\IOFind.pas"/>
-        <DCCReference Include="io\IOErase.pas"/>
-        <DCCReference Include="io\IOReplace.pas"/>
-        <DCCReference Include="io\IOExecute.pas"/>
-        <DCCReference Include="io\IODecode.pas"/>
-        <DCCReference Include="io\IOUtils.pas"/>
-        <None Include="changes.txt"/>
-        <None Include="contrib\FastMM4-AVX\FastMM4Options.inc"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -185,7 +282,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">xtool.dpr</Source>
+                    <Source Name="MainSource">cls_xtool.dpr</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k280.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
@@ -208,54 +305,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Linux64\Release\xtool" Configuration="Release" Class="ProjectOutput">
-                    <Platform Name="Linux64">
-                        <RemoteName>xtool</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win32\Release\xtool.exe" Configuration="Release" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win32\Release\xtool.exe" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="Win32\Release\cls_xtool.dll" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>xtool.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="Win64\Release\xtool.exe" Configuration="Release" Class="ProjectOutput"/>
-                <DeployFile LocalName="Win64\Release\xtool.exe" Configuration="Release" Class="ProjectOutput">
-                    <Platform Name="Win64">
-                        <RemoteName>xtool.exe</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile"/>
-                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Linux64">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Win32">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="changes.txt" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Win64">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="contrib\FastMM4-AVX\FastMM4Options.inc" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Linux64">
-                        <RemoteDir>.\</RemoteDir>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="contrib\FastMM4-AVX\FastMM4Options.inc" Configuration="Release" Class="ProjectFile">
-                    <Platform Name="Win64">
-                        <RemoteDir>.\</RemoteDir>
+                        <RemoteName>cls_xtool.dll</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -1075,7 +1127,6 @@
                 <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="iOSSimARM64" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Linux64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="OSX64" Name="$(PROJECTNAME).app"/>
@@ -1088,7 +1139,6 @@
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
             </Platforms>
-            <ModelSupport>False</ModelSupport>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>

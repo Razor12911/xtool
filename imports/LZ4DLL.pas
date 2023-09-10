@@ -12,14 +12,9 @@ const
   LZ4F_VERSION = 100;
 
 type
-  PLZ4_streamDecode_t = ^LZ4_streamDecode_t;
-  LZ4_streamDecode_t = array [0 .. 1 shl 9 - 1] of byte;
-
-  PLZ4_stream_t = ^LZ4_stream_t;
-  LZ4_stream_t = array [0 .. 1 shl 9 - 1] of byte;
-
-  PLZ4_streamHC_t = ^LZ4_streamHC_t;
-  LZ4_streamHC_t = array [0 .. 1 shl 9 - 1] of byte;
+  PLZ4_streamDecode_t = Pointer;
+  PLZ4_stream_t = Pointer;
+  PLZ4_streamHC_t = Pointer;
 
   LZ4F_errorCode_t = type size_t;
 
@@ -113,13 +108,12 @@ var
   LZ4_compress_HC_continue: function(streamHCPtr: PLZ4_streamHC_t;
     const src: Pointer; dst: Pointer; srcSize: Integer; maxDstSize: Integer)
     : Integer cdecl;
+
   DLLLoaded: Boolean = False;
 
 function LZ4F_decompress_safe(source: Pointer; dest: Pointer;
   sourceSize: Integer; destSize: Integer; compressedSize: PInteger = nil;
   blockSize: PInteger = nil): Integer;
-function LZ4_compress_block(src, dst: Pointer;
-  srcSize, dstCapacity: Integer): Integer;
 
 implementation
 
@@ -160,51 +154,13 @@ begin
     end;
 end;
 
-function LZ4_compress_block(src, dst: Pointer;
-  srcSize, dstCapacity: Integer): Integer;
-const
-  blockSize = 64 * 1024;
-const
-  BuffSize = 256 * 1024;
-var
-  Buff: array [0 .. BuffSize - 1] of byte;
-  ctx: PLZ4_stream_t;
-  Pos1, Pos2, Res: Integer;
-  X, Y: Integer;
-begin
-  Result := 0;
-  ctx := LZ4_createStream;
-  LZ4_resetStream(ctx);
-  Pos1 := 0;
-  Pos2 := 0;
-  try
-    while (Pos1 < srcSize) and (Pos2 < dstCapacity) do
-    begin
-      X := Min(srcSize - Pos1, blockSize);
-      Y := dstCapacity - Pos2;
-      Res := LZ4_compress_fast_continue(ctx, PByte(src) + Pos1, @Buff[0], X,
-        BuffSize, 1);
-      if Res <= 0 then
-      begin
-        LZ4_freeStream(ctx);
-        exit(-Pos2);
-      end;
-      Move(Buff[0], (PByte(dst) + Pos2)^, Res);
-      Inc(Pos1, X);
-      Inc(Pos2, Res);
-    end;
-  finally
-    LZ4_freeStream(ctx);
-  end;
-  Result := Pos2;
-end;
-
 var
   Lib: TLibImport;
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename, True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(Filename, True));
   if Lib.Loaded then
   begin
     @LZ4_decompress_safe := Lib.GetProcAddr('LZ4_decompress_safe');

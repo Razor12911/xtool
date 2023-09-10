@@ -36,6 +36,7 @@ var
     : Pointer cdecl;
   brunsli_free_JPEGOutput: procedure(P: Pointer)cdecl;
   brunsli_WriteJpeg: function(P: Pointer; oup: Pointer): Integer cdecl;
+
   DLLLoaded: Boolean = False;
 
 implementation
@@ -45,7 +46,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'brunsli.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'brunsli.dll', True));
   if Lib.Loaded then
   begin
     @brunsli_alloc_JPEGData := Lib.GetProcAddr('brunsli_alloc_JPEGData');

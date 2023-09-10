@@ -4,9 +4,13 @@ interface
 
 uses
   Utils, LibImport,
-  System.SysUtils;
+  WinAPI.Windows,
+  System.SysUtils, System.Classes, System.Types, System.StrUtils;
 
 const
+  PLUGIN_DATABASE = 0;
+  PLUGIN_CONFIG = 1;
+  PLUGIN_LIBRARY = 2;
   PluginsParam = '-bd';
 
 type
@@ -44,7 +48,10 @@ implementation
 
 procedure Init;
 begin
-  UILib := TLibImport.Create(ChangeFileExt(Utils.GetModuleName, 'ui.dll'));
+  if Win32MajorVersion < 6 then
+    exit;
+  UILib := TLibImport.Create;
+  UILib.LoadLib(ChangeFileExt(Utils.GetModuleName, 'ui.dll'));
   if UILib.Loaded then
   begin
     @XTLUI1 := UILib.GetProcAddr('XTLUI1');
@@ -57,6 +64,8 @@ end;
 
 procedure Deinit;
 begin
+  if Win32MajorVersion < 6 then
+    exit;
   UILib.Free;
 end;
 
@@ -65,35 +74,37 @@ var
 
 initialization
 
-IsLibrary := ExtractFileName(Utils.GetModuleName) <>
-  ExtractFileName(ParamStr(0));
-if IsLibrary then
-  exit;
-for I := 1 to ParamCount do
+if not IsLibrary then
 begin
-  if (ParamStr(I) = '--debug') then
+  for I := 1 to ParamCount do
   begin
-    DEBUG := True;
-    break;
+    if (ParamStr(I) = '--debug') then
+    begin
+      DEBUG := True;
+      break;
+    end;
   end;
-end;
-Init;
-if UIDLLLoaded and (ParamCount = 0) then
-  PluginsPath := IncludeTrailingBackSlash
-    (ExpandPath(GetIniString('UI', 'Plugins', '',
-    ChangeFileExt(Utils.GetModuleName, 'ui.ini'))));
-for I := 1 to ParamCount do
-begin
-  if ParamStr(I).StartsWith(PluginsParam) then
+  Init;
+  if UIDLLLoaded and (ParamCount = 0) then
+    PluginsPath := IncludeTrailingBackSlash
+      (ExpandPath(GetIniString('UI', 'Plugins', '',
+      ChangeFileExt(Utils.GetModuleName, 'ui.ini'))));
+  for I := 1 to ParamCount do
   begin
-    PluginsPath := ParamStr(I).Substring(PluginsParam.Length);
-    break;
+    if ParamStr(I).StartsWith(PluginsParam) then
+    begin
+      PluginsPath := ParamStr(I).Substring(PluginsParam.Length);
+      break;
+    end;
   end;
 end;
 PluginsPath := IncludeTrailingBackSlash(ExpandPath(PluginsPath));
+if not DirectoryExists(ExpandPath(PluginsPath, True)) then
+  PluginsPath := ExtractFilePath(Utils.GetModuleName);
 
 finalization
 
-Deinit;
+if not IsLibrary then
+  Deinit;
 
 end.

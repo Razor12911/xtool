@@ -64,7 +64,7 @@ begin
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, '');
   WriteLn(ErrOutput, 'Parameters:');
-  WriteLn(ErrOutput, '  -c#  - chunk size [16mb]');
+  WriteLn(ErrOutput, '  -c#  - chunk size [64mb]');
   WriteLn(ErrOutput, '  -t#  - number of working threads [50p]');
   WriteLn(ErrOutput, '');
 end;
@@ -79,7 +79,7 @@ begin
   ArgParse := TArgParser.Create(ParamArg);
   ExpParse := TExpressionParser.Create;
   try
-    S := ArgParse.AsString('-c', 0, '16mb');
+    S := ArgParse.AsString('-c', 0, '64mb');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
     S := ReplaceText(S, 'GB', '* 1024^3');
@@ -191,7 +191,7 @@ begin
   end;
 end;
 
-threadvar TFS: TFileStream;
+threadvar TFS: TFileStreamEx;
 
 procedure Callback(const Buffer: Pointer; Size: Integer);
 begin
@@ -200,7 +200,7 @@ end;
 
 procedure ExecThread(X, Ctx, WorkDir, State: IntPtr);
 var
-  SS: TSharedMemoryStream;
+  SS: TFileStreamEx;
   Res: Boolean;
 begin
   Res := False;
@@ -212,22 +212,18 @@ begin
             Res := Utils.Exec(Exec, Param, PString(WorkDir)^);
           STDIN_MODE:
             begin
-              SS := TSharedMemoryStream.Create
-                (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-                '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)),
-                IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
+              SS := TFileStreamEx.Create
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
               try
-                Res := ExecStdin(Exec, Param, PString(WorkDir)^,
-                  SS.Memory, SS.Size);
+                Res := ExecStdin(Exec, Param, PString(WorkDir)^, SS);
               finally
                 SS.Free;
               end;
             end;
           STDOUT_MODE:
             begin
-              TFS := TFileStream.Create
-                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile,
-                fmCreate);
+              TFS := TFileStreamEx.Create
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile);
               try
                 Res := ExecStdout(Exec, Param, PString(WorkDir)^, Callback);
               finally
@@ -236,16 +232,12 @@ begin
             end;
           STDIO_MODE:
             begin
-              SS := TSharedMemoryStream.Create
-                (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-                '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)),
-                IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
-              TFS := TFileStream.Create
-                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile,
-                fmCreate);
+              SS := TFileStreamEx.Create
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + InFile);
+              TFS := TFileStreamEx.Create
+                (IncludeTrailingPathDelimiter(PString(WorkDir)^) + OutFile);
               try
-                Res := ExecStdio(Exec, Param, PString(WorkDir)^, SS.Memory,
-                  SS.Size, Callback);
+                Res := ExecStdio(Exec, Param, PString(WorkDir)^, SS, Callback);
               finally
                 SS.Free;
                 TFS.Free;
@@ -269,8 +261,8 @@ var
   B: Byte;
   S: String;
   First, Done: Boolean;
-  FStream: TFileStream;
-  SStream: TSharedMemoryStream;
+  FStream: TFileStreamEx;
+  SStream: TFileStreamEx;
   LCtx: TCtx;
   WorkDir: TArray<String>;
   Tasks: TArray<TTask>;
@@ -282,8 +274,8 @@ var
     DeleteFile(IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.OutFile);
     if not Done then
     begin
-      FStream := TFileStream.Create(IncludeTrailingPathDelimiter(WorkDir[X]) +
-        LCtx.InFile, fmCreate);
+      FStream := TFileStreamEx.Create(IncludeTrailingPathDelimiter(WorkDir[X]) +
+        LCtx.InFile);
       try
         Done := CopyStream(Input, FStream, Options.ChunkSize) = 0;
       finally
@@ -339,9 +331,7 @@ begin
           S := IncludeTrailingPathDelimiter(WorkDir[I]) + LCtx.InFile;
           B := 1;
         end;
-        SStream := TSharedMemoryStream.Create
-          (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-          '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), S);
+        SStream := TFileStreamEx.Create(S);
         try
           Output.WriteBuffer(B, B.Size);
           I64 := SStream.Size;
@@ -374,8 +364,8 @@ var
   I: Integer;
   S: String;
   First, Done: Boolean;
-  FStream: TFileStream;
-  SStream: TSharedMemoryStream;
+  FStream: TFileStreamEx;
+  SStream: TFileStreamEx;
   LCtx: TCtx;
   WorkDir: TArray<String>;
   Tasks: TArray<TTask>;
@@ -395,8 +385,8 @@ var
         Input.ReadBuffer(I64, I64.Size);
         if I64 >= 0 then
         begin
-          FStream := TFileStream.Create(IncludeTrailingPathDelimiter(WorkDir[X]) +
-            LCtx.InFile, fmCreate);
+          FStream := TFileStreamEx.Create
+            (IncludeTrailingPathDelimiter(WorkDir[X]) + LCtx.InFile);
           try
             if B = 0 then
               CopyStreamEx(Input, FStream, I64)
@@ -453,9 +443,7 @@ begin
           S := IncludeTrailingPathDelimiter(WorkDir[I]) + LCtx.OutFile
         else
           raise Exception.CreateRes(@SWriteError);
-        SStream := TSharedMemoryStream.Create
-          (LowerCase(ChangeFileExt(ExtractFileName(Utils.GetModuleName),
-          '_' + Random($7FFFFFFF).ToHexString + XTOOL_MAPSUF2)), S);
+        SStream := TFileStreamEx.Create(S);
         try
           CopyStreamEx(SStream, Output, SStream.Size);
         finally

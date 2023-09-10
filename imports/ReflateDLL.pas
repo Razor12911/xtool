@@ -22,6 +22,7 @@ var
   hif2raw_Loop: function(p: Pointer): integer stdcall;
   hif2raw_getoutlen: function(p: Pointer): integer stdcall;
   hif2raw_addbuf: procedure(p: Pointer; buf: Pointer; bufsize: integer)stdcall;
+
   DLLLoaded: boolean = False;
 
 implementation
@@ -31,8 +32,10 @@ var
 
 procedure Init;
 begin
-  Lib1 := TLibImport.Create(ExpandPath(PluginsPath + 'RAW2HIF_DLL.DLL', True));
-  Lib2 := TLibImport.Create(ExpandPath(PluginsPath + 'HIF2RAW_DLL.DLL', True));
+  Lib1 := TLibImport.Create;
+  Lib1.LoadLib(ExpandPath(PluginsPath + 'RAW2HIF_DLL.DLL', True));
+  Lib2 := TLibImport.Create;
+  Lib2.LoadLib(ExpandPath(PluginsPath + 'HIF2RAW_DLL.DLL', True));
   if Lib1.Loaded and Lib2.Loaded then
   begin
     @raw2hif_Alloc := Lib1.GetProcAddr('raw2hif_Alloc');

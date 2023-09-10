@@ -17,6 +17,9 @@ type
     ZSTD_reset_session_and_parameters = 3,
     ZSTD_ResetDirective_Force32 = $40000000);
 
+  ZSTD_EndDirective = (ZSTD_e_continue = 0, ZSTD_e_flush = 1, ZSTD_e_end = 2,
+    ZSTD_EndDirective_Force32 = $40000000);
+
   PZSTD_inBuffer = ^ZSTD_inBuffer;
 
   ZSTD_inBuffer = record
@@ -54,11 +57,11 @@ type
 
   ZSTD_compressionParameters = record
     windowLog: Cardinal;
-    chainLogg: Cardinal;
-    hashLogg: Cardinal;
-    searchLogg: Cardinal;
-    minMatchg: Cardinal;
-    targetLengthg: Cardinal;
+    chainLog: Cardinal;
+    hashLog: Cardinal;
+    searchLog: Cardinal;
+    minMatch: Cardinal;
+    targetLength: Cardinal;
     strategy: ZSTD_strategy;
   end;
 
@@ -78,6 +81,8 @@ var
     srcSize: size_t; compressionLevel: Integer): size_t cdecl;
   ZSTD_compress2: function(cctx: Pointer; dst: Pointer; dstCapacity: size_t;
     const src: Pointer; srcSize: size_t): size_t cdecl;
+  ZSTD_compress_generic: function(cctx: Pointer; output: PZSTD_outBuffer;
+    input: PZSTD_inBuffer; endOp: ZSTD_EndDirective): size_t cdecl;
   ZSTD_decompress: function(dst: Pointer; dstCapacity: size_t;
     const src: Pointer; srcSize: size_t): SSIZE_T cdecl;
   ZSTD_findFrameCompressedSize: function(const src: Pointer; srcSize: size_t)
@@ -90,6 +95,8 @@ var
     : size_t cdecl;
   ZSTD_CCtx_setParameter: function(cctx: Pointer; param: ZSTD_cParameter;
     value: Integer): size_t cdecl;
+  ZSTD_CCtx_refPrefix: function(cctx: Pointer; const prefix: Pointer;
+    prefixSize: size_t): size_t cdecl;
   ZSTD_compressCCtx: function(cctx: Pointer; dst: Pointer; dstCapacity: size_t;
     src: Pointer; srcSize: size_t; compressionLevel: Integer): size_t cdecl;
   ZSTD_createDCtx: function: Pointer cdecl;
@@ -115,6 +122,9 @@ var
   ZSTD_flushStream: function(zcs: Pointer; output: PZSTD_outBuffer)
     : size_t cdecl;
   ZSTD_endStream: function(zcs: Pointer; output: PZSTD_outBuffer): size_t cdecl;
+
+  ZSTD_getCParams: function(compressionLevel: Integer; estimatedSrcSize: UInt64;
+    dictSize: size_t): ZSTD_compressionParameters;
 
   DLLLoaded: Boolean = False;
 
@@ -148,11 +158,13 @@ var
 
 procedure Init(Filename: String);
 begin
-  Lib := TLibImport.Create(ExpandPath(Filename, True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(Filename, True));
   if Lib.Loaded then
   begin
     @ZSTD_compress := Lib.GetProcAddr('ZSTD_compress');
     @ZSTD_compress2 := Lib.GetProcAddr('ZSTD_compress2');
+    @ZSTD_compress_generic := Lib.GetProcAddr('ZSTD_compress_generic');
     @ZSTD_decompress := Lib.GetProcAddr('ZSTD_decompress');
     @ZSTD_findFrameCompressedSize :=
       Lib.GetProcAddr('ZSTD_findFrameCompressedSize');
@@ -161,6 +173,7 @@ begin
     @ZSTD_freeCCtx := Lib.GetProcAddr('ZSTD_freeCCtx');
     @ZSTD_CCtx_reset := Lib.GetProcAddr('ZSTD_CCtx_reset');
     @ZSTD_CCtx_setParameter := Lib.GetProcAddr('ZSTD_CCtx_setParameter');
+    @ZSTD_CCtx_refPrefix  := Lib.GetProcAddr('ZSTD_CCtx_refPrefix');
     @ZSTD_createDCtx := Lib.GetProcAddr('ZSTD_createDCtx');
     @ZSTD_freeDCtx := Lib.GetProcAddr('ZSTD_freeDCtx');
     @ZSTD_createCDict := Lib.GetProcAddr('ZSTD_createCDict');
@@ -176,6 +189,7 @@ begin
     @ZSTD_compressStream := Lib.GetProcAddr('ZSTD_compressStream');
     @ZSTD_flushStream := Lib.GetProcAddr('ZSTD_flushStream');
     @ZSTD_endStream := Lib.GetProcAddr('ZSTD_endStream');
+    @ZSTD_getCParams := Lib.GetProcAddr('ZSTD_getCParams');
     DLLLoaded := Assigned(ZSTD_compress) and Assigned(ZSTD_decompress);
   end;
 end;

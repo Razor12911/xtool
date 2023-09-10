@@ -15,6 +15,7 @@ var
   preflate_reencode: function(const src1: Pointer; src1Size: integer;
     const src2: Pointer; src2Size: integer; dst: Pointer; dstCapacity: PInteger)
     : boolean cdecl;
+
   DLLLoaded: boolean = False;
 
 implementation
@@ -24,7 +25,8 @@ var
 
 procedure Init;
 begin
-  Lib := TLibImport.Create(ExpandPath(PluginsPath + 'preflate_dll.dll', True));
+  Lib := TLibImport.Create;
+  Lib.LoadLib(ExpandPath(PluginsPath + 'preflate_dll.dll', True));
   if Lib.Loaded then
   begin
     @preflate_decode := Lib.GetProcAddr('decode');

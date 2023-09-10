@@ -2,6 +2,8 @@
 {.$DEFINE AVX2}
 unit ZSTDLib;
 
+{$MINENUMSIZE 4}
+
 interface
 const
   ZSTD_VERSION_MAJOR = 1;

@@ -105,7 +105,6 @@ var
   PEntry: PEntryStruct1;
   LBytes: TBytes;
   FStream: TFileStream;
-  SStream: TSharedMemoryStream;
   OStream, MStream: TMemoryStream;
   DataStore: TDataStore1;
   Tasks: TArray<TTask>;

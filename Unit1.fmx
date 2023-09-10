@@ -3430,6 +3430,7 @@ object Form1: TForm1
               Size.Width = 456.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
+              OnChange = Edit1Change
               object SearchEditButton1: TSearchEditButton
                 CanFocus = False
                 Cursor = crArrow
@@ -3589,7 +3590,7 @@ object Form1: TForm1
               Size.Width = 110.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 1
+              TabOrder = 2
               Text = 'Skip verification'
             end
             object CheckBox6: TCheckBox
@@ -3615,8 +3616,45 @@ object Form1: TForm1
               Size.Width = 110.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
-              TabOrder = 3
+              TabOrder = 5
               Text = 'Low memory'
+            end
+            object Label8: TLabel
+              Align = Left
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Position.X = 362.000000000000000000
+              Position.Y = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
+              Text = 'Cache'
+              TabOrder = 1
+            end
+            object ComboEdit3: TComboEdit
+              Touch.InteractiveGestures = [LongTap, DoubleTap]
+              Align = Left
+              TabOrder = 4
+              ItemHeight = 19.000000000000000000
+              Items.Strings = (
+                '0MB'
+                '512MB'
+                '1GB'
+                '2GB'
+                '4GB'
+                '75%'
+                '90%')
+              ItemIndex = 1
+              Text = '512MB'
+              Position.X = 450.000000000000000000
+              Position.Y = 8.000000000000000000
+              Margins.Left = 8.000000000000000000
+              Margins.Top = 8.000000000000000000
+              Margins.Bottom = 8.000000000000000000
+              Size.Width = 80.000000000000000000
+              Size.Height = 20.000000000000000000
+              Size.PlatformDefault = False
             end
           end
         end
@@ -4016,6 +4054,7 @@ object Form1: TForm1
         TabOrder = 2
         object Button1: TButton
           Align = Right
+          Enabled = False
           ModalResult = 1
           Margins.Left = 8.000000000000000000
           Margins.Right = 16.000000000000000000
@@ -4086,190 +4125,12 @@ object Form1: TForm1
           592s
           442s
           592s
-          442s
-          592s
-          442s
-          592s
           442s)
-        object TabItem8: TTabItem
-          CustomIcon = <
-            item
-            end>
-          IsSelected = True
-          Size.Width = 60.000000000000000000
-          Size.Height = 22.000000000000000000
-          Size.PlatformDefault = False
-          StyleLookup = ''
-          TabOrder = 0
-          Text = 'Archive'
-          ExplicitSize.cx = 60.000000000000000000
-          ExplicitSize.cy = 22.000000000000000000
-          object Layout19: TLayout
-            Align = Bottom
-            Margins.Bottom = 8.000000000000000000
-            Position.Y = 412.000000000000000000
-            Size.Width = 592.000000000000000000
-            Size.Height = 22.000000000000000000
-            Size.PlatformDefault = False
-            TabOrder = 1
-            object Button6: TButton
-              Align = Right
-              ModalResult = 1
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 16.000000000000000000
-              Position.X = 496.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 22.000000000000000000
-              Size.PlatformDefault = False
-              TabOrder = 0
-              Text = 'Start'
-              OnClick = Button6Click
-            end
-          end
-          object VertScrollBox3: TVertScrollBox
-            Align = Client
-            Margins.Left = 8.000000000000000000
-            Margins.Top = 8.000000000000000000
-            Margins.Right = 8.000000000000000000
-            Margins.Bottom = 8.000000000000000000
-            Size.Width = 576.000000000000000000
-            Size.Height = 396.000000000000000000
-            Size.PlatformDefault = False
-            TabOrder = 5
-            Viewport.Width = 576.000000000000000000
-            Viewport.Height = 396.000000000000000000
-            object GroupBox13: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 337.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Files'
-              TabOrder = 6
-              object Layout15: TLayout
-                Align = Client
-                Margins.Top = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 285.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 15
-                object Memo1: TMemo
-                  Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-                  DataDetectorTypes = []
-                  Align = Client
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Size.Width = 544.000000000000000000
-                  Size.Height = 277.000000000000000000
-                  Size.PlatformDefault = False
-                  TabOrder = 0
-                  Viewport.Width = 540.000000000000000000
-                  Viewport.Height = 273.000000000000000000
-                end
-              end
-              object Layout17: TLayout
-                Align = Bottom
-                Position.Y = 301.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Button3: TButton
-                  Align = Right
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Position.X = 384.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Size.Width = 80.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  TabOrder = 1
-                  Text = 'Add file'
-                  OnClick = Button3Click
-                end
-                object Button4: TButton
-                  Align = Right
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Position.X = 472.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Size.Width = 80.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  TabOrder = 0
-                  Text = 'Add folder'
-                  OnClick = Button4Click
-                end
-                object Label11: TLabel
-                  Align = Left
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Position.X = 8.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Size.Width = 225.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  Text = 'Wildcards can be used.'
-                  TabOrder = 2
-                end
-              end
-            end
-            object GroupBox14: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Position.Y = 337.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 54.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Output'
-              TabOrder = 0
-              object Layout16: TLayout
-                Align = Top
-                Margins.Top = 16.000000000000000000
-                Position.Y = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Edit11: TEdit
-                  Touch.InteractiveGestures = [LongTap, DoubleTap]
-                  Align = Client
-                  TabOrder = 0
-                  ReadOnly = True
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Size.Width = 544.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  object SearchEditButton10: TSearchEditButton
-                    CanFocus = False
-                    Cursor = crArrow
-                    Size.Width = 28.000000000000000000
-                    Size.Height = 14.000000000000000000
-                    Size.PlatformDefault = False
-                    TabOrder = 0
-                    OnClick = SearchEditButton10Click
-                  end
-                end
-              end
-            end
-          end
-        end
         object TabItem9: TTabItem
           CustomIcon = <
             item
             end>
-          IsSelected = False
+          IsSelected = True
           Size.Width = 70.000000000000000000
           Size.Height = 22.000000000000000000
           Size.PlatformDefault = False
@@ -4320,6 +4181,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit21Change
                   object SearchEditButton20: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -4380,6 +4242,7 @@ object Form1: TForm1
                   Size.Width = 544.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit21Change
                   object SearchEditButton21: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -4507,6 +4370,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit21Change
                   object SearchEditButton22: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -4566,6 +4430,7 @@ object Form1: TForm1
                   Size.Width = 544.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChangeTracking = Edit21Change
                 end
               end
             end
@@ -4580,6 +4445,7 @@ object Form1: TForm1
             TabOrder = 2
             object Button10: TButton
               Align = Right
+              Enabled = False
               ModalResult = 1
               Margins.Left = 8.000000000000000000
               Margins.Right = 16.000000000000000000
@@ -4648,6 +4514,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit8Change
                   object SearchEditButton7: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -4852,6 +4719,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit8Change
                   object SearchEditButton6: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -4892,6 +4760,7 @@ object Form1: TForm1
             TabOrder = 2
             object Button5: TButton
               Align = Right
+              Enabled = False
               ModalResult = 1
               Margins.Left = 8.000000000000000000
               Margins.Right = 16.000000000000000000
@@ -4960,6 +4829,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit10Change
                   object SearchEditButton9: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -5164,6 +5034,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit10Change
                   object SearchEditButton12: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -5204,6 +5075,7 @@ object Form1: TForm1
             TabOrder = 2
             object Button7: TButton
               Align = Right
+              Enabled = False
               ModalResult = 1
               Margins.Left = 8.000000000000000000
               Margins.Right = 16.000000000000000000
@@ -5272,6 +5144,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit14Change
                   object SearchEditButton13: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -5476,6 +5349,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit14Change
                   object SearchEditButton15: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -5536,6 +5410,7 @@ object Form1: TForm1
                   Size.Width = 456.000000000000000000
                   Size.Height = 20.000000000000000000
                   Size.PlatformDefault = False
+                  OnChange = Edit14Change
                   object SearchEditButton16: TSearchEditButton
                     CanFocus = False
                     Cursor = crArrow
@@ -5576,6 +5451,7 @@ object Form1: TForm1
             TabOrder = 2
             object Button8: TButton
               Align = Right
+              Enabled = False
               ModalResult = 1
               Margins.Left = 8.000000000000000000
               Margins.Right = 16.000000000000000000
@@ -5586,252 +5462,6 @@ object Form1: TForm1
               TabOrder = 0
               Text = 'Start'
               OnClick = Button8Click
-            end
-          end
-        end
-        object TabItem7: TTabItem
-          CustomIcon = <
-            item
-            end>
-          IsSelected = False
-          Size.Width = 49.000000000000000000
-          Size.Height = 22.000000000000000000
-          Size.PlatformDefault = False
-          StyleLookup = ''
-          TabOrder = 0
-          Text = 'Patch'
-          ExplicitSize.cx = 49.000000000000000000
-          ExplicitSize.cy = 22.000000000000000000
-          object VertScrollBox6: TVertScrollBox
-            Align = Client
-            Margins.Left = 8.000000000000000000
-            Margins.Top = 8.000000000000000000
-            Margins.Right = 8.000000000000000000
-            Margins.Bottom = 8.000000000000000000
-            Size.Width = 576.000000000000000000
-            Size.Height = 396.000000000000000000
-            Size.PlatformDefault = False
-            TabOrder = 5
-            Viewport.Width = 576.000000000000000000
-            Viewport.Height = 396.000000000000000000
-            object GroupBox24: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 54.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Input'
-              TabOrder = 5
-              object Layout31: TLayout
-                Align = Top
-                Margins.Top = 16.000000000000000000
-                Position.Y = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Edit18: TEdit
-                  Touch.InteractiveGestures = [LongTap, DoubleTap]
-                  Align = Client
-                  TabOrder = 0
-                  ReadOnly = True
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Size.Width = 456.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  object SearchEditButton17: TSearchEditButton
-                    CanFocus = False
-                    Cursor = crArrow
-                    Size.Width = 28.000000000000000000
-                    Size.Height = 14.000000000000000000
-                    Size.PlatformDefault = False
-                    TabOrder = 0
-                    OnClick = SearchEditButton17Click
-                  end
-                end
-                object ComboBox16: TComboBox
-                  Align = Left
-                  Items.Strings = (
-                    'File'
-                    'Directory')
-                  ItemIndex = 0
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Position.X = 8.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Size.Width = 80.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  TabOrder = 1
-                  OnChange = ComboBox16Change
-                end
-              end
-            end
-            object GroupBox25: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Position.Y = 108.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 54.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Output'
-              TabOrder = 0
-              object Layout32: TLayout
-                Align = Top
-                Margins.Top = 16.000000000000000000
-                Position.Y = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Edit19: TEdit
-                  Touch.InteractiveGestures = [LongTap, DoubleTap]
-                  Align = Client
-                  TabOrder = 0
-                  ReadOnly = True
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Size.Width = 544.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  object SearchEditButton18: TSearchEditButton
-                    CanFocus = False
-                    Cursor = crArrow
-                    Size.Width = 28.000000000000000000
-                    Size.Height = 14.000000000000000000
-                    Size.PlatformDefault = False
-                    TabOrder = 0
-                    OnClick = SearchEditButton18Click
-                  end
-                end
-              end
-            end
-            object GroupBox26: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Position.Y = 162.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 54.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Options'
-              TabOrder = 2
-              object Layout33: TLayout
-                Align = Top
-                Margins.Top = 16.000000000000000000
-                Position.Y = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Label17: TLabel
-                  Align = Left
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Position.X = 8.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Size.Width = 80.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  Text = 'Threads'
-                  TabOrder = 0
-                end
-                object SpinBox14: TSpinBox
-                  Touch.InteractiveGestures = [LongTap, DoubleTap]
-                  Align = Left
-                  TabOrder = 1
-                  Cursor = crIBeam
-                  DecimalDigits = 0
-                  Min = 1.000000000000000000
-                  Max = 1.000000000000000000
-                  Value = 1.000000000000000000
-                  Position.X = 96.000000000000000000
-                  Position.Y = 8.000000000000000000
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Size.Width = 80.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                end
-              end
-            end
-            object GroupBox27: TGroupBox
-              Align = Top
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 8.000000000000000000
-              Position.X = 8.000000000000000000
-              Position.Y = 54.000000000000000000
-              Size.Width = 560.000000000000000000
-              Size.Height = 54.000000000000000000
-              Size.PlatformDefault = False
-              Text = 'Source'
-              TabOrder = 8
-              object Layout34: TLayout
-                Align = Top
-                Margins.Top = 16.000000000000000000
-                Position.Y = 16.000000000000000000
-                Size.Width = 560.000000000000000000
-                Size.Height = 36.000000000000000000
-                Size.PlatformDefault = False
-                TabOrder = 14
-                object Edit20: TEdit
-                  Touch.InteractiveGestures = [LongTap, DoubleTap]
-                  Align = Client
-                  TabOrder = 0
-                  ReadOnly = True
-                  Margins.Left = 8.000000000000000000
-                  Margins.Top = 8.000000000000000000
-                  Margins.Right = 8.000000000000000000
-                  Margins.Bottom = 8.000000000000000000
-                  Size.Width = 544.000000000000000000
-                  Size.Height = 20.000000000000000000
-                  Size.PlatformDefault = False
-                  object SearchEditButton19: TSearchEditButton
-                    CanFocus = False
-                    Cursor = crArrow
-                    Size.Width = 28.000000000000000000
-                    Size.Height = 14.000000000000000000
-                    Size.PlatformDefault = False
-                    TabOrder = 0
-                    OnClick = SearchEditButton19Click
-                  end
-                end
-              end
-            end
-          end
-          object Layout35: TLayout
-            Align = Bottom
-            Margins.Bottom = 8.000000000000000000
-            Position.Y = 412.000000000000000000
-            Size.Width = 592.000000000000000000
-            Size.Height = 22.000000000000000000
-            Size.PlatformDefault = False
-            TabOrder = 2
-            object Button9: TButton
-              Align = Right
-              ModalResult = 1
-              Margins.Left = 8.000000000000000000
-              Margins.Right = 16.000000000000000000
-              Position.X = 496.000000000000000000
-              Size.Width = 80.000000000000000000
-              Size.Height = 22.000000000000000000
-              Size.PlatformDefault = False
-              TabOrder = 0
-              Text = 'Start'
-              OnClick = Button9Click
             end
           end
         end
@@ -5892,6 +5522,7 @@ object Form1: TForm1
               Size.Width = 544.000000000000000000
               Size.Height = 20.000000000000000000
               Size.PlatformDefault = False
+              OnChange = Edit25Change
               object SearchEditButton23: TSearchEditButton
                 CanFocus = False
                 Cursor = crArrow
@@ -6100,6 +5731,7 @@ object Form1: TForm1
         TabOrder = 2
         object Button11: TButton
           Align = Right
+          Enabled = False
           ModalResult = 1
           Margins.Left = 8.000000000000000000
           Margins.Right = 16.000000000000000000
