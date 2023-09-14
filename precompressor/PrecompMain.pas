@@ -437,7 +437,7 @@ begin
       Options.DedupSysMem := -Options.DedupSysMem;
     SrepCfg := ArgParse.AsString('-sp', 0, '').ToLower;
 {$IFDEF CPU64BITS}
-    S := ArgParse.AsString('-p', 0, '512mb');
+    S := ArgParse.AsString('-p', 0, '0mb');
     S := ReplaceText(S, 'KB', '* 1024^1');
     S := ReplaceText(S, 'MB', '* 1024^2');
     S := ReplaceText(S, 'GB', '* 1024^3');
