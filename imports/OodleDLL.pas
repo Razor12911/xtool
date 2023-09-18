@@ -10,6 +10,11 @@ uses
 
 const
   OODLELZ_SCRATCH_MEM_NO_BOUND = NativeUInt(-1);
+{$IFDEF CPU64BITS}
+  OODLELZ_ARCH = '_win64.dll';
+{$ELSE}
+  OODLELZ_ARCH = '_win32.dll';
+{$ENDIF}
 
 type
   POodleLZ_CompressOptions = ^TOodleLZ_CompressOptions;
@@ -95,7 +100,7 @@ begin
     for I := 3 to 9 do
     begin
       Lib.LoadLib(ExpandPath(PluginsPath + 'oo2core_' + I.ToString +
-        '_win64.dll', True));
+        OODLELZ_ARCH, True));
       if Lib.Loaded then
         break;
     end;
@@ -103,7 +108,7 @@ begin
     for I := 3 to 9 do
     begin
       Lib.LoadLib(ExpandPath(PluginsPath + 'oo2ext_' + I.ToString +
-        '_win64.dll', True));
+        OODLELZ_ARCH, True));
       if Lib.Loaded then
         break;
     end;
@@ -230,7 +235,7 @@ var
 
 initialization
 
-DLLFile := PluginsPath + 'oo2core_9_win64.dll';
+DLLFile := PluginsPath + 'oo2core_9' + OODLELZ_ARCH;
 for I := 1 to ParamCount do
 begin
   if ParamStr(I).StartsWith(DLLParam) then
