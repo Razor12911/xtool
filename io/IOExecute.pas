@@ -1,9 +1,5 @@
 unit IOExecute;
 
-(* xbcm:t4:c256m
-  xtool execute {options} - - <stdin> <stdout> bcm.exe -9 [filein] [fileout]
-  xtool decode {options} - - <stdin> <stdout> bcm.exe -d [filein] [fileout] *)
-
 interface
 
 uses
@@ -135,58 +131,74 @@ type
     Mode: Byte;
   end;
 
-procedure Init(ParamArg: TArray<string>; Ctx: PCtx);
+procedure Init(ParamArg: TArray<string>; Ctx: PCtx; IsDecode: Boolean);
 var
   I: Integer;
-  S: String;
+  S1, S2: String;
 begin
   with Ctx^ do
   begin
     Exec := '';
     Param := '';
-    InFile := FILE_IN;
-    OutFile := FILE_OUT;
+    InFile := '';
+    OutFile := '';
     Mode := 0;
     for I := Low(ParamArg) to High(ParamArg) do
     begin
-      S := ParamArg[I];
-      if ContainsText(S, '<stdin>') or ContainsText(S, '[stdin]') then
+      S1 := ParamArg[I];
+      if ContainsText(S1, '{stdin}') or ContainsText(S1, '<stdin>') or
+        ContainsText(S1, '[stdin]') then
       begin
         SetBits(Mode, 1, 0, 1);
         continue;
       end
-      else if ContainsText(S, '<stdout>') or ContainsText(S, '[stdout]') then
+      else if ContainsText(S1, '{stdout}') or ContainsText(S1, '<stdout>') or
+        ContainsText(S1, '[stdout]') then
       begin
         SetBits(Mode, 1, 1, 1);
         continue;
       end
-      else if ContainsText(S, '<filein>') or ContainsText(S, '[filein]') then
+      else if ContainsText(S1, '{filein}') or ContainsText(S1, '<filein>') or
+        ContainsText(S1, '[filein]') then
       begin
+        S2 := IfThen(IsDecode = False, FILE_IN, FILE_OUT);
         SetBits(Mode, 0, 0, 1);
-        if ContainsText(S, '<filein>') then
-          InFile := ExtractStr('<filein>', S)
+        if ContainsText(S1, '{filein}') then
+          InFile := ExtractStr('{filein}', S1)
+        else if ContainsText(S1, '<filein>') then
+          InFile := ExtractStr('<filein>', S1)
         else
-          InFile := ExtractStr('[filein]', S);
-        S := ReplaceText(S, InFile, FILE_IN);
-        InFile := ReplaceText(InFile, '<filein>', FILE_IN);
-        InFile := ReplaceText(InFile, '[filein]', FILE_IN);
+          InFile := ExtractStr('[filein]', S1);
+        InFile := ReplaceText(InFile, '{filein}', S2);
+        InFile := ReplaceText(InFile, '<filein>', S2);
+        InFile := ReplaceText(InFile, '[filein]', S2);
+        if ContainsText(S1, '{filein}') or ContainsText(S1, '<filein>') then
+          continue;
+        S1 := InFile;
       end
-      else if ContainsText(S, '<fileout>') or ContainsText(S, '[fileout]') then
+      else if ContainsText(S1, '{fileout}') or ContainsText(S1, '<fileout>') or
+        ContainsText(S1, '[fileout]') then
       begin
+        S2 := IfThen(IsDecode = True, FILE_IN, FILE_OUT);
         SetBits(Mode, 0, 1, 1);
-        if ContainsText(S, '<fileout>') then
-          OutFile := ExtractStr('<fileout>', S)
+        if ContainsText(S1, '{fileout}') then
+          OutFile := ExtractStr('{fileout}', S1)
+        else if ContainsText(S1, '<fileout>') then
+          OutFile := ExtractStr('<fileout>', S1)
         else
-          OutFile := ExtractStr('[fileout]', S);
-        S := ReplaceText(S, OutFile, FILE_OUT);
-        OutFile := ReplaceText(OutFile, '<fileout>', FILE_OUT);
-        OutFile := ReplaceText(OutFile, '[fileout]', FILE_OUT);
+          OutFile := ExtractStr('[fileout]', S1);
+        OutFile := ReplaceText(OutFile, '{fileout}', S2);
+        OutFile := ReplaceText(OutFile, '<fileout>', S2);
+        OutFile := ReplaceText(OutFile, '[fileout]', S2);
+        if ContainsText(S1, '{fileout}') or ContainsText(S1, '<fileout>') then
+          continue;
+        S1 := OutFile;
       end;
       if I = 0 then
-        Exec := ExpandPath(PluginsPath + S, True)
+        Exec := ExpandPath(PluginsPath + S1, True)
       else
-        Param := Param + ' ' + IfThen(ContainsText(S, ' ') or (S = ''),
-          '"' + S + '"', S);
+        Param := Param + ' ' + IfThen(ContainsText(S1, ' ') or (S1 = ''),
+          '"' + S1 + '"', S1);
     end;
   end;
 end;
@@ -293,7 +305,7 @@ var
 begin
   I := XTOOL_EXEC;
   Output.WriteBuffer(I, I.Size);
-  Init(ParamArg, @LCtx);
+  Init(ParamArg, @LCtx, False);
   SetLength(WorkDir, Options.Threads);
   SetLength(Tasks, Options.Threads);
   SetLength(State, Options.Threads);
@@ -409,7 +421,7 @@ var
   end;
 
 begin
-  Init(ParamArg, @LCtx);
+  Init(ParamArg, @LCtx, True);
   SetLength(WorkDir, Options.Threads);
   SetLength(Tasks, Options.Threads);
   SetLength(State, Options.Threads);
