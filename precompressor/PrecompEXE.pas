@@ -281,15 +281,15 @@ begin
     DeleteFile(WorkDir[Instance, 0] + InFile[0]);
     DeleteFile(WorkDir[Instance, 0] + OutFile[0]);
     S := Param[0];
-    S := ReplaceText(S, '<insize>', StreamInfo^.OldSize.ToString);
-    S := ReplaceText(S, '<outsize>', StreamInfo^.NewSize.ToString);
+    S := ReplaceText(S, '[insize]', StreamInfo^.OldSize.ToString);
+    S := ReplaceText(S, '[outsize]', StreamInfo^.NewSize.ToString);
     Res := 0;
-    if ContainsText(S, '<fileres>') and Funcs^.GetResource(StreamInfo^.Resource,
+    if ContainsText(S, '[fileres]') and Funcs^.GetResource(StreamInfo^.Resource,
       nil, @Res) and (Res > 0) then
     begin
       T := StreamInfo^.Resource.ToHexString.ToLower + '.res';
-      S := ReplaceText(S, '<fileres>', T);
-      S := ReplaceText(S, '<ressize>', Res.ToString);
+      S := ReplaceText(S, '[fileres]', T);
+      S := ReplaceText(S, '[ressize]', Res.ToString);
       T := WorkDir[Instance, 0] + T;
       if not FileExists(T) then
         with TFileStream.Create(T, fmCreate) do
@@ -377,15 +377,15 @@ begin
     DeleteFile(WorkDir[Instance, 1] + InFile[1]);
     DeleteFile(WorkDir[Instance, 1] + OutFile[1]);
     S := Param[1];
-    S := ReplaceText(S, '<insize>', StreamInfo^.NewSize.ToString);
-    S := ReplaceText(S, '<outsize>', StreamInfo^.OldSize.ToString);
+    S := ReplaceText(S, '[insize]', StreamInfo^.NewSize.ToString);
+    S := ReplaceText(S, '[outsize]', StreamInfo^.OldSize.ToString);
     Res := 0;
-    if ContainsText(S, '<fileres>') and Funcs^.GetResource(StreamInfo^.Resource,
+    if ContainsText(S, '[fileres]') and Funcs^.GetResource(StreamInfo^.Resource,
       nil, @Res) and (Res > 0) then
     begin
       T := StreamInfo^.Resource.ToHexString.ToLower + '.res';
-      S := ReplaceText(S, '<fileres>', T);
-      S := ReplaceText(S, '<ressize>', Res.ToString);
+      S := ReplaceText(S, '[fileres]', T);
+      S := ReplaceText(S, '[ressize]', Res.ToString);
       T := WorkDir[Instance, 1] + T;
       if not FileExists(T) then
         with TFileStream.Create(T, fmCreate) do
@@ -685,14 +685,15 @@ begin
             S1 := Ini.ReadString(SL[I], 'Encode', '')
           else
             S1 := Ini.ReadString(SL[I], 'Decode', '');
-          S1 := ReplaceText(S1, '<codec>', List[K]);
+          S1 := ReplaceText(S1, '[codec]', List[K]);
           ExeStruct.Exec[X] := ExpandPath(PluginsPath, True) + GetCmdStr(S1, 0);
           ExeStruct.Param[X] := '';
           ExeStruct.Mode[X] := 0;
           for J := 1 to GetCmdCount(S1) - 1 do
           begin
             S2 := GetCmdStr(S1, J);
-            if ContainsText(S2, '<library>') then
+            if ContainsText(S2, '<library>') or ContainsText(S2, '[library]')
+            then
             begin
               SetBits(ExeStruct.Mode[X], STDIO_MODE, 0, 2);
               ExeStruct.IsLib[X] := True;
@@ -719,14 +720,13 @@ begin
                 ExeStruct.InFile[X] := ExtractStr('<filein>', S2)
               else
                 ExeStruct.InFile[X] := ExtractStr('[filein]', S2);
-              S2 := ReplaceText(S2, ExeStruct.InFile[X], S3);
               ExeStruct.InFile[X] := ReplaceText(ExeStruct.InFile[X],
                 '<filein>', S3);
               ExeStruct.InFile[X] := ReplaceText(ExeStruct.InFile[X],
                 '[filein]', S3);
-              S2 := ExeStruct.InFile[X];
-              if ContainsText(S2, '[filein]') then
+              if ContainsText(S2, '<filein>') then
                 continue;
+              S2 := ExeStruct.InFile[X];
             end
             else if ContainsText(S2, '<fileout>') or
               ContainsText(S2, '[fileout]') then
@@ -741,9 +741,9 @@ begin
                 '<fileout>', S3);
               ExeStruct.OutFile[X] := ReplaceText(ExeStruct.OutFile[X],
                 '[fileout]', S3);
-              S2 := ExeStruct.OutFile[X];
-              if ContainsText(S2, '[fileout]') then
+              if ContainsText(S2, '<fileout>') then
                 continue;
+              S2 := ExeStruct.OutFile[X];
             end;
             S2 := IfThen((Pos(' ', S2) > 0) or (S2 = ''), '"' + S2 + '"', S2);
             ExeStruct.Param[X] := ExeStruct.Param[X] + ' ' + S2;
